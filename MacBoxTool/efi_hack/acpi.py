@@ -2,4 +2,4 @@
 acpi.py building acpi
 """
 
-class ACPIBuilding
+class ACP
