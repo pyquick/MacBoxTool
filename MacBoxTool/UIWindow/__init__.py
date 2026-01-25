@@ -12,8 +12,9 @@ Examples are available at https://github.com/zhiyiYo/PyQt-Frameless-Window/tree/
 :license: LGPLv3, see LICENSE for more details.
 """
 
-__version__ = "0.7.7"
+__version__ = "0.7.8"
 __author__ = "zhiyiYo"
+__editor__ = "pyquick"
 
 import sys
 
