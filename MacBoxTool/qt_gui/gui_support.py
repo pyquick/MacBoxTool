@@ -10,10 +10,81 @@ from PySide6.QtCore import *
 from PySide6.QtGui import *
 from ..support.colors import COLORS, RADIUS, SPACING
 
+if TYPE_CHECKING:
+    from ..UIkit import GroupHeaderCardWidget, CardGroupWidget
+
+class ProgressStatusHelper:
+    def __init__(self, status_icon_label, progress_label, progress_bar, progress_container):
+        self.status_icon_label = status_icon_label
+        self.progress_label = progress_label
+        self.progress_bar = progress_bar
+        self.progress_container = progress_container
+    
+    def update(self, status, message, progress=None):
+        icon_size = 28
+        icon_map = {
+            "loading": (FluentIcon.SYNC, COLORS["primary"]),
+            "success": (FluentIcon.COMPLETED, COLORS["success"]),
+            "error": (FluentIcon.CLOSE, COLORS["error"]),
+            "warning": (FluentIcon.INFO, COLORS["warning"]),
+        }
+        
+        if status in icon_map:
+            icon, color = icon_map[status]
+            pixmap = icon.icon(color=color).pixmap(icon_size, icon_size)
+            self.status_icon_label.setPixmap(pixmap)
+        
+        self.progress_label.setText(message)
+        if status == "success":
+            self.progress_label.setStyleSheet("color: {}; font-size: 15px; font-weight: 600;".format(COLORS["success"]))
+        elif status == "error":
+            self.progress_label.setStyleSheet("color: {}; font-size: 15px; font-weight: 600;".format(COLORS["error"]))
+        elif status == "warning":
+            self.progress_label.setStyleSheet("color: {}; font-size: 15px; font-weight: 600;".format(COLORS["warning"]))
+        else:
+            self.progress_label.setStyleSheet("color: {}; font-size: 15px; font-weight: 600;".format(COLORS["primary"]))
+        
+        if progress is not None:
+            self.progress_bar.setRange(0, 100)
+            self.progress_bar.setValue(progress)
+        else:
+            self.progress_bar.setRange(0, 0)
+        
+        self.progress_container.setVisible(True)
 
 class DefGUI():
     def __init__(self,global_constants:Constants):
         self.constants:Constants=global_constants
+
+    def build_icon_label(self, icon: FluentIcon, color: str, size: int = 32) -> QLabel:
+        label = QLabel()
+        label.setPixmap(icon.icon(color=color).pixmap(size, size))
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label.setFixedSize(size + 12, size + 12)
+        return label
+    
+    def create_info_widget(self, text: str, color: Optional[str] = None) -> QWidget:
+        if not text:
+            return QWidget()
+        
+        label = BodyLabel(text)
+        label.setWordWrap(True)
+        if color:
+            label.setStyleSheet("color: {};".format(color))
+        return label
+    
+    def colored_icon(self, icon: FluentIcon, color_hex: str) -> FluentIcon:
+        if not icon or not color_hex:
+            return icon
+        
+        tint = QColor(color_hex)
+        return icon.colored(tint, tint)
+
+    def get_compatibility_icon(self, compat_tuple: Optional[Tuple[Optional[str], Optional[str]]]) -> FluentIcon:
+        if not compat_tuple or compat_tuple == (None, None):
+            return self.colored_icon(FluentIcon.CLOSE, COLORS["error"])
+        return self.colored_icon(FluentIcon.ACCEPT, COLORS["success"])
+    
     def custom_card(self, card_type: str = "note", icon: Optional[FluentIcon] = None, title: str = "", body: str = "", custom_widget: Optional[QWidget] = None, parent: Optional[QWidget] = None) -> CardWidget:
         card_styles = {
             "note": {
@@ -90,4 +161,27 @@ class DefGUI():
         main_layout.addLayout(text_layout)
         
         return card
+    
+    def add_group_with_indent(self, card: "GroupHeaderCardWidget", icon: FluentIcon, title: str, content: str, widget: Optional[QWidget] = None, indent_level: int = 0) -> "CardGroupWidget":
+        if widget is None:
+            widget = QWidget()
+        
+        group = card.addGroup(icon, title, content, widget)
+        
+        if indent_level > 0:
+            base_margin = 24
+            indent = 20 * indent_level
+            group.hBoxLayout.setContentsMargins(base_margin + indent, 10, 24, 10)
+        
+        return group
+
+    def create_step_indicator(self, step_number: int, total_steps: int = 4, color: str = "#0078D4") -> BodyLabel:
+        label = BodyLabel("STEP {} OF {}".format(step_number, total_steps))
+        label.setStyleSheet("color: {}; font-weight: bold;".format(color))
+        return label
+
+    def create_vertical_spacer(self, spacing: int = SPACING["medium"]) -> QWidget:
+        spacer = QWidget()
+        spacer.setFixedHeight(spacing)
+        return spacer
         
