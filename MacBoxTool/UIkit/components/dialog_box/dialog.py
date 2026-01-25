@@ -2,7 +2,7 @@
 from PySide6.QtCore import Qt, Signal, QObject, QEvent
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QLabel, QFrame, QVBoxLayout, QHBoxLayout, QPushButton
-from qframelesswindow import FramelessDialog
+from ....UIWindow import FramelessDialog
 
 from ...common.auto_wrap import TextWrap
 from ...common.style_sheet import FluentStyleSheet

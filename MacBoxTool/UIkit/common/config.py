@@ -6,13 +6,13 @@ from pathlib import Path
 from typing import List
 
 import darkdetect
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, qVersion
 from PySide6.QtGui import QColor
 
 from .exception_handler import exceptionHandler
 
 
-
+QT_VERSION = tuple([int(v) for v in qVersion().split('.')])
 
 class Theme(Enum):
     """ Theme enumeration """

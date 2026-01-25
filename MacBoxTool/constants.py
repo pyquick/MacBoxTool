@@ -115,3 +115,6 @@ class Constants:
         ## Jazzzny
         self.legacy_keyboard: str = "1.0.0"  # LegacyKeyboardInjector - Jazzzny
 
+        ## zxystd
+        self.itlwm_kext:      str = "2.3.0"
+        self.intel_bluetooth_firmware: str = "2.5.0"

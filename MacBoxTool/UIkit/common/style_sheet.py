@@ -3,12 +3,13 @@ from enum import Enum
 from string import Template
 from typing import List, Union
 import weakref
+import sys
 
 from PySide6.QtCore import QFile, QObject, QEvent, QDynamicPropertyChangeEvent
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QWidget, QApplication, QStyleFactory
 
-from .config import qconfig, Theme, isDarkTheme
+from .config import qconfig, Theme, isDarkTheme, QT_VERSION
 
 
 class StyleSheetManager(QObject):
@@ -525,3 +526,10 @@ def setThemeColor(color, save=False, lazy=False):
     color = QColor(color)
     qconfig.set(qconfig.themeColor, color, save=save)
     updateStyleSheet(lazy)
+
+def updateDynamicStyle(widget: QWidget):
+    """ update the dynamic style of widget """
+    if sys.platform != "win32" or QT_VERSION < (6, 8, 0):
+        widget.setStyle(QApplication.style())
+    else:
+        widget.setStyle(QStyleFactory.create("windowsvista"))
