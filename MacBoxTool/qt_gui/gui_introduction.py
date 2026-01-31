@@ -1,14 +1,10 @@
 """
 gui_introduction.py: Give introduction on GUI
 """
-from ..UIkit import *
-from ..UIkit import FluentIcon as FIF
-from PySide6.QtWidgets import *
-from PySide6.QtCore import *
-from PySide6.QtGui import *
+from ..include import *
 from ..constants import Constants
-from .gui_support import DefGUI, SPACING, COLORS
-from 
+from .gui_support import DefGUI
+
 class Introduction(ScrollArea):
     def __init__(self,global_constants:Constants,parent=None,ui_support:DefGUI=None):
         super.__init__()
@@ -27,6 +23,19 @@ class Introduction(ScrollArea):
         self._init_ui()
     def _init_ui(self):
         self.expandLayout.setContentsMargins(SPACING["xxlarge"], SPACING["xlarge"], SPACING["xxlarge"], SPACING["xlarge"])
+        self.expandLayout.setSpacing(SPACING["large"])
+
+        self.expandLayout.addWidget(self._create_title_label())
+        
+        self.expandLayout.addWidget(self._create_hero_section())
+        
+        self.expandLayout.addWidget(self._create_note_card())
+        
+        self.expandLayout.addWidget(self._create_warning_card())
+        
+        #self.expandLayout.addWidget(self._create_guide_card())
+
+        self.expandLayout.addStretch()
     def _create_hero_section(self):
         hero_card = CardWidget()
         

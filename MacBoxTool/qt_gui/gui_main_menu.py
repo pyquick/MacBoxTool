@@ -1,59 +1,89 @@
-from ..UIkit import *
-from ..UIkit import FluentIcon as FIF
-from PySide6.QtWidgets import *
-from PySide6.QtCore import *
-from PySide6.QtGui import *
-import sys
-from ..constants import Constants
+from ..include import *
+
+WINDOW_MIN_SIZE = (1000, 700)
+WINDOW_DEFAULT_SIZE = (1200, 800)
 class Widget(QFrame):
 
     def __init__(self, text: str, parent=None):
         super().__init__(parent=parent)
         self.label = SubtitleLabel(text, self)
         self.hBoxLayout = QHBoxLayout(self)
-
+        
         setFont(self.label, 24)
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.hBoxLayout.addWidget(self.label, 1, Qt.AlignmentFlag.AlignCenter)
 
-        # 必须给子界面设置全局唯一的对象名
+        
         self.setObjectName(text.replace(' ', '-'))
 
 
 class Window(FluentWindow):
     
-
+    PLATFORM_FONTS = {
+        "Windows": "Segoe UI",
+        "Darwin": "SF Pro Display",
+        "Linux": "Ubuntu"
+    }
     def __init__(self,global_constants:Constants):
         self.constants = global_constants
         super().__init__()
+        
+    def _setup_window(self):
+        self.setWindowTitle("MacBoxTool")
+        self.setMinimumSize(*WINDOW_MIN_SIZE)
+        
+        self._restore_window_geometry()
 
-        # 创建子界面，实际使用时将 Widget 换成自己的子界面
-        self.homeInterface = Widget('Home Interface', self)
-        self.musicInterface = Widget('Music Interface', self)
-        self.videoInterface = Widget('Video Interface', self)
-        self.settingInterface = Widget('Setting Interface', self)
-        self.albumInterface = Widget('Album Interface', self)
-        self.albumInterface1 = Widget('Album Interface 1', self)
+        font = QFont()
+        system = platform.system()
+        font_family = self.PLATFORM_FONTS.get(system, "Ubuntu")
+        font.setFamily(font_family)
+        font.setStyleHint(QFont.StyleHint.SansSerif)
+        self.setFont(font)
 
-        self.initNavigation()
-        self.initWindow()
+    def _restore_window_geometry(self):
+        saved_geometry = self.settings.get("window_geometry")
+        
+        if saved_geometry and isinstance(saved_geometry, dict):
+            x = saved_geometry.get("x")
+            y = saved_geometry.get("y")
+            width = saved_geometry.get("width", WINDOW_DEFAULT_SIZE[0])
+            height = saved_geometry.get("height", WINDOW_DEFAULT_SIZE[1])
+            
+            if x is not None and y is not None:
+                screen = QApplication.primaryScreen()
+                if screen:
+                    screen_geometry = screen.availableGeometry()
+                    if (screen_geometry.left() <= x <= screen_geometry.right() and
+                        screen_geometry.top() <= y <= screen_geometry.bottom()):
+                        self.setGeometry(x, y, width, height)
+                        return
+        
+        self._center_window()
 
-    def initNavigation(self):
-        self.addSubInterface(self.homeInterface, FIF.HOME, 'Home')
-        self.addSubInterface(self.musicInterface, FIF.MUSIC, 'Music library')
-        self.addSubInterface(self.videoInterface, FIF.VIDEO, 'Video library')
+    def _center_window(self):
+        screen = QApplication.primaryScreen()
+        if screen:
+            screen_geometry = screen.availableGeometry()
+            window_width = WINDOW_DEFAULT_SIZE[0]
+            window_height = WINDOW_DEFAULT_SIZE[1]
+            
+            x = screen_geometry.left() + (screen_geometry.width() - window_width) // 2
+            y = screen_geometry.top() + (screen_geometry.height() - window_height) // 2
+            
+            self.setGeometry(x, y, window_width, window_height)
+        else:
+            self.resize(*WINDOW_DEFAULT_SIZE)
 
-        self.navigationInterface.addSeparator()
+    def _save_window_geometry(self):
+        geometry = self.geometry()
+        window_geometry = {
+            "x": geometry.x(),
+            "y": geometry.y(),
+            "width": geometry.width(),
+            "height": geometry.height()
+        }
+        self.settings.set("window_geometry", window_geometry)
 
-        self.addSubInterface(self.albumInterface, FIF.ALBUM, 'Albums', NavigationItemPosition.SCROLL)
-        self.addSubInterface(self.albumInterface1, FIF.ALBUM, 'Album 1', parent=self.albumInterface)
-
-        self.addSubInterface(self.settingInterface, FIF.SETTING, 'Settings', NavigationItemPosition.BOTTOM)
-
-    def initWindow(self):
-        self.resize(900, 700)
-        self.setWindowIcon(QIcon(':/qfluentwidgets/images/logo.png'))
-        self.setWindowTitle('PyQt-Fluent-Widgets')
-
-
-
+    def _init_state(self):
+        pass
