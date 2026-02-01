@@ -6,6 +6,7 @@ from PySide6.QtCore import *
 from PySide6.QtGui import *
 from .support.colors import *
 from .UIWindow.utils import *
+from PySide6.QtCore import QTimer,QObject
 
 #constants
 from .constants import *
@@ -27,3 +28,4 @@ import psutil
 import ctypes
 import ctypes.wintypes
 from typing import Optional, Tuple, TYPE_CHECKING
+from termios import INPCK

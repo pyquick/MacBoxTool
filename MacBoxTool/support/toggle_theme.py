@@ -1,15 +1,14 @@
 """toggle_theme.py: A script to toggle between light and dark theme in macOS."""
 
-from termios import INPCK
-from ..include import *
-from PySide6.QtCore import QTimer,QObject
 
+from ..include import *
 
 class ThemeManager(QObject):
-    def __init__(self):
+    def __init__(self,global_constants:Constants=None):
         super().__init__()
         setTheme(Theme.AUTO)
         setThemeColor(getSystemAccentColor(), save=False)
+        self.constants = global_constants
         self.current_theme = "dark"
         self.last_accent_color = None
         self.running = True
