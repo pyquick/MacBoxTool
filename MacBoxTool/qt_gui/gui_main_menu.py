@@ -1,5 +1,6 @@
 from ..include import *
-
+from .gui_support import DefGUI
+from .gui_introduction import Introduction
 WINDOW_MIN_SIZE = (1000, 700)
 WINDOW_DEFAULT_SIZE = (1200, 800)
 class Widget(QFrame):
@@ -24,15 +25,19 @@ class Window(FluentWindow):
         "Darwin": "SF Pro Display",
         "Linux": "Ubuntu"
     }
-    def __init__(self,global_constants:Constants):
+    def __init__(self,global_constants:Constants,parent=None):
+        super().__init__(parent=parent)
         self.constants = global_constants
-        super().__init__()
-        
+        self.gui_support=DefGUI(self.constants)
+        self._init_state()
+        self._setup_window()
+        self._init_ui()
+
     def _setup_window(self):
         self.setWindowTitle("MacBoxTool")
         self.setMinimumSize(*WINDOW_MIN_SIZE)
         
-        self._restore_window_geometry()
+        #self._restore_window_geometry()
 
         font = QFont()
         system = platform.system()
@@ -41,25 +46,7 @@ class Window(FluentWindow):
         font.setStyleHint(QFont.StyleHint.SansSerif)
         self.setFont(font)
 
-    def _restore_window_geometry(self):
-        saved_geometry = self.settings.get("window_geometry")
-        
-        if saved_geometry and isinstance(saved_geometry, dict):
-            x = saved_geometry.get("x")
-            y = saved_geometry.get("y")
-            width = saved_geometry.get("width", WINDOW_DEFAULT_SIZE[0])
-            height = saved_geometry.get("height", WINDOW_DEFAULT_SIZE[1])
-            
-            if x is not None and y is not None:
-                screen = QApplication.primaryScreen()
-                if screen:
-                    screen_geometry = screen.availableGeometry()
-                    if (screen_geometry.left() <= x <= screen_geometry.right() and
-                        screen_geometry.top() <= y <= screen_geometry.bottom()):
-                        self.setGeometry(x, y, width, height)
-                        return
-        
-        self._center_window()
+    
 
     def _center_window(self):
         screen = QApplication.primaryScreen()
@@ -87,3 +74,57 @@ class Window(FluentWindow):
 
     def _init_state(self):
         pass
+
+    def closeEvent(self, event):
+        self._save_window_geometry()
+        super().closeEvent(event)
+
+    def update_status(self, message, status_type="INFO"):
+        if status_type == "success":
+            InfoBar.success(
+                title="Success",
+                content=message,
+                orient=Qt.Orientation.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=3000,
+                parent=self
+            )
+        elif status_type == "ERROR":
+            InfoBar.error(
+                title="ERROR",
+                content=message,
+                orient=Qt.Orientation.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=5000,
+                parent=self
+            )
+        elif status_type == "WARNING":
+            InfoBar.warning(
+                title="WARNING",
+                content=message,
+                orient=Qt.Orientation.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=4000,
+                parent=self
+            )
+        else:
+            InfoBar.info(
+                title="INFO",
+                content=message,
+                orient=Qt.Orientation.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=3000,
+                parent=self
+            )
+    def _init_ui(self):
+        self.introduction=Introduction(self.constants,self,self.gui_support)
+        self.addSubInterface(
+            self.introduction,
+            FluentIcon.HOME,
+            "Home",
+            NavigationItemPosition.TOP
+        )

@@ -7,7 +7,7 @@ from .gui_support import DefGUI
 
 class Introduction(ScrollArea):
     def __init__(self,global_constants:Constants,parent=None,ui_support:DefGUI=None):
-        super.__init__()
+        super().__init__(parent=parent)
         self.setObjectName("Introduction")
         self.setWidgetResizable(True)
         self.parent = parent
@@ -61,7 +61,7 @@ class Introduction(ScrollArea):
 
         hero_layout.addLayout(hero_text, 2)
 
-        robot_icon = self.ui_utils.build_icon_label(FluentIcon.ROBOT, COLORS["primary"], size=64)
+        robot_icon = self.ui_support.build_icon_label(FluentIcon.ROBOT, COLORS["primary"], size=64)
         hero_layout.addWidget(robot_icon, 1, Qt.AlignmentFlag.AlignVCenter)
 
         return hero_card
