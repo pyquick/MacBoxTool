@@ -14,7 +14,7 @@ Examples are available at https://github.com/zhiyiYo/PyQt-Fluent-Widgets/tree/Py
 
 __version__ = "1.10.6"
 __author__ = "zhiyiYo"
-__editor__ = "ghltbm"
+__editor__ = "pyquick"
 
 from .components import *
 from .common import *

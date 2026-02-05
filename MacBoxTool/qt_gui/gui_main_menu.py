@@ -29,9 +29,20 @@ class Window(FluentWindow):
         super().__init__(parent=parent)
         self.constants = global_constants
         self.gui_support=DefGUI(self.constants)
+        logging.info("######################")
+        logging.info("###gui_main_menu:OK###")
+        logging.info("######################")
+        self.themeListener= SystemThemeListener(self)
+        self.themeListener.start()
         self._init_state()
         self._setup_window()
+        
         self._init_ui()
+
+    def _onThemeChangedFinished(self):
+        super()._onThemeChangedFinished()
+        self.refresh()
+        setTheme(Theme.AUTO)
 
     def _setup_window(self):
         self.setWindowTitle("MacBoxTool")
@@ -42,6 +53,7 @@ class Window(FluentWindow):
         font = QFont()
         system = platform.system()
         font_family = self.PLATFORM_FONTS.get(system, "Ubuntu")
+        logging.info(f"Using font: {font_family}")
         font.setFamily(font_family)
         font.setStyleHint(QFont.StyleHint.SansSerif)
         self.setFont(font)
@@ -70,13 +82,15 @@ class Window(FluentWindow):
             "width": geometry.width(),
             "height": geometry.height()
         }
-        self.settings.set("window_geometry", window_geometry)
+        
 
     def _init_state(self):
         pass
 
     def closeEvent(self, event):
         self._save_window_geometry()
+        self.themeListener.terminate()
+        self.themeListener.deleteLater()
         super().closeEvent(event)
 
     def update_status(self, message, status_type="INFO"):
@@ -128,3 +142,6 @@ class Window(FluentWindow):
             "Home",
             NavigationItemPosition.TOP
         )
+    
+    def refresh(self):
+        pass

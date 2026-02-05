@@ -12,7 +12,7 @@ class Constants:
         #MacBoxTool Version
         self.mactoolbox_version:        str = "0.0.1"
         self.patcher_support_pkg_version:     str = "1.11.0"  # PatcherSupportPkg
-        self.copyright:                        str = "Copyright © 2020-2026 Ghltbm"
+        self.copyright:                        str = "Copyright © 2020-2026 Pyquick"
 
         # OpenCore Version
         self.opencore_version:           str = "1.0.6"
@@ -118,3 +118,6 @@ class Constants:
         ## zxystd
         self.itlwm_kext:      str = "2.3.0"
         self.intel_bluetooth_firmware: str = "2.5.0"
+
+        self.log_filepath:    str = None
+        self.cli_mode:                  bool = False  #  Determine if running in CLI mode

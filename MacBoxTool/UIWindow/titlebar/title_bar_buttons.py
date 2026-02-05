@@ -298,7 +298,7 @@ class CloseButton(SvgTitleBarButton):
     """ Close button """
 
     def __init__(self, parent=None):
-        super().__init__(":/UIWindow/close.svg", parent)
+        super().__init__(":/qframelesswindow/close.svg", parent)
         self.setHoverColor(Qt.white)
         self.setPressedColor(Qt.white)
         self.setHoverBackgroundColor(QColor(232, 17, 35))
