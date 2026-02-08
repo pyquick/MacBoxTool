@@ -4,3 +4,4 @@ colorthief
 scipy
 termcolor
 pillow
+psutil

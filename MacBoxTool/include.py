@@ -39,3 +39,4 @@ from termios import INPCK
 from pathlib import Path
 import plistlib
 from datetime import datetime
+from .support.global_settings import GlobalSettings

@@ -1,6 +1,7 @@
 from ..include import *
 from .gui_support import DefGUI
 from .gui_introduction import Introduction
+from .gui_build import BuildOCPage
 WINDOW_MIN_SIZE = (1000, 700)
 WINDOW_DEFAULT_SIZE = (1200, 800)
 class Widget(QFrame):
@@ -141,6 +142,13 @@ class Window(FluentWindow):
             FluentIcon.HOME,
             "Home",
             NavigationItemPosition.TOP
+        )
+        self.build=BuildOCPage(self.constants,self,self.gui_support)
+        self.addSubInterface(
+            self.build,
+            FluentIcon.DEVELOPER_TOOLS,
+            "Build For Macs",
+            NavigationItemPosition.SCROLL
         )
     
     def refresh(self):
