@@ -1,7 +1,10 @@
 from ..include import *
 from .gui_support import DefGUI
+
 from .gui_introduction import Introduction
 from .gui_build import BuildOCPage
+from .gui_about import AboutInterface
+
 WINDOW_MIN_SIZE = (1000, 700)
 WINDOW_DEFAULT_SIZE = (1200, 800)
 class Widget(QFrame):
@@ -26,9 +29,10 @@ class Window(FluentWindow):
         "Darwin": "SF Pro Display",
         "Linux": "Ubuntu"
     }
-    def __init__(self,global_constants:Constants,parent=None):
+    def __init__(self,global_constants:Constants,global_settings:GlobalSettings,parent=None):
         super().__init__(parent=parent)
         self.constants = global_constants
+        self.settings=global_settings
         self.gui_support=DefGUI(self.constants)
         logging.info("######################")
         logging.info("###gui_main_menu:OK###")
@@ -136,19 +140,28 @@ class Window(FluentWindow):
                 parent=self
             )
     def _init_ui(self):
-        self.introduction=Introduction(self.constants,self,self.gui_support)
+        self.introduction=Introduction(self.constants,self.gui_support,self.settings,self)
         self.addSubInterface(
             self.introduction,
             FluentIcon.HOME,
             "Home",
             NavigationItemPosition.TOP
         )
-        self.build=BuildOCPage(self.constants,self,self.gui_support)
+
+        self.build=BuildOCPage(self.constants,self.gui_support,self.settings,self)
         self.addSubInterface(
             self.build,
             FluentIcon.DEVELOPER_TOOLS,
             "Build For Macs",
             NavigationItemPosition.SCROLL
+        )
+
+        self.about=AboutInterface(self.constants,self.gui_support,self.settings,self)
+        self.addSubInterface(
+            self.about,
+            FluentIcon.INFO,
+            "About",
+            NavigationItemPosition.BOTTOM
         )
     
     def refresh(self):

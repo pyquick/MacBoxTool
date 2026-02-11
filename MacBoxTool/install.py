@@ -2,12 +2,17 @@ import subprocess
 import logging
 import sys
 
+from .support.global_settings import GlobalSettings
+from .constants import Constants
+
 class Install:
     def __init__(self):
-
+        self.constants:Constants=Constants()
+        self.settings=GlobalSettings(self.constants)
         self.packages:list = ["PySide6","darkdetect","colorthief","scipy","pillow","termcolor","psutil"]
-
         self.version=str(sys.version_info.major)+"."+str(sys.version_info.minor)
+
+        self.installed = self.settings.find_key("INSTALLED")     
             
         self.cnt=[]
 
@@ -15,8 +20,21 @@ class Install:
         print(f"Your Python Version: {self.version}")
 
         self.install_packages()
+
+    def check_already_installed(self):
+        if self.installed is None:
+            self.installed= "NO"
+            self.settings.add_key("INSTALLED","NO")
+            return False
+        if self.installed=="YES":
+            return True
     
     def show_packages(self):
+        if self.check_already_installed():
+            logging.info("All packages are already installed.")
+            print("All packages are already installed.")
+            return True
+
         logging.info("Installing required packages...")
         print("Installing required packages...")
         
@@ -32,6 +50,7 @@ class Install:
         if len(self.cnt)==0:
             logging.info("All packages are already installed.")
             print("All packages are already installed.")
+            self.settings.edit_key("INSTALLED","YES")
             return True
         else:
             logging.warning("Some packages are not installed. ")

@@ -12,21 +12,25 @@ from .support.logging_handler import LoggingHandler
 from .support.toggle_theme import ThemeManager
 import sys
 from .support.global_settings import GlobalSettings
+from .detections import device_probe
 
 
 
 class MacBoxTool:
     def __init__(self)-> None:
+        super().__init__()
         self.constants: Constants = Constants()
-        LoggingHandler(self.constants)
+        self.computer= device_probe.Computer().probe()
         
+        self.constants.computer = self.computer
+        LoggingHandler(self.constants)
         ThemeManager(self.constants)
-        GlobalSettings(self.constants)
+        self.settings=GlobalSettings(self.constants)
         self.opengui()
         
 
     def opengui(self):
-        w = OpenGUI(self.constants)
+        w = OpenGUI(self.constants,self.settings)
         w.gui_main_menu()
 
 def main():

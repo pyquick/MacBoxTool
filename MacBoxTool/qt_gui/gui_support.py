@@ -11,6 +11,11 @@ if TYPE_CHECKING:
 
 class ProgressStatusHelper:
     def __init__(self, status_icon_label, progress_label, progress_bar, progress_container):
+        
+        logging.info("########################")
+        logging.info("#####gui_support:OK#####")
+        logging.info("########################") 
+        
         self.status_icon_label = status_icon_label
         self.progress_label = progress_label
         self.progress_bar = progress_bar

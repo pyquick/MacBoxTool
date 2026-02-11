@@ -4,6 +4,7 @@ constants.py: Defines versioning, file paths and other settings for the patcher
 
 
 from pathlib import Path
+from .detections import device_probe
 
 
 
@@ -121,3 +122,6 @@ class Constants:
 
         self.log_filepath:    str = None
         self.cli_mode:                  bool = False  #  Determine if running in CLI mode
+
+        self.computer: device_probe.Computer = None
+        self.custom_model: str = None

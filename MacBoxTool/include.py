@@ -15,6 +15,9 @@ from .constants import *
 #detect
 from .detections import (device_probe,os_probe)
 
+#dataset
+from .datasets import model_array,amfi_data,bluetooth_data,cpu_data,os_data,pci_data,sip_data,smbios_data,ssdt_data,usb_data
+
 # Misc
 import os
 import sys

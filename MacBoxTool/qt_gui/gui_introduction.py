@@ -6,15 +6,20 @@ from ..constants import Constants
 from .gui_support import DefGUI
 
 class Introduction(ScrollArea):
-    def __init__(self,global_constants:Constants,parent=None,ui_support:DefGUI=None):
+    def __init__(self,global_constants:Constants,ui_support:DefGUI=None,global_settings:GlobalSettings=None,parent=None):
         super().__init__(parent=parent)
         self.setObjectName("Introduction")
-        self.setWidgetResizable(True)
-        self.parent = parent
+
+        logging.info("#############################")
+        logging.info("#####gui_introduction:OK#####")
+        logging.info("#############################") 
+
         self.global_constants = global_constants
+
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
         self.setWidget(self.scrollWidget)
         self.setWidgetResizable(True)
         self.enableTransparentBackground()
