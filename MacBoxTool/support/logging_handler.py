@@ -10,7 +10,8 @@ import logging
 import pprint
 import traceback
 import subprocess
-import applescript
+if sys.platform == "darwin":
+    import applescript
 
 from pathlib import Path
 from datetime import datetime
@@ -169,11 +170,11 @@ class LoggingHandler:
             Reroute traceback in main thread to logging module
             """
             logging.error("Uncaught exception in main thread", exc_info=(type, value, tb))
-            
 
-            if "wx/" in "".join(traceback.format_exception(type, value, tb)):
-                # Likely a GUI error, don't display error dialog
+            if sys.platform != "darwin":
+                # We're ready for windows soon
                 return
+            
 
             if self.constants.cli_mode is True:
                 return
@@ -191,7 +192,7 @@ class LoggingHandler:
             except Exception as e:
                 logging.error("Failed to display crash report dialog: {0}".format(e))
                 return
-
+            
             if result[applescript.AEType(b'bhit')] != "Yes":
                 return
 
@@ -202,6 +203,8 @@ class LoggingHandler:
                 Reroute traceback in spawned thread to logging module
                 """
                 logging.error("Uncaught exception in spawned thread", exc_info=(args))
+
+        
 
         sys.excepthook = custom_excepthook
         threading.excepthook = custom_thread_excepthook

@@ -1,5 +1,5 @@
 """
-utilities.py: Utility functions for OCLP-R
+utilities.py: Utility functions for MacBoxTool for macOS
 """
 
 import os
@@ -17,8 +17,10 @@ import py_sip_xnu
 from pathlib import Path
 
 from .. import constants
+import sys
+if sys.platform == "darwin":
+    from ..detections.ioreg import *
 
-from ..detections import ioreg
 
 from ..datasets import (
     os_data,
@@ -26,11 +28,6 @@ from ..datasets import (
 )
 
 
-
-# 延迟初始化翻译对象以避免循环导入
-transl = None
-
-# 提供一个函数来获取翻译对象
 
 
 def hexswap(input_hex: str):
@@ -347,16 +344,16 @@ def get_nvram(variable: str, uuid: str = None, *, decode: bool = False):
     else:
         uuid = ""
 
-    nvram = ioreg.IORegistryEntryFromPath(ioreg.kIOMasterPortDefault, "IODeviceTree:/options".encode())
+    nvram = IORegistryEntryFromPath(kIOMasterPortDefault, "IODeviceTree:/options".encode())
 
-    value = ioreg.IORegistryEntryCreateCFProperty(nvram, f"{uuid}{variable}", ioreg.kCFAllocatorDefault, ioreg.kNilOptions)
+    value = IORegistryEntryCreateCFProperty(nvram, f"{uuid}{variable}", kCFAllocatorDefault, kNilOptions)
 
-    ioreg.IOObjectRelease(nvram)
+    IOObjectRelease(nvram)
 
     if not value:
         return None
 
-    value = ioreg.corefoundation_to_native(value)
+    value = corefoundation_to_native(value)
 
     if decode:
         if isinstance(value, bytes):
@@ -374,30 +371,30 @@ def get_nvram(variable: str, uuid: str = None, *, decode: bool = False):
 def get_rom(variable: str, *, decode: bool = False):
     # TODO: Properly fix for El Capitan, which does not print the XML representation even though we say to
 
-    rom = ioreg.IORegistryEntryFromPath(ioreg.kIOMasterPortDefault, "IODeviceTree:/rom".encode())
+    rom = IORegistryEntryFromPath(kIOMasterPortDefault, "IODeviceTree:/rom".encode())
 
-    value = ioreg.IORegistryEntryCreateCFProperty(rom, variable, ioreg.kCFAllocatorDefault, ioreg.kNilOptions)
+    value = IORegistryEntryCreateCFProperty(rom, variable, kCFAllocatorDefault, kNilOptions)
 
-    ioreg.IOObjectRelease(rom)
+    IOObjectRelease(rom)
 
     if not value:
         return None
 
-    value = ioreg.corefoundation_to_native(value)
+    value = corefoundation_to_native(value)
 
     if decode and isinstance(value, bytes):
         value = value.strip(b"\0").decode()
     return value
 
 def get_firmware_vendor(*, decode: bool = False):
-    efi = ioreg.IORegistryEntryFromPath(ioreg.kIOMasterPortDefault, "IODeviceTree:/efi".encode())
-    value = ioreg.IORegistryEntryCreateCFProperty(efi, "firmware-vendor", ioreg.kCFAllocatorDefault, ioreg.kNilOptions)
-    ioreg.IOObjectRelease(efi)
+    efi = IORegistryEntryFromPath(kIOMasterPortDefault, "IODeviceTree:/efi".encode())
+    value = IORegistryEntryCreateCFProperty(efi, "firmware-vendor", kCFAllocatorDefault, kNilOptions)
+    IOObjectRelease(efi)
 
     if not value:
         return None
 
-    value = ioreg.corefoundation_to_native(value)
+    value = corefoundation_to_native(value)
     if decode:
         if isinstance(value, bytes):
             value = value.strip(b"\0").decode()

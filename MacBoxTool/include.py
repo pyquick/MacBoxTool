@@ -38,7 +38,6 @@ import psutil
 import ctypes
 import ctypes.wintypes
 from typing import Optional, Tuple, TYPE_CHECKING
-from termios import INPCK
 from pathlib import Path
 import plistlib
 from datetime import datetime

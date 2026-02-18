@@ -5,3 +5,5 @@ scipy
 termcolor
 pillow
 psutil
+wmi
+pywin32

@@ -15,17 +15,22 @@ class Introduction(ScrollArea):
         logging.info("#############################") 
 
         self.global_constants = global_constants
-
+        
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-
         self.setWidget(self.scrollWidget)
         self.setWidgetResizable(True)
         self.enableTransparentBackground()
         self.scrollWidget.setStyleSheet("QWidget { background: transparent; }")
         self.ui_support=ui_support
+        
         self._init_ui()
+
+        self.themeListener= SystemThemeListener(self)
+        self.themeListener.start()
+        setTheme(Theme.AUTO)
+       
     def _init_ui(self):
         self.expandLayout.setContentsMargins(SPACING["xxlarge"], SPACING["xlarge"], SPACING["xxlarge"], SPACING["xlarge"])
         self.expandLayout.setSpacing(SPACING["large"])
@@ -51,7 +56,7 @@ class Introduction(ScrollArea):
         hero_text = QVBoxLayout()
         hero_text.setSpacing(SPACING["medium"])
 
-        hero_title = StrongBodyLabel("Introduction")
+        hero_title = QLabel("Introduction")
         hero_title.setStyleSheet("font-size: 18px; color: {};".format(COLORS["primary"]))
         hero_text.addWidget(hero_title)
 
@@ -81,7 +86,7 @@ class Introduction(ScrollArea):
             body=(
                 "The long awaited version 3.0.1 of OCLP-R is here, bringing <b>initial support for macOS Tahoe 26</b> to the community!<br><br>"
                 "<b>Please Note:</b><br>"
-                "- Only OCLP-R 3.0.1 from the <a href=\"https://github.com/hackdoc/OCLP-R/releases/download/3.0.1/OCLP-R.pkg\" style=\"color: #0078D4; text-decoration: none;\">hackdoc/OCLP-R</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
+                "- Only OCLP-R 3.0.2 from the <a href=\"https://github.com/hackdoc/OCLP-R/releases/download/3.0.2/OCLP-R.pkg\" style=\"color: #0078D4; text-decoration: none;\">hackdoc/OCLP-R</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
                 "- Official Dortania releases or older patches <b>will NOT work</b> with macOS Tahoe 26."
             )
         )

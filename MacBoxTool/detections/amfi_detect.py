@@ -3,8 +3,11 @@ amfi_detect.py: Determine AppleMobileFileIntegrity's OS configuration
 """
 
 import enum
-
-from ..support import utilities
+import sys
+if sys.platform=='darwin':
+    from ..support import utilities
+else:
+    from ..support import utilities_win
 from ..datasets import amfi_data
 
 

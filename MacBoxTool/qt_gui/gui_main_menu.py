@@ -37,17 +37,15 @@ class Window(FluentWindow):
         logging.info("######################")
         logging.info("###gui_main_menu:OK###")
         logging.info("######################")
+        setTheme(Theme.AUTO)
         self.themeListener= SystemThemeListener(self)
         self.themeListener.start()
         self._init_state()
         self._setup_window()
-        
         self._init_ui()
+       
 
-    def _onThemeChangedFinished(self):
-        super()._onThemeChangedFinished()
-        self.refresh()
-        setTheme(Theme.AUTO)
+   
 
     def _setup_window(self):
         self.setWindowTitle("MacBoxTool")

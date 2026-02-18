@@ -4,7 +4,13 @@ os_data.py: OS Version Data
 
 import enum
 
-from curses.ascii import isdigit
+# Handle cross-platform compatibility for digit checking
+try:
+    from curses.ascii import isdigit
+except ImportError:
+    # On Windows, curses is not available, define isdigit using str.isdigit
+    def isdigit(char):
+        return char.isdigit()
 
 
 class os_data(enum.IntEnum):

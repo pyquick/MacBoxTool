@@ -20,6 +20,9 @@ class ProgressStatusHelper:
         self.progress_label = progress_label
         self.progress_bar = progress_bar
         self.progress_container = progress_container
+        
+
+    
     
     def update(self, status, message, progress=None):
         icon_size = 28
@@ -86,8 +89,14 @@ class DefGUI():
             return self.colored_icon(FluentIcon.CLOSE, COLORS["error"])
         return self.colored_icon(FluentIcon.ACCEPT, COLORS["success"])
     
-    def custom_card(self, card_type: str = "note", icon: Optional[FluentIcon] = None, title: str = "", body: str = "", custom_widget: Optional[QWidget] = None, parent: Optional[QWidget] = None) -> CardWidget:
-        card_styles = {
+    def update_theme(self):
+        if qconfig.theme == Theme.DARK:
+            self.card_styles = self.card_styles_dark()
+        else:
+            self.card_styles = self.card_styles_light()
+    
+    def card_styles_light(self):
+        return  {
             "note": {
                 "bg": COLORS["note_bg"],
                 "text": COLORS["note_text"],
@@ -119,8 +128,44 @@ class DefGUI():
                 "default_icon": FluentIcon.INFO
             }
         }
+
+    def card_styles_dark(self):
+        return {
+            "note": {
+                "bg": COLORS["note_bg"],
+                "text": COLORS["note_text"],
+                "border": "rgba(21, 101, 192, 0.2)",
+                "default_icon": FluentIcon.INFO
+            },
+            "warning": {
+                "bg": COLORS["warning_bg"],
+                "text": COLORS["warning_text"],
+                "border": "rgba(245, 124, 0, 0.25)",
+                "default_icon": FluentIcon.MEGAPHONE
+            },
+            "success": {
+                "bg": COLORS["success_bg"],
+                "text": COLORS["success"],
+                "border": "rgba(16, 124, 16, 0.2)",
+                "default_icon": FluentIcon.COMPLETED
+            },
+            "error": {
+                "bg": "#FFEBEE",
+                "text": COLORS["error"],
+                "border": "rgba(232, 17, 35, 0.25)",
+                "default_icon": FluentIcon.CLOSE
+            },
+            "info": {
+                "bg": COLORS["note_bg"],
+                "text": COLORS["info"],
+                "border": "rgba(0, 120, 212, 0.2)",
+                "default_icon": FluentIcon.INFO
+            }
+        }
+    
+    def custom_card(self, card_type: str = "note", icon: Optional[FluentIcon] = None, title: str = "", body: str = "", custom_widget: Optional[QWidget] = None, parent: Optional[QWidget] = None) -> CardWidget:
         
-        style = card_styles.get(card_type, card_styles["note"])
+        style = self.card_styles.get(card_type, self.card_styles["note"])
         
         if icon is None:
             icon = style["default_icon"]
