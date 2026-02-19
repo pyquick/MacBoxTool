@@ -65,6 +65,29 @@ class LoggingHandler:
         self.log_filepath = Path(f"{base_path}/{self.log_filename}").expanduser()
         self.constants.log_filepath = self.log_filepath
 
+    def _initialize_logging_path_windows(self) -> None:
+        """
+        Initialize logging framework storage path
+        """
+
+        base_path = Path("~").expanduser()
+        if not base_path.exists() or str(base_path).startswith("/var/root/"):
+            # Likely in an installer environment, store in /Users/Shared
+            base_path = Path("/Users/Shared")
+        else:
+            # create Pyquick folder if it doesn't exist
+            base_path = base_path / "Pyquick"
+            if not base_path.exists():
+                try:
+                    base_path.mkdir()
+                except Exception as e:
+                    print("Failed to create Pyquick folder: {0}".format(e))
+                    base_path = Path("/Users/Shared")
+
+        self.log_filepath = Path(f"{base_path}/{self.log_filename}").expanduser()
+        self.constants.log_filepath = self.log_filepath
+    
+
     def _clean_prior_version_logs(self) -> None:
         """
         Clean logs from old Patcher versions

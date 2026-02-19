@@ -20,7 +20,6 @@ class ThemeManager(QObject):
         self.current_theme = "dark"
         self.last_accent_color = None
         self.running = True
-        themeListener= SystemThemeListener(self)
         self.system_theme_thread = None
         self.app_theme_thread = None
         self.accent_color_thread = None
@@ -50,6 +49,7 @@ class ThemeManager(QObject):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.check_accent_color)
         self.timer.start(100)
+
 
     def stop(self):
         pass

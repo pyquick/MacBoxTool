@@ -706,6 +706,9 @@ class Computer:
     
     @staticmethod
     def probe():
+        if sys.platform == "win32":
+            from .device_probe_win import Computer as WinComputer
+            return WinComputer.probe()
         computer = Computer()
         computer.gpu_probe()
         computer.dgpu_probe()

@@ -42,8 +42,16 @@ class BuildOCPage(ScrollArea):
         self.expandLayout.setContentsMargins(SPACING["xxlarge"], SPACING["xlarge"], SPACING["xxlarge"], SPACING["xlarge"])
         self.expandLayout.setSpacing(SPACING["large"])
         self.expandLayout.addWidget(self._create_title_label())
+        self.expandLayout.addWidget(self.show_model_card())
         self.expandLayout.addWidget(self.create_build_model_card())
         self.expandLayout.addStretch()
+
+    def show_model_card(self):
+        self.real_model=self.constants.computer.real_model
+        real_label = StrongBodyLabel(f"Model:{self.real_model}")
+        real_label.setStyleSheet("font-size: 15px; font-weight: bold;")
+        real_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        return real_label
 
     def create_build_model_card(self):
         #build for mac

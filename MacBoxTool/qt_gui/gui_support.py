@@ -9,6 +9,24 @@ from ..include import *
 if TYPE_CHECKING:
     from ..UIkit import GroupHeaderCardWidget, CardGroupWidget
 
+
+class ThemeAwareCard(CardWidget):
+    def __init__(self, get_style_fn, parent=None):
+        super().__init__(parent)
+        self._get_style = get_style_fn
+        self._apply_style()
+        qconfig.themeChanged.connect(self._apply_style)
+
+    def _apply_style(self):
+        style = self._get_style()
+        self.setStyleSheet(f"""
+            CardWidget {{
+                background-color: {style["bg"]};
+                border: 1px solid {style["border"]};
+                border-radius: {RADIUS["card"]}px;
+            }}
+        """)
+
 class ProgressStatusHelper:
     def __init__(self, status_icon_label, progress_label, progress_bar, progress_container):
         
@@ -59,6 +77,8 @@ class ProgressStatusHelper:
 class DefGUI():
     def __init__(self,global_constants:Constants):
         self.constants:Constants=global_constants
+        self.update_theme()
+        qconfig.themeChanged.connect(self.update_theme)
 
     def build_icon_label(self, icon: FluentIcon, color: str, size: int = 32) -> QLabel:
         label = QLabel()
@@ -94,6 +114,7 @@ class DefGUI():
             self.card_styles = self.card_styles_dark()
         else:
             self.card_styles = self.card_styles_light()
+
     
     def card_styles_light(self):
         return  {
@@ -132,80 +153,76 @@ class DefGUI():
     def card_styles_dark(self):
         return {
             "note": {
-                "bg": COLORS["note_bg"],
-                "text": COLORS["note_text"],
-                "border": "rgba(21, 101, 192, 0.2)",
+                "bg": "rgba(33, 90, 160, 0.18)",
+                "text": "#82B4F0",
+                "border": "rgba(66, 133, 244, 0.35)",
                 "default_icon": FluentIcon.INFO
             },
             "warning": {
-                "bg": COLORS["warning_bg"],
-                "text": COLORS["warning_text"],
-                "border": "rgba(245, 124, 0, 0.25)",
+                "bg": "rgba(160, 90, 0, 0.18)",
+                "text": "#FFB74D",
+                "border": "rgba(255, 152, 0, 0.35)",
                 "default_icon": FluentIcon.MEGAPHONE
             },
             "success": {
-                "bg": COLORS["success_bg"],
-                "text": COLORS["success"],
-                "border": "rgba(16, 124, 16, 0.2)",
+                "bg": "rgba(16, 100, 16, 0.18)",
+                "text": "#6DBF6D",
+                "border": "rgba(16, 124, 16, 0.35)",
                 "default_icon": FluentIcon.COMPLETED
             },
             "error": {
-                "bg": "#FFEBEE",
-                "text": COLORS["error"],
-                "border": "rgba(232, 17, 35, 0.25)",
+                "bg": "rgba(180, 20, 30, 0.18)",
+                "text": "#F28B82",
+                "border": "rgba(232, 17, 35, 0.35)",
                 "default_icon": FluentIcon.CLOSE
             },
             "info": {
-                "bg": COLORS["note_bg"],
-                "text": COLORS["info"],
-                "border": "rgba(0, 120, 212, 0.2)",
+                "bg": "rgba(0, 90, 158, 0.18)",
+                "text": "#4CC2FF",
+                "border": "rgba(0, 120, 212, 0.35)",
                 "default_icon": FluentIcon.INFO
             }
         }
     
     def custom_card(self, card_type: str = "note", icon: Optional[FluentIcon] = None, title: str = "", body: str = "", custom_widget: Optional[QWidget] = None, parent: Optional[QWidget] = None) -> CardWidget:
-        
-        style = self.card_styles.get(card_type, self.card_styles["note"])
-        
-        if icon is None:
-            icon = style["default_icon"]
-        
-        card = CardWidget(parent)
-        card.setStyleSheet(f"""
-            CardWidget {{
-                background-color: {style["bg"]};
-                border: 1px solid {style["border"]};
-                border-radius: {RADIUS["card"]}px;
-            }}
-        """)
-        
+        resolved_icon = icon
+        get_style = lambda: self.card_styles.get(card_type, self.card_styles["note"])
+
+        if resolved_icon is None:
+            resolved_icon = get_style()["default_icon"]
+
+        card = ThemeAwareCard(get_style, parent)
+
         main_layout = QHBoxLayout(card)
         main_layout.setContentsMargins(SPACING["large"], SPACING["large"], SPACING["large"], SPACING["large"])
         main_layout.setSpacing(SPACING["large"])
-        
-        icon_label = self.build_icon_label(icon, style["text"], size=40)
+
+        icon_label = self.build_icon_label(resolved_icon, get_style()["text"], size=40)
+        def _refresh_icon():
+            icon_label.setPixmap(resolved_icon.icon(color=get_style()["text"]).pixmap(40, 40))
+        qconfig.themeChanged.connect(_refresh_icon)
         main_layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
-        
+
         text_layout = QVBoxLayout()
         text_layout.setSpacing(SPACING["small"])
-        
+
         if title:
             title_label = StrongBodyLabel(title)
-            title_label.setStyleSheet("color: {}; font-size: 16px;".format(style["text"]))
+            title_label.setStyleSheet("color: {}; font-size: 16px;".format(get_style()["text"]))
+            qconfig.themeChanged.connect(lambda: title_label.setStyleSheet("color: {}; font-size: 16px;".format(get_style()["text"])))
             text_layout.addWidget(title_label)
-        
+
         if body:
             body_label = BodyLabel(body)
             body_label.setWordWrap(True)
             body_label.setOpenExternalLinks(True)
             body_label.setStyleSheet("color: #424242; line-height: 1.6;")
             text_layout.addWidget(body_label)
-        
+
         if custom_widget:
             text_layout.addWidget(custom_widget)
-        
+
         main_layout.addLayout(text_layout)
-        
         return card
     
     def add_group_with_indent(self, card: "GroupHeaderCardWidget", icon: FluentIcon, title: str, content: str, widget: Optional[QWidget] = None, indent_level: int = 0) -> "CardGroupWidget":

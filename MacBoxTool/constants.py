@@ -4,7 +4,11 @@ constants.py: Defines versioning, file paths and other settings for the patcher
 
 
 from pathlib import Path
-from .detections import device_probe
+import sys
+if sys.platform=="darwin":
+    from .detections import device_probe
+else:
+    from .detections import device_probe_win as device_probe
 
 
 

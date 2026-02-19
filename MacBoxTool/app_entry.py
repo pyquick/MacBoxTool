@@ -12,7 +12,10 @@ from .support.logging_handler import LoggingHandler
 from .support.toggle_theme import ThemeManager
 import sys
 from .support.global_settings import GlobalSettings
-from .detections import device_probe
+if sys.platform=="darwin":
+    from .detections import device_probe
+else:
+    from .detections import device_probe_win as device_probe
 
 
 

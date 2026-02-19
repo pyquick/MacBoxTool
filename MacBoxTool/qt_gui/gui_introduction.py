@@ -27,10 +27,19 @@ class Introduction(ScrollArea):
         
         self._init_ui()
 
-        self.themeListener= SystemThemeListener(self)
-        self.themeListener.start()
+        qconfig.themeChanged.connect(self.update_theme)
         setTheme(Theme.AUTO)
+
+    def update_theme(self):
+        setTheme(Theme.AUTO)
+        self.update()
+        
        
+    def closeEvent(self, event):
+        self.themeListener.terminate()
+        self.themeListener.deleteLater()
+        super().closeEvent(event)
+
     def _init_ui(self):
         self.expandLayout.setContentsMargins(SPACING["xxlarge"], SPACING["xlarge"], SPACING["xxlarge"], SPACING["xlarge"])
         self.expandLayout.setSpacing(SPACING["large"])
