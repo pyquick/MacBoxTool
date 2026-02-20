@@ -89,16 +89,28 @@ class BuildOpenCore:
         logs = driver_mgr.enable_base_drivers()
         self.log_lines.extend(logs)
 
-        # Step 7: Cleanup disabled entries
+        # Step 7: Apply NVRAM settings (boot-args, SIP, BT, OCLP flags)
+        from .smbios.nvram import NVRAMManager
+        nvram_mgr = NVRAMManager(self.config, self.constants, self.model, self.paths)
+        logs = nvram_mgr.apply()
+        self.log_lines.extend(logs)
+
+        # Step 7.5: Apply SMBIOS spoofing
+        from .smbios.smbios_spoof import SMBIOSSpoofManager
+        spoof_mgr = SMBIOSSpoofManager(self.config, self.constants, self.model, self.paths)
+        logs = spoof_mgr.apply()
+        self.log_lines.extend(logs)
+
+        # Step 8: Cleanup disabled entries
         config_mgr = ConfigManager(self.config, self.paths["plist_path"])
         logs = config_mgr.cleanup()
         self.log_lines.extend(logs)
 
-        # Step 8: Save config
+        # Step 9: Save config
         logs = config_mgr.save()
         self.log_lines.extend(logs)
 
-        # Step 9: Validate
+        # Step 10: Validate
         self._validate()
 
         self._log("")

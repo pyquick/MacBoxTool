@@ -8,7 +8,12 @@
       "mcp__filesystem__edit_file",
       "Bash(\"c:/Users/Ghltbm/Documents/MacBoxTool/MacBoxTool/detections/device_probe_win.py\":*)",
       "Bash(python3 -c:*)",
-      "mcp__context7__resolve-library-id"
+      "mcp__context7__resolve-library-id",
+      "mcp__filesystem__read_multiple_files",
+      "mcp__context7__query-docs",
+      "Bash(python -c \"import ast; import sys; files=[''MacBoxTool/efi_mac/kexts/network.py'',''MacBoxTool/efi_mac/kexts/security.py'',''MacBoxTool/efi_mac/kexts/misc.py'',''MacBoxTool/efi_mac/drivers/base.py'',''MacBoxTool/efi_mac/smbios/quirks.py'',''MacBoxTool/efi_mac/smbios/nvram.py'',''MacBoxTool/efi_mac/smbios/smbios_spoof.py'',''MacBoxTool/efi_mac/acpi/firmware.py'',''MacBoxTool/efi_mac/builder.py'',''MacBoxTool/qt_gui/gui_settings.py'',''MacBoxTool/qt_gui/gui_main_menu.py'']; errors=[]; [errors.append\\(f\\) if not ast.parse\\(open\\(f\\).read\\(\\)\\) else None for f in files]; print\\(''All files parse OK'' if not errors else f''Errors: {errors}''\\)\")",
+      "Bash(python:*)",
+      "Bash(\"C:/Users/Ghltbm/AppData/Local/Python/pythoncore-3.14-64/python.exe\":*)"
     ]
   }
 }

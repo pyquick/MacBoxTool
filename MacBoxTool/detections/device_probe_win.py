@@ -912,7 +912,7 @@ class Computer:
     def oclp_sys_patch_probe(self):
         from pathlib import Path
         import plistlib
-        path = Path("/System/Library/CoreServices/OCLP-R.plist")
+        path = Path("/System/Library/CoreServices/MacBoxTool.plist")
         if not path.exists():
             self.oclp_sys_signed = True
             return
@@ -921,7 +921,7 @@ class Computer:
         except Exception:
             return
         if sys_plist:
-            self.oclp_sys_version = sys_plist.get("OCLP-R")
+            self.oclp_sys_version = sys_plist.get("MacBoxTool")
             self.oclp_sys_date = sys_plist.get("Time Patched")
             self.oclp_sys_url = sys_plist.get("Commit URL")
             if "Custom Signature" in sys_plist:

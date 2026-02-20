@@ -1096,14 +1096,14 @@ class Computer:
     def oclp_sys_patch_probe(self):
         if sys.platform != "darwin":
             return
-        path = Path("/System/Library/CoreServices/OCLP-R.plist")
+        path = Path("/System/Library/CoreServices/MacBoxTool.plist")
         if not path.exists():
             self.oclp_sys_signed = True  # No plist, so assume root is valid
             return
         sys_plist = plistlib.load(path.open("rb"))
         if sys_plist:
-            if "OCLP-R" in sys_plist:
-                self.oclp_sys_version = sys_plist["OCLP-R"]
+            if "MacBoxTool" in sys_plist:
+                self.oclp_sys_version = sys_plist["MacBoxTool"]
             if "Time Patched" in sys_plist:
                 self.oclp_sys_date = sys_plist["Time Patched"]
             if "Commit URL" in sys_plist:

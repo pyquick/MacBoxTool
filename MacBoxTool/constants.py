@@ -297,19 +297,19 @@ class Constants:
 
     @property
     def auto_patch_launch_agent_path(self):
-        return self.launch_services_path / Path("com.pyquick.oclp-r.auto-patch.plist")
+        return self.launch_services_path / Path("com.pyquick.macboxtool.auto-patch.plist")
 
     @property
     def rsr_monitor_launch_daemon_path(self):
-        return self.launch_services_path / Path("com.pyquick.oclp-r.rsr-monitor.plist")
+        return self.launch_services_path / Path("com.pyquick.macboxtool.rsr-monitor.plist")
 
     @property
     def update_launch_daemon_path(self):
-        return self.launch_services_path / Path("com.pyquick.oclp-r.macos-update.plist")
+        return self.launch_services_path / Path("com.pyquick.macboxtool.macos-update.plist")
 
     @property
     def kdk_launch_daemon_path(self):
-        return self.launch_services_path / Path("com.pyquick.oclp-r.os-caching.plist")
+        return self.launch_services_path / Path("com.pyquick.macboxtool.os-caching.plist")
 
     # ACPI
     @property
@@ -773,7 +773,7 @@ class Constants:
 
     @property
     def oclp_helper_path(self):
-        return self.payload_path / Path("Tools/OCLP-R.app/Contents/MacOS/OCLP-R")
+        return self.payload_path / Path("Tools/MacBoxTool.app/Contents/MacOS/MacBoxTool")
 
     @property
     def rsrrepair_userspace_path(self):

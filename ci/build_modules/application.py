@@ -11,7 +11,7 @@ from oclp_r.support import subprocess_wrapper
 
 class GenerateApplication:
     """
-    Generate OCLP-R.app
+    Generate MacBoxTool.app
     """
 
     def __init__(self, reset_pyinstaller_cache: bool = False, git_branch: str = None, git_commit_url: str = None, git_commit_date: str = None, analytics_key: str = None, analytics_endpoint: str = None) -> None:
@@ -19,7 +19,7 @@ class GenerateApplication:
         Initialize
         """
         self._pyinstaller = [sys.executable, "-m", "PyInstaller"]
-        self._application_output = Path("./dist/OCLP-R.app")
+        self._application_output = Path("./dist/MacBoxTool.app")
 
         self._reset_pyinstaller_cache = reset_pyinstaller_cache
 
@@ -38,8 +38,8 @@ class GenerateApplication:
         if self._application_output.exists():
             subprocess_wrapper.run_and_verify(["/bin/rm", "-rf", self._application_output], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        print("Generating OCLP-R.app")
-        _args = self._pyinstaller + ["./OCLP-R-GUI.spec", "--noconfirm"]
+        print("Generating MacBoxTool.app")
+        _args = self._pyinstaller + ["./MacBoxTool-GUI.spec", "--noconfirm"]
         if self._reset_pyinstaller_cache:
             _args.append("--clean")
 
@@ -110,14 +110,14 @@ class GenerateApplication:
         and instead we're able to support 10.10 without issues.
 
         To verify set version:
-          otool -l ./dist/OCLP-R.app/Contents/MacOS/OCLP-R
+          otool -l ./dist/MacBoxTool.app/Contents/MacOS/MacBoxTool
 
               cmd LC_VERSION_MIN_MACOSX
           cmdsize 16
           version 10.13
               sdk 10.9
         """
-        _file = self._application_output / "Contents" / "MacOS" / "OCLP-R"
+        _file = self._application_output / "Contents" / "MacOS" / "MacBoxTool"
 
         _find    = b'\x00\x0D\x0A\x00'
         _replace = b'\x00\x0A\x0A\x00' # 10.10 (0xA0A)
@@ -138,7 +138,7 @@ class GenerateApplication:
         This will enable the Solarium refresh when running on macOS 26
         Minor visual anomalies and padding issues exist, disable if not addressed before release
         """
-        _file = self._application_output / "Contents" / "MacOS" / "OCLP-R"
+        _file = self._application_output / "Contents" / "MacOS" / "MacBoxTool"
 
         _find    = b'\x00\x01\x0C\x00'
         _replace = b'\x00\x00\x1A\x00'
@@ -191,7 +191,7 @@ class GenerateApplication:
 
     def generate(self) -> None:
         """
-        Generate OCLP-R.app
+        Generate MacBoxTool.app
         """
         self._embed_analytics_key()
         self._generate_application()

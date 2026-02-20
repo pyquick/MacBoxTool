@@ -44,15 +44,10 @@ class NVRAMManager:
         boot_guid = nvram.setdefault("7C436110-AB2A-4BBB-A880-FE41995C9F82", {})
         boot_args = boot_guid.get("boot-args", "")
 
-        # Base boot-args from OCLP-R
-        # -lilubetaall: macOS Sequoia support for Lilu plugins
-        # keepsyms=1: Keep symbols for debugging
-        # debug=0x100: Boot debug level
-        base_args = ["-lilubetaall", "keepsyms=1", "debug=0x100"]
-        for arg in base_args:
-            if arg not in boot_args:
-                boot_args = (boot_args + " " + arg).strip()
-                self._log(f"  Added boot-arg: {arg}")
+        # Base boot-args (legacy build.py:72)
+        if "-lilubetaall" not in boot_args:
+            boot_args = (boot_args + " -lilubetaall").strip()
+            self._log("  Added boot-arg: -lilubetaall")
 
         # Model-specific boot-args based on smbios_data
         model_info = smbios_data.smbios_dictionary.get(self.model, {})
@@ -66,77 +61,54 @@ class NVRAMManager:
                 boot_args += " -no_compat_check"
                 self._log("  Added boot-arg: -no_compat_check (legacy model)")
 
-        # OCLP-R security.py: ipc_control_port_options=0 (Electron app fix with SIP lowered)
-        if "ipc_control_port_options=0" not in boot_args:
-            boot_args += " ipc_control_port_options=0"
-            self._log("  Added boot-arg: ipc_control_port_options=0 (Electron fix)")
+        # ipc_control_port_options=0 and -nokcmismatchpanic only when SIP lowered
+        if not self.constants.sip_status:
+            if "ipc_control_port_options=0" not in boot_args:
+                boot_args += " ipc_control_port_options=0"
+                self._log("  Added boot-arg: ipc_control_port_options=0")
+            if "-nokcmismatchpanic" not in boot_args:
+                boot_args += " -nokcmismatchpanic"
+                self._log("  Added boot-arg: -nokcmismatchpanic")
 
-        # OCLP-R security.py: -nokcmismatchpanic (KC UUID mismatch after RSR)
-        if "-nokcmismatchpanic" not in boot_args:
-            boot_args += " -nokcmismatchpanic"
-            self._log("  Added boot-arg: -nokcmismatchpanic (RSR KC UUID)")
-
-        # OCLP-R security.py: amfi=0x80 for models needing AMFI disabled (pre-Sonoma native)
-        if max_os and max_os < os_data.os_data.sonoma:
+        # AMFI handling (legacy security.py:76-86)
+        # amfi=0x80 only when explicitly requested - it breaks TCC (Camera, Mic prompts)
+        # AMFIPass.kext is the preferred approach (enabled in security kext manager)
+        if getattr(self.constants, 'disable_amfi', False):
             if "amfi=" not in boot_args:
                 boot_args += " amfi=0x80"
-                self._log("  Added boot-arg: amfi=0x80 (AMFI disable)")
+                self._log("  Added boot-arg: amfi=0x80 (AMFI disable - explicit)")
+
+        # Verbose boot (legacy misc.py:347)
+        if self.constants.verbose_debug:
+            if "-v" not in boot_args:
+                boot_args += " -v"
+                self._log("  Added boot-arg: -v (verbose)")
+
+        # Kext debug mode (legacy misc.py:351)
+        if self.constants.kext_debug:
+            for arg in ("-liludbgall", "liludump=90"):
+                if arg not in boot_args:
+                    boot_args += f" {arg}"
+            self._log("  Added boot-args: -liludbgall liludump=90 (kext debug)")
+
+        # Thread limit for MacPro3,1/Xserve2,1 (legacy firmware.py:208)
+        if self.constants.force_quad_thread:
+            if "cpus=" not in boot_args:
+                boot_args += " cpus=4"
+                self._log("  Added boot-arg: cpus=4 (thread limit)")
+
+        # OCLP-Settings flags (conditional on SIP status)
+        if max_os and max_os < os_data.os_data.sonoma:
             oclp_guid.setdefault("OCLP-Settings", "")
-            if "-allow_amfi" not in oclp_guid["OCLP-Settings"]:
-                oclp_guid["OCLP-Settings"] += " -allow_amfi"
-            if "-allow_fv" not in oclp_guid["OCLP-Settings"]:
-                oclp_guid["OCLP-Settings"] += " -allow_fv"
-
-        # NVMe ASPM fix for models with NVMe storage
-        storage = model_info.get("Stock Storage", [])
-        if "NVMe" in storage:
-            if "-nvmefaspm" not in boot_args:
-                boot_args += " -nvmefaspm"
-                self._log("  Added boot-arg: -nvmefaspm (NVMe power management)")
-
-        # GPU-related boot-args based on OCLP-R
-        stock_gpus = model_info.get("Stock GPUs", [])
-
-        # Check for NVIDIA/AMD GPUs using string representation
-        gpu_str = str(stock_gpus)
-        has_nvidia = "NVIDIA" in gpu_str or "Tesla" in gpu_str
-        has_amd = "AMD" in gpu_str
-
-        # MacPro/Xserve models need GPU boot-args
-        if self.model in model_array.MacPro:
-            if has_amd:
-                # AMD GPU: shikigva=128 unfairgva=1 agdpmod=pikera radgva=1
-                gpu_args = " shikigva=128 unfairgva=1 agdpmod=pikera radgva=1"
-                if all(arg not in boot_args for arg in ["shikigva", "unfairgva"]):
-                    boot_args += gpu_args
-                    self._log(f"  Added boot-arg: {gpu_args} (AMD GPU)")
-            elif has_nvidia:
-                # NVIDIA GPU: -wegtree agdpmod=vit9696
-                gpu_args = " -wegtree agdpmod=vit9696"
-                if "-wegtree" not in boot_args:
-                    boot_args += gpu_args
-                    self._log(f"  Added boot-arg: {gpu_args} (NVIDIA GPU)")
-
-        # Intel-Nvidia DRM models (iMac13,1/13,2/14,2/14,3)
-        if self.model in model_array.IntelNvidiaDRM:
-            if "shikigva=128" not in boot_args:
-                boot_args += " shikigva=128 unfairgva=1 agdpmod=pikera radgva=1"
-                self._log("  Added boot-arg: shikigva=128 unfairgva=1 agdpmod=pikera radgva=1 (Intel-Nvidia DRM)")
-
-        # AGDP support models
-        if self.model in model_array.AGDPSupport:
-            if "agdpmod=pikera" not in boot_args:
-                boot_args += " agdpmod=pikera"
-                self._log("  Added boot-arg: agdpmod=pikera (AGDP support)")
-
-        # -wegtree for Nvidia-based models (enables GUI on Nvidia GPUs)
-        if self.model in model_array.DualGPUPatch and has_nvidia:
-            if "-wegtree" not in boot_args:
-                boot_args += " -wegtree"
-                self._log("  Added boot-arg: -wegtree (Nvidia dual GPU)")
+            if not self.constants.sip_status:
+                if "-allow_fv" not in oclp_guid["OCLP-Settings"]:
+                    oclp_guid["OCLP-Settings"] += " -allow_fv"
+            if self.constants.disable_cs_lv:
+                if "-allow_amfi" not in oclp_guid["OCLP-Settings"]:
+                    oclp_guid["OCLP-Settings"] += " -allow_amfi"
 
         # Bluetooth NVRAM variables and boot-args
-        # Logic from OCLP-R efi_builder/bluetooth.py (_prebuilt_assumption path)
+        # Logic from MacBoxTool efi_builder/bluetooth.py (_prebuilt_assumption path)
         BT = bluetooth_data.bluetooth_data
         bt_model = model_info.get("Bluetooth Model")
         nvram_delete = self.config.setdefault("NVRAM", {}).setdefault("Delete", {}).setdefault(
@@ -170,11 +142,13 @@ class NVRAMManager:
         # Update boot-args in NVRAM
         boot_guid["boot-args"] = boot_args.strip()
 
-        # SIP: allow unsigned kexts + filesystem modifications (0x803)
-        # csr-active-config:
-        #   0x803 = CS_UNTRUSTED_KEXTS | CS_ALLOW_USER_TRUST
-        #   Allows loading unsigned kexts and user-trusted kexts
-        boot_guid["csr-active-config"] = (0x803).to_bytes(4, "little")
-        self._log("  Set csr-active-config: 0x803")
+        # SIP: conditional on sip_status and custom_sip_value (legacy security.py)
+        if not self.constants.sip_status:
+            sip_value = self.constants.custom_sip_value if self.constants.custom_sip_value else 0x803
+            boot_guid["csr-active-config"] = int(sip_value).to_bytes(4, "little")
+            self._log(f"  Set csr-active-config: {hex(sip_value)}")
+
+        # run-efi-updater (legacy smbios.py:257)
+        boot_guid["run-efi-updater"] = "No"
 
         return self.log_lines

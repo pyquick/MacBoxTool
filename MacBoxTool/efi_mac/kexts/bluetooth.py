@@ -1,7 +1,7 @@
 """
 bluetooth.py: Bluetooth-related kext management
 
-Logic extracted from OCLP-R efi_builder/bluetooth.py (_prebuilt_assumption path).
+Logic extracted from MacBoxTool efi_builder/bluetooth.py (_prebuilt_assumption path).
 Since MacBoxTool runs on Windows, we use smbios_data lookup instead of live hardware detection.
 """
 

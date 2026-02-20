@@ -5,13 +5,6 @@ from ..include import *
 from .gui_support import DefGUI, ProgressStatusHelper
 
 
-class Config(QConfig):
-    modelchose = OptionsConfigItem(
-        "MainWindow", "ModelChose", "MacPro7,1",
-        OptionsValidator(model_array.SupportedSMBIOS), restart=True
-    )
-
-
 class _SignalHandler(logging.Handler):
     """Logging handler that emits Qt signals for real-time log display."""
     def __init__(self, log_signal, progress_signal=None, total_steps=1):
@@ -79,7 +72,6 @@ class BuildOCPage(ScrollArea):
         self.constants = global_constants
         self.gui_support = ui_support
         self.settings = global_settings
-        self.cfg = Config()
         self.worker = None
 
         self.scrollWidget = QWidget()
@@ -106,11 +98,6 @@ class BuildOCPage(ScrollArea):
 
         self.expandLayout.addWidget(self._create_title())
         self.expandLayout.addWidget(self._create_model_label())
-
-        # No longer restrict building based on physical model
-        # Users can build for any supported target model
-
-        self.expandLayout.addWidget(self._create_model_selector())
         self.expandLayout.addWidget(self._create_build_card())
         self.expandLayout.addWidget(self._create_log_card(), 1)
 
@@ -120,30 +107,13 @@ class BuildOCPage(ScrollArea):
         return lbl
 
     def _create_model_label(self):
-        # Show both physical and target model for clarity
-        target = self.cfg.modelchose.value if hasattr(self, 'cfg') else self.target_model
-        lbl = StrongBodyLabel(f"Physical: {self.physical_model} → Target: {target}")
-
-        # Highlight if physical model is unknown or different from target
+        target = self.target_model
+        self._model_label = StrongBodyLabel(f"Physical: {self.physical_model} → Target: {target}")
         if self.physical_model != "Unknown Hardware" and self.physical_model != target:
-            lbl.setStyleSheet("font-size: 15px; color: #f5a623;")  # Orange warning color
+            self._model_label.setStyleSheet("font-size: 15px; color: #f5a623;")
         else:
-            lbl.setStyleSheet("font-size: 15px;")
-        return lbl
-
-    def _create_model_selector(self):
-        self.model_card = ComboBoxSettingCard(
-            configItem=self.cfg.modelchose,
-            icon=FluentIcon.ZOOM,
-            title="Build target model",
-            content="Select the Mac model to build EFI for (independent of physical hardware)",
-            texts=model_array.SupportedSMBIOS
-        )
-        # Set initial value to saved target model or a sensible default
-        if self.target_model in model_array.SupportedSMBIOS:
-            self.model_card.setValue(self.target_model)
-        self.cfg.modelchose.valueChanged.connect(self._on_model_changed)
-        return self.model_card
+            self._model_label.setStyleSheet("font-size: 15px;")
+        return self._model_label
 
     def _create_build_card(self):
         card = CardWidget()
@@ -201,29 +171,10 @@ class BuildOCPage(ScrollArea):
         layout.addWidget(self.log_text)
         return card
 
-    def _on_model_changed(self):
-        self.settings.edit_key("MODEL", self.cfg.modelchose.value)
-        # Update the model label to show the new target
-        self._update_model_label()
-
-    def _update_model_label(self):
-        """Update the model label when target model changes."""
-        # Find and update the model label
-        for i in range(self.expandLayout.count()):
-            widget = self.expandLayout.itemAt(i).widget()
-            if isinstance(widget, StrongBodyLabel):
-                target = self.cfg.modelchose.value
-                widget.setText(f"Physical: {self.physical_model} → Target: {target}")
-                if self.physical_model != "Unknown Hardware" and self.physical_model != target:
-                    widget.setStyleSheet("font-size: 15px; color: #f5a623;")
-                else:
-                    widget.setStyleSheet("font-size: 15px;")
-                break
-
     def _on_build(self):
-        model = self.cfg.modelchose.value
-        # Model validation is now handled by the builder itself
-        # All models in the dropdown are valid target models
+        model = self.settings.find_key("MODEL")
+        if not model or model == "N/A":
+            model = self.constants.computer.real_model or "MacPro7,1"
 
         self.log_text.clear()
         self.build_btn.setEnabled(False)
@@ -261,4 +212,9 @@ class BuildOCPage(ScrollArea):
         pass
 
     def refresh(self):
-        pass
+        target = self.settings.find_key("MODEL") or "Not Selected"
+        self._model_label.setText(f"Physical: {self.physical_model} → Target: {target}")
+        if self.physical_model != "Unknown Hardware" and self.physical_model != target:
+            self._model_label.setStyleSheet("font-size: 15px; color: #f5a623;")
+        else:
+            self._model_label.setStyleSheet("font-size: 15px;")

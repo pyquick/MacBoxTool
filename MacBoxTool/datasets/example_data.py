@@ -1,5 +1,5 @@
 """
-example_data.py: Sample Hardware probes, for use in OCLP-R validation
+example_data.py: Sample Hardware probes, for use in MacBoxTool validation
 """
 import sys
 if sys.platform=="darwin":

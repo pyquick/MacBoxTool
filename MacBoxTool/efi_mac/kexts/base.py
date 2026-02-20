@@ -71,9 +71,6 @@ class KextManager:
         self.enable_kext("Lilu.kext", self.constants.lilu_version)
         self.config_mgr.set_quirk("DisableLinkeditJettison", True)
 
-        # AMFIPass
-        self.enable_kext("AMFIPass.kext", self.constants.amfipass_version)
-
         # Import and enable feature-specific kexts
         from .gpu import GPUKextManager
         gpu_mgr = GPUKextManager(self.config, self.constants, self.model, self.paths)
@@ -102,5 +99,9 @@ class KextManager:
         from .security import SecurityKextManager
         sec_mgr = SecurityKextManager(self.config, self.constants, self.model, self.paths)
         self.log_lines.extend(sec_mgr.apply())
+
+        from .misc import MiscKextManager
+        misc_mgr = MiscKextManager(self.config, self.constants, self.model, self.paths)
+        self.log_lines.extend(misc_mgr.apply())
 
         return self.log_lines

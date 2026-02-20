@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build-Project.command: Generate OCLP-R.app and OCLP-R.pkg
+Build-Project.command: Generate MacBoxTool.app and MacBoxTool.pkg
 """
 
 import os
@@ -85,7 +85,7 @@ def main() -> None:
             notarization_team_id=args.notarization_team_id,
         ).sign_and_notarize()
 
-        # Build OCLP-R.app
+        # Build MacBoxTool.app
         application.GenerateApplication(
             reset_pyinstaller_cache=args.reset_pyinstaller_cache,
             git_branch=args.git_branch,
@@ -95,9 +95,9 @@ def main() -> None:
             analytics_endpoint=args.analytics_endpoint,
         ).generate()
 
-        # Sign OCLP-R.app
+        # Sign MacBoxTool.app
         sign_notarize.SignAndNotarize(
-            path=Path("dist/OCLP-R.app"),
+            path=Path("dist/MacBoxTool.app"),
             signing_identity=args.application_signing_identity,
             notarization_apple_id=args.notarization_apple_id,
             notarization_password=args.notarization_password,
@@ -107,21 +107,21 @@ def main() -> None:
 
 
     if (args.run_as_individual_steps is False) or (args.run_as_individual_steps and args.prepare_package):
-        # Build OCLP-R.pkg and OCLP-R-Uninstaller.pkg
+        # Build MacBoxTool.pkg and MacBoxTool-Uninstaller.pkg
         package.GeneratePackage().generate()
 
-        # Sign OCLP-R.pkg
+        # Sign MacBoxTool.pkg
         sign_notarize.SignAndNotarize(
-            path=Path("dist/OCLP-R.pkg"),
+            path=Path("dist/MacBoxTool.pkg"),
             signing_identity=args.installer_signing_identity,
             notarization_apple_id=args.notarization_apple_id,
             notarization_password=args.notarization_password,
             notarization_team_id=args.notarization_team_id,
         ).sign_and_notarize()
 
-        # Sign OCLP-R-Uninstaller.pkg
+        # Sign MacBoxTool-Uninstaller.pkg
         sign_notarize.SignAndNotarize(
-            path=Path("dist/OCLP-R-Uninstaller.pkg"),
+            path=Path("dist/MacBoxTool-Uninstaller.pkg"),
             signing_identity=args.installer_signing_identity,
             notarization_apple_id=args.notarization_apple_id,
             notarization_password=args.notarization_password,

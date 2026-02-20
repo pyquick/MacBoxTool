@@ -1,12 +1,12 @@
 """
 storage.py: Storage-related kext management
 
-Logic from OCLP-R: storage.py
+Logic from MacBoxTool: storage.py
 """
 
 import logging
 from .base import KextManager
-from ...datasets import smbios_data, cpu_data
+from ...datasets import smbios_data, cpu_data, model_array
 from ...detections import device_probe
 from ...support import utilities
 
@@ -52,15 +52,43 @@ class StorageKextManager(KextManager):
                     self.enable_kext("IOS3XeFamily.kext", self.constants.s3x_nvme_version)
                     self._log("  IOS3XeFamily (S1X/S3X Apple NVMe)")
 
+        # PCIe Storage built-in DeviceProperties (Mac Pro / allow_oc_everywhere)
+        if computer and (self.constants.allow_oc_everywhere is True or self.model in model_array.MacPro):
+            for i, controller in enumerate(computer.storage):
+                if controller.pci_path:
+                    self.config["DeviceProperties"]["Add"].setdefault(controller.pci_path, {})["built-in"] = 1
+                    self._log(f"  DeviceProperties: PCIe Storage ({i+1}) built-in at {controller.pci_path}")
+                else:
+                    self.enable_kext("Innie.kext", self.constants.innie_version)
+                    self._log(f"  Innie.kext fallback for PCIe Storage ({i+1})")
+
+        # Apple RAID Card (pci106b,8a)
+        if computer and computer.storage:
+            for controller in computer.storage:
+                if controller.vendor_id == 0x106b and controller.device_id == 0x008A:
+                    self.enable_kext("AppleRAIDCard.kext", self.constants.apple_raid_version)
+                    self._log("  AppleRAIDCard (Apple RAID)")
+                    break
+        elif self.model.startswith("Xserve"):
+            self.enable_kext("AppleRAIDCard.kext", self.constants.apple_raid_version)
+            self._log("  AppleRAIDCard (Xserve fallback)")
+
+        # AHCI hardware detection for MacBookAir6,x
+        if computer:
+            sata_devices = [i for i in computer.storage if isinstance(i, device_probe.SATAController)]
+            for controller in sata_devices:
+                if controller.vendor_id == 0x1179 and controller.device_id == 0x010b:
+                    self.enable_kext("MonteAHCIPort.kext", self.constants.monterey_ahci_version)
+                    self._log("  MonteAHCIPort (AHCI SSD detected)")
+                    break
+        elif self.model in ("MacBookAir6,1", "MacBookAir6,2"):
+            self.enable_kext("MonteAHCIPort.kext", self.constants.monterey_ahci_version)
+            self._log("  MonteAHCIPort (MacBookAir6 AHCI fallback)")
+
         # PATA support
         if "PATA" in stock_storage:
             self.enable_kext("AppleIntelPIIXATA.kext", self.constants.piixata_version)
             self._log("  AppleIntelPIIXATA (PATA)")
-
-        # AHCI patch for MacBookAir6,x
-        if self.model in ("MacBookAir6,1", "MacBookAir6,2"):
-            self.enable_kext("MonteAHCIPort.kext", self.constants.monterey_ahci_version)
-            self._log("  MonteAHCIPort (MacBookAir6 AHCI)")
 
         # SDXC for pre-Sandy Bridge models with SDXC
         if cpu_gen <= cpu_data.CPUGen.sandy_bridge.value:

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Modified by Jazzzny for OCLP-R on 06.10.23.
+# Modified by Jazzzny for MacBoxTool on 06.10.23.
 
 abort() {
   echo "Fatal error: ${1}!"

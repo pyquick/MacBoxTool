@@ -82,4 +82,8 @@ class ACPIManager:
         awac_mgr = AWACACPIManager(self.config, self.constants, self.model, self.paths)
         self.log_lines.extend(awac_mgr.apply())
 
+        from .firmware import FirmwareACPIManager
+        fw_mgr = FirmwareACPIManager(self.config, self.constants, self.model, self.paths)
+        self.log_lines.extend(fw_mgr.apply())
+
         return self.log_lines

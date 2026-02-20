@@ -1255,7 +1255,7 @@
 				<key>BundlePath</key>
 				<string>AutoPkgInstaller.kext</string>
 				<key>Comment</key>
-				<string>Chainload OCLP-R installation</string>
+				<string>Chainload MacBoxTool installation</string>
 				<key>Enabled</key>
 				<false/>
 				<key>ExecutablePath</key>

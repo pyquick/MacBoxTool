@@ -5,7 +5,7 @@ This file now serves as a compatibility layer that imports from the new
 modular architecture. The actual implementation is in builder.py and
 related modules.
 
-References OCLP-R efi_builder pattern.
+References MacBoxTool efi_builder pattern.
 Output: ~/.macboxtool/efi_builder/
 """
 
