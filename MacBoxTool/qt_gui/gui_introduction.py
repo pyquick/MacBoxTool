@@ -95,7 +95,7 @@ class Introduction(ScrollArea):
             body=(
                 "The long awaited version 3.0.1 of OCLP-R is here, bringing <b>initial support for macOS Tahoe 26</b> to the community!<br><br>"
                 "<b>Please Note:</b><br>"
-                "- Only OCLP-R 3.0.2 from the <a href=\"https://github.com/hackdoc/OCLP-R/releases/download/3.0.2/OCLP-R.pkg\" style=\"color: #0078D4; text-decoration: none;\">hackdoc/OCLP-R</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
+                "- Only OCLP-R 3.0.2 from the <a href=\"https://github.com/pyquick/OCLP-R/releases/download/3.0.2/OCLP-R.pkg\" style=\"color: #0078D4; text-decoration: none;\">pyquick/OCLP-R</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
                 "- Official Dortania releases or older patches <b>will NOT work</b> with macOS Tahoe 26."
             )
         )

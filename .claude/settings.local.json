@@ -7,7 +7,8 @@
       "mcp__filesystem__write_file",
       "mcp__filesystem__edit_file",
       "Bash(\"c:/Users/Ghltbm/Documents/MacBoxTool/MacBoxTool/detections/device_probe_win.py\":*)",
-      "Bash(python3 -c:*)"
+      "Bash(python3 -c:*)",
+      "mcp__context7__resolve-library-id"
     ]
   }
 }

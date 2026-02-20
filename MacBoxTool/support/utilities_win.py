@@ -190,7 +190,7 @@ def get_nvram(variable: str, uuid: str = None, *, decode: bool = False):
 
 
 def _get_nvram_from_registry(variable: str, uuid: str = None, *, decode: bool = False):
-    """
+    r"""
     Fallback: Try to read NVRAM values from registry if firmware access fails.
     Some boot loaders store variables in HKLM\System\CurrentControlSet\Control\FirmwareEnvironmentVariables
     """
@@ -442,3 +442,36 @@ def get_free_space(disk=None):
 
 def block_os_updaters():
     pass
+
+
+# ---------------------------------------------------------------------------
+# Command line arguments for testing
+# ---------------------------------------------------------------------------
+
+_test_args_model: str = None
+
+
+def get_test_args() -> dict:
+    """
+    Get command line arguments for testing.
+
+    Returns:
+        dict: Dictionary with 'model' key if --model was passed
+    """
+    import sys
+    global _test_args_model
+
+    if _test_args_model is not None:
+        return {"model": _test_args_model}
+
+    for i, arg in enumerate(sys.argv):
+        if arg == "--model" and i + 1 < len(sys.argv):
+            _test_args_model = sys.argv[i + 1]
+            return {"model": _test_args_model}
+    return {}
+
+
+def clear_test_args():
+    """Clear test arguments after use."""
+    global _test_args_model
+    _test_args_model = None

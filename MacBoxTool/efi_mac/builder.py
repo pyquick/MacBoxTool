@@ -1,0 +1,148 @@
+"""
+builder.py: Main EFI builder that coordinates all modules
+"""
+
+
+import logging
+import plistlib
+from datetime import date
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from .base import BaseGenerator
+from .config import ConfigManager
+
+if TYPE_CHECKING:
+    from .. import constants
+
+logger = logging.getLogger(__name__)
+
+
+class BuildOpenCore:
+    """Build OpenCore EFI for a given Mac model using modular architecture."""
+
+    def __init__(self, model: str, global_constants):  # Constants instance passed at runtime
+        self.model = model
+        self.constants = global_constants
+        self.config: dict = None
+        self.log_lines: list[str] = []
+
+        # Initialize base generator
+        self.base_gen = BaseGenerator(model, global_constants)
+        self.paths = self.base_gen.get_paths()
+
+    def _log(self, msg: str):
+        logger.info(msg)
+        self.log_lines.append(msg)
+
+    def build(self) -> list[str]:
+        """
+        Run the full build process.
+
+        Returns:
+            Log lines from the build process
+        """
+        self._log(f"=== Building OpenCore EFI for {self.model} ===")
+        self._log(f"Date: {date.today()}")
+        self._log(f"OpenCore version: {self.constants.opencore_version}")
+        self._log("")
+
+        # Import model_array here to avoid circular import
+        from ..datasets import model_array
+        if self.model not in model_array.SupportedSMBIOS:
+            self._log(f"[ERROR] Model {self.model} is not in SupportedSMBIOS list!")
+            return self.log_lines
+
+        # Step 1: Generate base structure
+        self.config, logs = self.base_gen.generate()
+        self.log_lines.extend(logs)
+
+        # Step 2: Set revision info
+        from .smbios.base import SMBIOSManager
+        smbios_mgr = SMBIOSManager(self.config, self.constants, self.model, self.paths)
+        logs = smbios_mgr.set_revision()
+        self.log_lines.extend(logs)
+
+        # Step 3: Apply quirks (Booter, Kernel, Misc Security)
+        from .smbios.quirks import QuirksManager
+        quirks_mgr = QuirksManager(self.config, self.constants, self.model, self.paths)
+        logs = quirks_mgr.apply()
+        self.log_lines.extend(logs)
+
+        # Step 4: Enable base kexts
+        from .kexts.base import KextManager
+        kext_mgr = KextManager(self.config, self.constants, self.model, self.paths)
+        logs = kext_mgr.enable_base_kexts()
+        self.log_lines.extend(logs)
+        enabled_kexts = sum(1 for k in self.config.get("Kernel", {}).get("Add", []) if k.get("Enabled"))
+        self._log(f"  Total enabled kexts: {enabled_kexts}")
+
+        # Step 5: Enable base ACPI
+        from .acpi.base import ACPIManager
+        acpi_mgr = ACPIManager(self.config, self.constants, self.model, self.paths)
+        logs = acpi_mgr.enable_base_acpi()
+        self.log_lines.extend(logs)
+
+        # Step 6: Enable drivers
+        from .drivers.base import DriverManager
+        driver_mgr = DriverManager(self.config, self.constants, self.model, self.paths)
+        logs = driver_mgr.enable_base_drivers()
+        self.log_lines.extend(logs)
+
+        # Step 7: Cleanup disabled entries
+        config_mgr = ConfigManager(self.config, self.paths["plist_path"])
+        logs = config_mgr.cleanup()
+        self.log_lines.extend(logs)
+
+        # Step 8: Save config
+        logs = config_mgr.save()
+        self.log_lines.extend(logs)
+
+        # Step 9: Validate
+        self._validate()
+
+        self._log("")
+        self._log(f"[DONE] EFI built at: {self.paths['oc_build']}")
+
+        return self.log_lines
+
+    def _validate(self):
+        """
+        Validate that referenced files exist on disk.
+
+        Returns:
+            Log lines from validation
+        """
+        self._log("[STEP] Validating EFI")
+        errors = 0
+        plist_path = self.paths["plist_path"]
+        kexts_path = self.paths["kexts_path"]
+        drivers_path = self.paths["drivers_path"]
+        oc_folder = self.paths["oc_folder"]
+
+        if not plist_path.exists():
+            self._log("  [ERROR] config.plist missing!")
+            errors += 1
+
+        for kext in self.config.get("Kernel", {}).get("Add", []):
+            kp = kexts_path / kext["BundlePath"]
+            if not kp.exists():
+                self._log(f"  [WARN] Missing kext: {kext['BundlePath']}")
+                errors += 1
+
+        for drv in self.config.get("UEFI", {}).get("Drivers", []):
+            dp = drivers_path / drv["Path"]
+            if not dp.exists():
+                self._log(f"  [WARN] Missing driver: {drv['Path']}")
+                errors += 1
+
+        for tool in self.config.get("Misc", {}).get("Tools", []):
+            tp = oc_folder / "Tools" / tool["Path"]
+            if not tp.exists():
+                self._log(f"  [WARN] Missing tool: {tool['Path']}")
+                errors += 1
+
+        if errors == 0:
+            self._log("  Validation passed")
+        else:
+            self._log(f"  Validation completed with {errors} warning(s)")

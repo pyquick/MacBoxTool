@@ -17,6 +17,7 @@ if sys.platform=="darwin":
 else:
     from .detections import device_probe_win as device_probe
 
+from .detections import os_probe
 
 
 class MacBoxTool:
@@ -25,6 +26,11 @@ class MacBoxTool:
         self.constants: Constants = Constants()
         self.computer= device_probe.Computer().probe()
         
+        os_data = os_probe.OSProbe()
+        self.constants.detected_os = os_data.detect_kernel_major()
+        self.constants.detected_os_minor = os_data.detect_kernel_minor()
+        self.constants.detected_os_build = os_data.detect_os_build()
+        self.constants.detected_os_version = os_data.detect_os_version()
         self.constants.computer = self.computer
         LoggingHandler(self.constants)
         ThemeManager(self.constants)

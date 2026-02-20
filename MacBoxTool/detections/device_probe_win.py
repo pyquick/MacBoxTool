@@ -1,6 +1,7 @@
 """
 device_probe_win.py: Hardware probing for Windows
 """
+import ctypes
 import enum
 import re
 import hashlib
@@ -10,6 +11,7 @@ from typing import ClassVar, Optional
 import wmi
 
 from ..datasets import pci_data, usb_data
+from ..support import utilities_win as utilities
 
 
 # ---------------------------------------------------------------------------
@@ -26,47 +28,155 @@ _GUID_TO_CLASS = {
     "{4d36e967-e325-11ce-bfc1-08002be10318}": 0x010802,  # NVMe/Disk
 }
 
+_RE_PCI = re.compile(r'VEN_([0-9A-F]{4})&DEV_([0-9A-F]{4})', re.I)
+_RE_USB = re.compile(r'VID_([0-9A-F]{4})&PID_([0-9A-F]{4})', re.I)
+_RE_LOC = re.compile(r'bus\s+(\d+).*device\s+(\d+).*function\s+(\d+)', re.I)
 
-def _reg_open(did: str):
-    return winreg.OpenKey(
-        winreg.HKEY_LOCAL_MACHINE,
-        r"SYSTEM\CurrentControlSet\Enum\\" + did.replace("/", "\\")
-    )
+_HKLM = winreg.HKEY_LOCAL_MACHINE
+_ENUM_BASE = r"SYSTEM\CurrentControlSet\Enum"
 
 
-def _get_class_code(did: str) -> int:
+def _reg_enum_keys(parent_key):
+    """Yield subkey names under an open registry key."""
+    i = 0
+    while True:
+        try:
+            yield winreg.EnumKey(parent_key, i)
+            i += 1
+        except OSError:
+            break
+
+
+def _scan_pci_registry():
+    """Scan PCI devices from registry. Returns list of (vid, did, cc, name, pci_path)."""
+    pci_list = []
     try:
-        with _reg_open(did) as k:
-            guid, _ = winreg.QueryValueEx(k, "ClassGUID")
-            return _GUID_TO_CLASS.get(guid.lower(), 0)
-    except Exception:
-        return 0
-
-
-def _pci_path(did: str) -> Optional[str]:
-    try:
-        with _reg_open(did) as k:
-            loc, _ = winreg.QueryValueEx(k, "LocationInformation")
-        m = re.search(r'bus\s+(\d+).*device\s+(\d+).*function\s+(\d+)', loc, re.I)
-        if m:
-            bus, dev, fn = int(m.group(1)), int(m.group(2)), int(m.group(3))
-            return f"PciRoot(0x{bus:x})/Pci(0x{dev:x},0x{fn:x})"
-    except Exception:
+        with winreg.OpenKey(_HKLM, _ENUM_BASE + r"\PCI") as pci_root:
+            for dev_name in _reg_enum_keys(pci_root):
+                m = _RE_PCI.search(dev_name)
+                if not m:
+                    continue
+                vid, did = int(m.group(1), 16), int(m.group(2), 16)
+                with winreg.OpenKey(pci_root, dev_name) as dev_key:
+                    for inst in _reg_enum_keys(dev_key):
+                        cc, pp, name = 0, None, dev_name
+                        try:
+                            with winreg.OpenKey(dev_key, inst) as ik:
+                                try:
+                                    guid, _ = winreg.QueryValueEx(ik, "ClassGUID")
+                                    cc = _GUID_TO_CLASS.get(guid.lower(), 0)
+                                except OSError:
+                                    pass
+                                try:
+                                    loc, _ = winreg.QueryValueEx(ik, "LocationInformation")
+                                    lm = _RE_LOC.search(loc)
+                                    if lm:
+                                        pp = f"PciRoot(0x{int(lm.group(1)):x})/Pci(0x{int(lm.group(2)):x},0x{int(lm.group(3)):x})"
+                                except OSError:
+                                    pass
+                                try:
+                                    desc, _ = winreg.QueryValueEx(ik, "DeviceDesc")
+                                    name = desc.split(";")[-1] if ";" in desc else desc
+                                except OSError:
+                                    pass
+                        except OSError:
+                            continue
+                        pci_list.append((vid, did, cc, name, pp))
+    except OSError:
         pass
-    return None
+    return pci_list
 
 
-def _iter_pci(c):
-    """Yield (vendor_id, device_id, class_code, name, pci_path) for all PCI devices."""
-    for dev in c.Win32_PnPEntity():
-        did = dev.DeviceID or ""
-        if "PCI\\" not in did.upper():
-            continue
-        m = re.search(r'VEN_([0-9A-F]{4})&DEV_([0-9A-F]{4})', did, re.I)
-        if not m:
-            continue
-        yield (int(m.group(1), 16), int(m.group(2), 16),
-               _get_class_code(did), dev.Name or did, _pci_path(did))
+def _scan_usb_registry():
+    """Scan USB devices from registry. Returns list of (vid, pid, name, manufacturer, device_id)."""
+    usb_list = []
+    try:
+        with winreg.OpenKey(_HKLM, _ENUM_BASE + r"\USB") as usb_root:
+            for dev_name in _reg_enum_keys(usb_root):
+                m = _RE_USB.search(dev_name)
+                if not m:
+                    continue
+                vid, pid = int(m.group(1), 16), int(m.group(2), 16)
+                with winreg.OpenKey(usb_root, dev_name) as dev_key:
+                    for inst in _reg_enum_keys(dev_key):
+                        name, mfg, serial = dev_name, None, None
+                        try:
+                            with winreg.OpenKey(dev_key, inst) as ik:
+                                try:
+                                    desc, _ = winreg.QueryValueEx(ik, "DeviceDesc")
+                                    name = desc.split(";")[-1] if ";" in desc else desc
+                                except OSError:
+                                    pass
+                                try:
+                                    mfg_raw, _ = winreg.QueryValueEx(ik, "Mfg")
+                                    mfg = mfg_raw.split(";")[-1] if ";" in mfg_raw else mfg_raw
+                                except OSError:
+                                    pass
+                        except OSError:
+                            continue
+                        usb_list.append((vid, pid, name, mfg, f"USB\\{dev_name}\\{inst}"))
+    except OSError:
+        pass
+    return usb_list
+
+
+# ---------------------------------------------------------------------------
+# CPU feature detection via cpuinfo
+# ---------------------------------------------------------------------------
+
+_PF_FLAGS = {
+    "MMX":    3,   "SSE":   6,   "SSE2":  10,  "SSE3":    13,
+    "SSSE3": 36,   "SSE4_1": 37, "SSE4_2": 38, "AVX":     39,
+    "AVX2":  40,   "AVX512F": 41,
+    "CX128": 14,   "RDTSC": 8,
+}
+
+# Cache cpuinfo result globally (called once per process)
+_cpuinfo_cache: dict | None = None
+_cpuflags_cache: list[str] | None = None
+
+# Cached CPU data (reused across all Computer instances)
+_cached_cpu_name: str | None = None
+_cached_cpu_flags: list[str] | None = None
+
+
+def _fast_cpu_flags() -> list[str]:
+    """
+    Get CPU flags via py-cpuinfo (cached).
+    First call is slow (~2s), subsequent calls use cached result.
+    Returns list of uppercase flag names.
+    """
+    global _cpuinfo_cache
+    try:
+        import cpuinfo
+        if _cpuinfo_cache is None:
+            _cpuinfo_cache = cpuinfo.get_cpu_info()
+
+        flags = _cpuinfo_cache.get("flags", [])
+        if not flags:
+            raise ValueError("No flags returned")
+
+        # Normalize flags: uppercase, remove dots (AVX1.0 -> AVX)
+        normalized = []
+        for f in flags:
+            f_upper = f.upper().replace(" ", "")
+            # SSE4.1/4.2 naming
+            if "SSE4.1" in f_upper or "SSE4_1" in f_upper:
+                normalized.append("SSE4_1")
+            elif "SSE4.2" in f_upper or "SSE4_2" in f_upper:
+                normalized.append("SSE4_2")
+            # AVX1.0 -> AVX
+            elif "AVX1.0" in f_upper:
+                normalized.append("AVX")
+            # Keep all other flags
+            else:
+                normalized.append(f_upper)
+        return normalized
+    except Exception:
+        # Fallback to IsProcessorFeaturePresent (instant but limited)
+        kernel32 = ctypes.windll.kernel32
+        return [name for name, pf_id in _PF_FLAGS.items()
+                if kernel32.IsProcessorFeaturePresent(pf_id)]
 
 
 # ---------------------------------------------------------------------------
@@ -91,23 +201,8 @@ class USBDevice:
     serial_number: Optional[str] = None
 
     @classmethod
-    def from_wmi(cls, dev):
-        did = dev.DeviceID or ""
-        m = re.search(r'VID_([0-9A-F]{4})&PID_([0-9A-F]{4})', did, re.I)
-        vendor_id = int(m.group(1), 16) if m else 0
-        device_id = int(m.group(2), 16) if m else 0
-        device_class, serial_number = 0, None
-        try:
-            results = wmi.WMI().Win32_USBDevice(DeviceID=did.replace('\\', '\\\\'))
-            if results:
-                u = results[0]
-                if getattr(u, 'ClassCode', None) is not None:
-                    device_class = int(u.ClassCode)
-                serial_number = getattr(u, 'SerialNumber', None) or None
-        except Exception:
-            pass
-        return cls(vendor_id, device_id, device_class, 0,
-                   dev.Name or "", dev.Manufacturer or None, serial_number)
+    def from_registry(cls, vid, pid, name, mfg, device_id):
+        return cls(vid, pid, 0, 0, name or "", mfg, None)
 
     def detect(self):
         self.detect_class()
@@ -492,16 +587,43 @@ class NVIDIAEthernet(EthernetController):
         self.chipset = NVIDIAEthernet.Chipsets.nForceEthernet
 
 
+@dataclass
+class SysKonnect(EthernetController):
+    VENDOR_ID: ClassVar[int] = 0x1148
+
+    class Chipsets(enum.Enum):
+        MarvelYukonEthernet = "MarvelYukonEthernet supported"
+        Unknown             = "Unknown"
+
+    chipset: Chipsets = field(init=False)
+
+    def detect_chipset(self):
+        if self.device_id in pci_data.syskonnect_ids.MarvelYukonEthernet:
+            self.chipset = SysKonnect.Chipsets.MarvelYukonEthernet
+        else:
+            self.chipset = SysKonnect.Chipsets.Unknown
+
+
 # ---------------------------------------------------------------------------
 # Vendor detection helper
 # ---------------------------------------------------------------------------
 
 _GPU_VENDORS = [NVIDIA, AMD, Intel]
-_ETH_VENDORS = [IntelEthernet, BroadcomEthernet, Aquantia, Marvell, NVIDIAEthernet]
+_ETH_VENDORS = [IntelEthernet, BroadcomEthernet, Aquantia, Marvell, SysKonnect, NVIDIAEthernet]
 _WIFI_VENDORS = [Broadcom, IntelWirelessCard, Atheros]
 
 
 def _detect_gpu(vendor_id, device_id, class_code, name, pci_path):
+    # Filter out "Microsoft Basic Display Adapter" - it's a software adapter, not real hardware
+    if name and "Microsoft Basic Display Adapter" in name:
+        return None
+    # Filter out "Microsoft Hyper-V Video" - virtual GPU
+    if name and "Hyper-V" in name:
+        return None
+    # Filter out "Microsoft Remote Display" - virtual GPU
+    if name and "Remote Display" in name:
+        return None
+
     for cls in _GPU_VENDORS:
         if vendor_id == cls.VENDOR_ID and class_code in GPU.CLASS_CODES:
             return cls(vendor_id, device_id, class_code, name=name, pci_path=pci_path,
@@ -565,121 +687,169 @@ class Computer:
     oclp_sys_signed:      bool           = False
     firmware_vendor:      Optional[str]  = None
     rosetta_active:       bool           = False
+    _wmi:                 object         = field(default=None, repr=False)
+    _pci_cache:           list           = field(default_factory=list, repr=False)
+    _usb_raw:             list           = field(default_factory=list, repr=False)
 
     @staticmethod
     def probe():
         computer = Computer()
-        c = wmi.WMI()
-        computer.cpu_probe(c)
-        computer.pci_probe(c)
-        computer.usb_probe(c)
-        computer.smbios_probe(c)
+        computer._wmi = wmi.WMI()
+        computer._pci_cache = _scan_pci_registry()
+        computer._usb_raw = _scan_usb_registry()
+        computer.gpu_probe()
+        computer.dgpu_probe()
+        computer.igpu_probe()
+        computer.wifi_probe()
+        computer.storage_probe()
+        computer.usb_controller_probe()
+        computer.sdxc_controller_probe()
+        computer.ethernet_probe()
+        computer.smbios_probe()
+        computer.usb_device_probe()
+        computer.cpu_probe()
         computer.bluetooth_probe()
         computer.topcase_probe()
         computer.t1_probe()
-        computer.sata_disk_probe(c)
+        computer.ambient_light_sensor_probe()
+        computer.pcie_webcam_probe()
+        computer.sata_disk_probe()
+        computer.oclp_sys_patch_probe()
         return computer
 
-    def pci_probe(self, c):
-        for vendor_id, device_id, class_code, name, pci_path in _iter_pci(c):
-            gpu = _detect_gpu(vendor_id, device_id, class_code, name, pci_path)
+    def _make_pci(self, cls, vid, did, cc, name, pp):
+        return cls(vid, did, cc, name=name, pci_path=pp,
+                   vendor_id_unspoofed=vid, device_id_unspoofed=did)
+
+    def gpu_probe(self):
+        for vid, did, cc, name, pp in self._pci_cache:
+            gpu = _detect_gpu(vid, did, cc, name, pp)
             if gpu:
                 self.gpus.append(gpu)
-                continue
-            eth = _detect_eth(vendor_id, device_id, class_code, name, pci_path)
+
+    def dgpu_probe(self):
+        """
+        Select discrete GPU. Priority: NVIDIA > AMD > others.
+        Intel is never selected as dGPU.
+        """
+        for gpu in self.gpus:
+            if isinstance(gpu, NVIDIA):
+                self.dgpu = gpu
+                return
+        for gpu in self.gpus:
+            if isinstance(gpu, AMD):
+                self.dgpu = gpu
+                return
+
+    def igpu_probe(self):
+        """
+        Select integrated GPU. Intel is the primary iGPU vendor.
+        """
+        for gpu in self.gpus:
+            if isinstance(gpu, Intel):
+                self.igpu = gpu
+                return
+
+    def wifi_probe(self):
+        for vid, did, cc, name, pp in self._pci_cache:
+            wifi = _detect_wifi(vid, did, cc, name, pp)
+            if wifi:
+                self.wifi = wifi
+                return
+
+    def storage_probe(self):
+        for vid, did, cc, name, pp in self._pci_cache:
+            if cc in NVMeController.CLASS_CODES:
+                self.storage.append(self._make_pci(NVMeController, vid, did, cc, name, pp))
+            elif cc in SATAController.CLASS_CODES:
+                self.storage.append(self._make_pci(SATAController, vid, did, cc, name, pp))
+            elif cc in SASController.CLASS_CODES:
+                self.storage.append(self._make_pci(SASController, vid, did, cc, name, pp))
+
+    def usb_controller_probe(self):
+        for vid, did, cc, name, pp in self._pci_cache:
+            if cc in XHCIController.CLASS_CODES:
+                self.usb_controllers.append(self._make_pci(XHCIController, vid, did, cc, name, pp))
+            elif cc in EHCIController.CLASS_CODES:
+                self.usb_controllers.append(self._make_pci(EHCIController, vid, did, cc, name, pp))
+            elif cc in OHCIController.CLASS_CODES:
+                self.usb_controllers.append(self._make_pci(OHCIController, vid, did, cc, name, pp))
+            elif cc in UHCIController.CLASS_CODES:
+                self.usb_controllers.append(self._make_pci(UHCIController, vid, did, cc, name, pp))
+
+    def sdxc_controller_probe(self):
+        for vid, did, cc, name, pp in self._pci_cache:
+            if cc in SDXCController.CLASS_CODES:
+                self.sdxc_controller.append(self._make_pci(SDXCController, vid, did, cc, name, pp))
+
+    def ethernet_probe(self):
+        for vid, did, cc, name, pp in self._pci_cache:
+            eth = _detect_eth(vid, did, cc, name, pp)
             if eth:
                 self.ethernet.append(eth)
-                continue
-            if self.wifi is None:
-                wifi = _detect_wifi(vendor_id, device_id, class_code, name, pci_path)
-                if wifi:
-                    self.wifi = wifi
-                    continue
-            if class_code in NVMeController.CLASS_CODES:
-                self.storage.append(NVMeController(vendor_id, device_id, class_code, name=name, pci_path=pci_path,
-                                                   vendor_id_unspoofed=vendor_id, device_id_unspoofed=device_id))
-            elif class_code in SATAController.CLASS_CODES:
-                self.storage.append(SATAController(vendor_id, device_id, class_code, name=name, pci_path=pci_path,
-                                                   vendor_id_unspoofed=vendor_id, device_id_unspoofed=device_id))
-            elif class_code in SASController.CLASS_CODES:
-                self.storage.append(SASController(vendor_id, device_id, class_code, name=name, pci_path=pci_path,
-                                                  vendor_id_unspoofed=vendor_id, device_id_unspoofed=device_id))
-            elif class_code in XHCIController.CLASS_CODES:
-                self.usb_controllers.append(XHCIController(vendor_id, device_id, class_code, name=name, pci_path=pci_path,
-                                                           vendor_id_unspoofed=vendor_id, device_id_unspoofed=device_id))
-            elif class_code in EHCIController.CLASS_CODES:
-                self.usb_controllers.append(EHCIController(vendor_id, device_id, class_code, name=name, pci_path=pci_path,
-                                                           vendor_id_unspoofed=vendor_id, device_id_unspoofed=device_id))
-            elif class_code in OHCIController.CLASS_CODES:
-                self.usb_controllers.append(OHCIController(vendor_id, device_id, class_code, name=name, pci_path=pci_path,
-                                                           vendor_id_unspoofed=vendor_id, device_id_unspoofed=device_id))
-            elif class_code in UHCIController.CLASS_CODES:
-                self.usb_controllers.append(UHCIController(vendor_id, device_id, class_code, name=name, pci_path=pci_path,
-                                                           vendor_id_unspoofed=vendor_id, device_id_unspoofed=device_id))
-            elif class_code in SDXCController.CLASS_CODES:
-                self.sdxc_controller.append(SDXCController(vendor_id, device_id, class_code, name=name, pci_path=pci_path,
-                                                           vendor_id_unspoofed=vendor_id, device_id_unspoofed=device_id))
-        # dgpu = first non-Intel GPU, igpu = Intel GPU
-        for gpu in self.gpus:
-            if isinstance(gpu, Intel) and self.igpu is None:
-                self.igpu = gpu
-            elif not isinstance(gpu, Intel) and self.dgpu is None:
-                self.dgpu = gpu
 
-    def usb_probe(self, c):
-        for dev in c.Win32_PnPEntity():
-            did = dev.DeviceID or ""
-            if "USB\\" not in did.upper() or "VID_" not in did.upper():
-                continue
-            usb = USBDevice.from_wmi(dev)
+    def usb_device_probe(self):
+        for vid, pid, name, mfg, did in self._usb_raw:
+            usb = USBDevice.from_registry(vid, pid, name, mfg, did)
             usb.detect()
             self.usb_devices.append(usb)
 
-    def cpu_probe(self, c):
+    def cpu_probe(self):
+        # Check if CPU already cached globally
+        global _cached_cpu_name, _cached_cpu_flags
+        if _cached_cpu_name is not None:
+            flags = _cached_cpu_flags or _fast_cpu_flags()
+            leafs = [f for f in flags if f.startswith("AVX") or f in ("BMI1", "BMI2", "SHA",
+                                                                      "POPCNT", "AES", "PCLMULQDQ")]
+            self.cpu = CPU(_cached_cpu_name, flags, leafs)
+            return
+
         try:
-            proc = c.Win32_Processor()[0]
+            proc = self._wmi.Win32_Processor()[0]
             name = proc.Name.strip() if proc.Name else ""
         except Exception:
             name = ""
-        flags = self._cpu_flags()
-        leafs = self._cpu_leafs()
+        flags = _fast_cpu_flags()
+        # Cache for future calls
+        _cached_cpu_name = name
+        # Extract leafs: AVX extensions and BMI1/BMI2/SHA
+        leafs = [f for f in flags if f.startswith("AVX") or f in ("BMI1", "BMI2", "SHA",
+                                                                  "POPCNT", "AES", "PCLMULQDQ")]
         self.cpu = CPU(name, flags, leafs)
 
-    def _cpu_flags(self) -> list[str]:
+    def smbios_probe(self):
         try:
-            import cpuinfo
-            return cpuinfo.get_cpu_info().get("flags", [])
-        except Exception:
-            return []
-
-    def _cpu_leafs(self) -> list[str]:
-        try:
-            import cpuinfo
-            flags = cpuinfo.get_cpu_info().get("flags", [])
-            return [f for f in flags if f.startswith("avx") or f in ("bmi1", "bmi2", "sha")]
-        except Exception:
-            return []
-
-    def smbios_probe(self, c):
-        try:
-            board = c.Win32_BaseBoard()[0]
-            self.real_board_id  = board.Product or None
-            self.reported_board_id = self.real_board_id
+            board = self._wmi.Win32_BaseBoard()[0]
+            self.reported_board_id = board.Product or None
         except Exception:
             pass
         try:
-            sys_info = c.Win32_ComputerSystemProduct()[0]
-            self.real_model     = sys_info.Name or None
-            self.reported_model = self.real_model
+            sys_info = self._wmi.Win32_ComputerSystemProduct()[0]
+            self.reported_model = sys_info.Name or None
             uuid_raw = sys_info.UUID or ""
             self.uuid_sha1 = hashlib.sha1(uuid_raw.encode()).hexdigest()
         except Exception:
             pass
-        try:
-            bios = c.Win32_BIOS()[0]
-            self.firmware_vendor = bios.Manufacturer or None
-        except Exception:
-            pass
+
+        # NVRAM overrides (OpenCore spoofed values)
+        self.real_model = utilities.get_nvram("oem-product", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True) or self.reported_model
+        self.real_board_id = utilities.get_nvram("oem-board", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True) or self.reported_board_id
+        self.build_model = utilities.get_nvram("OCLP-Model", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
+
+        # OCLP / OpenCore version
+        self.oclp_version = utilities.get_nvram("OCLP-Version", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
+        self.opencore_version = utilities.get_nvram("opencore-version", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
+        self.opencore_path = utilities.get_nvram("boot-path", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
+
+        # SecureBoot Variables
+        self.secure_boot_model = utilities.check_secure_boot_model()
+        self.secure_boot_policy = utilities.check_ap_security_policy()
+
+        # Firmware Vendor
+        firmware_vendor = utilities.get_firmware_vendor(decode=False)
+        if isinstance(firmware_vendor, bytes):
+            firmware_vendor = str(firmware_vendor.replace(b"\x00", b"").decode("utf-8"))
+        self.firmware_vendor = firmware_vendor
 
     def bluetooth_probe(self):
         if not self.usb_devices:
@@ -721,9 +891,15 @@ class Computer:
                 if "CPID:8002" in parts and ("BDID:12" in parts or "BDID:13" in parts):
                     self.t1_chip = True; return
 
-    def sata_disk_probe(self, c):
+    def ambient_light_sensor_probe(self):
+        pass  # Not available on Windows
+
+    def pcie_webcam_probe(self):
+        pass  # Not available on Windows
+
+    def sata_disk_probe(self):
         try:
-            for disk in c.Win32_DiskDrive():
+            for disk in self._wmi.Win32_DiskDrive():
                 media = (disk.MediaType or "").lower()
                 model = (disk.Model or "").lower()
                 if "ssd" in media or "solid" in media:
@@ -732,3 +908,21 @@ class Computer:
                         return
         except Exception:
             pass
+
+    def oclp_sys_patch_probe(self):
+        from pathlib import Path
+        import plistlib
+        path = Path("/System/Library/CoreServices/OCLP-R.plist")
+        if not path.exists():
+            self.oclp_sys_signed = True
+            return
+        try:
+            sys_plist = plistlib.load(path.open("rb"))
+        except Exception:
+            return
+        if sys_plist:
+            self.oclp_sys_version = sys_plist.get("OCLP-R")
+            self.oclp_sys_date = sys_plist.get("Time Patched")
+            self.oclp_sys_url = sys_plist.get("Commit URL")
+            if "Custom Signature" in sys_plist:
+                self.oclp_sys_signed = sys_plist["Custom Signature"]

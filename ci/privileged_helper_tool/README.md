@@ -4,7 +4,7 @@
 
 The architecture is as such:
 1. The main application (MacBoxTool.app) will send arguments to the privileged helper tool to execute.
-2. The privileged helper tool will check the code signature of the main application to ensure it is signed by hackdoc.
+2. The privileged helper tool will check the code signature of the main application to ensure it is signed by pyquick.
 3. The privileged helper tool will then execute the command and return the output to the main application.
 
 The helper tool is able to execute code as root by using the "Set UID" bit present on the file.
@@ -12,7 +12,7 @@ The helper tool is able to execute code as root by using the "Set UID" bit prese
 
 ## Running from source
 
-Since running MacBoxTool from source will lack hackdoc's code signature, you will need to disable code signature verification in the privileged helper tool otherwise root commands will fail.
+Since running MacBoxTool from source will lack pyquick's code signature, you will need to disable code signature verification in the privileged helper tool otherwise root commands will fail.
 
 To do so, compile the privileged helper tool with debug:
 ```

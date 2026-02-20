@@ -23,8 +23,11 @@ class OSProbe:
         Returns:
             int: Major kernel version (ex. 21, from 21.1.0)
         """
-
-        return int(self.uname_data.release.partition(".")[0])
+        import sys
+        if sys.platform=="darwin":
+            return int(self.uname_data.release.partition(".")[0])
+        elif sys.platform=="win32":
+            return int(self.uname_data.release)
 
 
     def detect_kernel_minor(self) -> int:
@@ -34,8 +37,12 @@ class OSProbe:
         Returns:
             int: Minor kernel version (ex. 1, from 21.1.0)
         """
-
-        return int(self.uname_data.release.partition(".")[2].partition(".")[0])
+        import sys
+        if sys.platform=="darwin":
+            return int(self.uname_data.release.partition(".")[2].partition(".")[0])
+        elif sys.platform=="win32":
+            return 0 # Windows does not have a minor kernel version
+            
 
 
     def detect_os_version(self) -> str:
@@ -45,12 +52,15 @@ class OSProbe:
         Returns:
             str: OS version (ex. 12.0)
         """
+        import sys
+        if sys.platform=="darwin":
+            result = subprocess.run(["/usr/bin/sw_vers", "-productVersion"], stdout=subprocess.PIPE)
+            if result.returncode != 0:
+                raise RuntimeError("Failed to detect OS version")
 
-        result = subprocess.run(["/usr/bin/sw_vers", "-productVersion"], stdout=subprocess.PIPE)
-        if result.returncode != 0:
-            raise RuntimeError("Failed to detect OS version")
-
-        return result.stdout.decode().strip()
+            return result.stdout.decode().strip()
+        elif sys.platform=="win32":
+            return self.uname_data.version
 
 
     def detect_os_build(self, rsr: bool = False) -> str:
@@ -72,12 +82,16 @@ class OSProbe:
         Returns:
             str: OS build (ex. 21A5522h)
         """
+        import sys
+        if sys.platform=="darwin":
+                
+            file_path = "/System/Library/CoreServices/SystemVersion.plist"
+            if rsr is True:
+                file_path = f"/System/Volumes/Preboot/Cryptexes/OS{file_path}"
 
-        file_path = "/System/Library/CoreServices/SystemVersion.plist"
-        if rsr is True:
-            file_path = f"/System/Volumes/Preboot/Cryptexes/OS{file_path}"
-
-        try:
-            return plistlib.load(open(file_path, "rb"))["ProductBuildVersion"]
-        except Exception as e:
-            raise RuntimeError(f"Failed to detect OS build: {e}")
+            try:
+                return plistlib.load(open(file_path, "rb"))["ProductBuildVersion"]
+            except Exception as e:
+                raise RuntimeError(f"Failed to detect OS build: {e}")
+        elif sys.platform=="win32":
+            return self.uname_data.version.partition(".")[2]
