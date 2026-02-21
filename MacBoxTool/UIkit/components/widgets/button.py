@@ -389,6 +389,8 @@ class RadioButton(QRadioButton):
     lightTextColor = Property(QColor, getLightTextColor, setLightTextColor)
     darkTextColor = Property(QColor, getDarkTextColor, setDarkTextColor)
 
+class SubtitleRadioButton(RadioButton):
+    ...
 
 class ToolButton(QToolButton):
     """ Tool button

@@ -5,6 +5,7 @@ import sys
 from .support.global_settings import GlobalSettings
 from .constants import Constants
 
+
 class Install:
     def __init__(self):
         self.constants:Constants=Constants()
@@ -12,21 +13,28 @@ class Install:
         self.packages:list = ["PySide6","darkdetect","colorthief","scipy","pillow","termcolor","psutil"]
         self.version=str(sys.version_info.major)+"."+str(sys.version_info.minor)
 
-        self.installed = self.settings.find_key("INSTALLED")     
+        self.installed = self.settings.find_key("INSTALLED")  
+        self.last_version = self.settings.find_key("PYTHON_VERSION") or self.version   
             
         self.cnt=[]
 
         logging.info(f"Your Python Version: {self.version}")
         print(f"Your Python Version: {self.version}")
 
+        logging.info(f"Last Python Version: {self.last_version}")
+        print(f"Last Python Version: {self.last_version}")
+
         self.install_packages()
 
     def check_already_installed(self):
+        if self.settings.find_key("PYTHON_VERSION") is None:
+            self.settings.add_key("PYTHON_VERSION",str(self.version))
+            return False
         if self.installed is None:
             self.installed= "NO"
             self.settings.add_key("INSTALLED","NO")
             return False
-        if self.installed=="YES":
+        if self.installed=="YES" and str(self.version) == str(self.last_version):
             return True
     
     def show_packages(self):
@@ -51,10 +59,12 @@ class Install:
             logging.info("All packages are already installed.")
             print("All packages are already installed.")
             self.settings.edit_key("INSTALLED","YES")
+            self.settings.edit_key("PYTHON_VERSION",self.version)
             return True
         else:
             logging.warning("Some packages are not installed. ")
             print("Some packages are not installed. ")
+            self.settings.edit_key("PYTHON_VERSION",self.version)
             return False
             
     def install_packages(self):
@@ -74,6 +84,8 @@ class Install:
                 process.wait()
             logging.info("All packages are installed.")
             print("All packages are installed.")
+            self.settings.edit_key("INSTALLED","YES")
+            self.settings.edit_key("PYTHON_VERSION",self.version)
         
 
             

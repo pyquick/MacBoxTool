@@ -14,7 +14,8 @@ class Constants:
         self.mactoolbox_version:        str = "0.0.1"
         self.patcher_support_pkg_version:     str = "1.11.0"  # PatcherSupportPkg
         self.copyright:                        str = "Copyright © 2020-2026 Pyquick"
-
+        self.launcher_binary:           str = None
+        self.launcher_script:           str = None
         # OpenCore Version
         self.opencore_version:           str = "1.0.6"
 

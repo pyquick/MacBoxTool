@@ -41,8 +41,11 @@ class BuildOCPage(ScrollArea):
     def init_ui(self):
         self.expandLayout.setContentsMargins(SPACING["xxlarge"], SPACING["xlarge"], SPACING["xxlarge"], SPACING["xlarge"])
         self.expandLayout.setSpacing(SPACING["large"])
+
         self.expandLayout.addWidget(self._create_title_label())
+        
         self.expandLayout.addWidget(self.create_build_model_card())
+
         self.expandLayout.addStretch()
 
     def create_build_model_card(self):
@@ -65,7 +68,7 @@ class BuildOCPage(ScrollArea):
         
     def _create_title_label(self):
         title_label = SubtitleLabel("Build OC for Old Macs")
-        title_label.setStyleSheet("font-size: 24px; font-weight: bold;")
+        
         return title_label
 
     
