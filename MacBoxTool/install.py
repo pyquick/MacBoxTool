@@ -20,11 +20,16 @@ class Install:
 
         logging.info(f"Your Python Version: {self.version}")
         print(f"Your Python Version: {self.version}")
-
-        logging.info(f"Last Python Version: {self.last_version}")
-        print(f"Last Python Version: {self.last_version}")
-
+        if sys.platform == "win32":
+            self.find_python_version_path()
         self.install_packages()
+
+    def find_python_version_path(self):
+        if sys.platform == "win32":
+            self.python_path = subprocess.run(["where", f"python{self.version}"], capture_output=True, text=True).stdout.strip()
+            logging.info(f"Python {self.version} Path: {self.python_path}")
+            print(f"Python {self.version} Path: {self.python_path}")
+        return None
 
     def check_already_installed(self):
         if self.settings.find_key("PYTHON_VERSION") is None:
@@ -47,7 +52,10 @@ class Install:
         print("Installing required packages...")
         
         for package in self.packages:
-            run=subprocess.run([f"pip{self.version}","show",package],capture_output=True,text=True)
+            if sys.platform == "win32":
+                run=subprocess.run([self.python_path,"-m","pip","show",package],capture_output=True,text=True)
+            elif sys.platform == "darwin":
+                run=subprocess.run([f"pip{self.version}","show",package],capture_output=True,text=True)
             if "Package(s) not found" in run.stdout or "Package(s) not found" in run.stderr:
                 self.cnt.append(package)
                 logging.warning(f"{package} is not installed.")
@@ -77,7 +85,10 @@ class Install:
             for package in self.cnt:
                 logging.info(f"Installing {package}...")
                 print(f"Installing {package}...")
-                process=subprocess.Popen([f"pip{self.version}","install", package],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=0)
+                if sys.platform == "win32":
+                    process=subprocess.Popen([self.python_path,"-m","pip","install", package],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=0)
+                elif sys.platform == "darwin":
+                    process=subprocess.Popen([f"pip{self.version}","install", package],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=0)
                 for line in process.stdout:
                     print(line.strip())
                     sys.stdout.flush()

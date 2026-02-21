@@ -14,8 +14,12 @@ from .support.logging_handler import LoggingHandler
 from .support.toggle_theme import ThemeManager
 import sys
 from .support.global_settings import GlobalSettings
-from .detections import device_probe
+if sys.platform=="darwin":
+    from .detections import device_probe
+else:
+    from .detections import device_probe_win as device_probe
 
+from .detections import os_probe
 
 
 
@@ -25,6 +29,11 @@ class MacBoxTool:
         self.constants: Constants = Constants()
         self.computer= device_probe.Computer().probe()
         
+        os_data = os_probe.OSProbe()
+        self.constants.detected_os = os_data.detect_kernel_major()
+        self.constants.detected_os_minor = os_data.detect_kernel_minor()
+        self.constants.detected_os_build = os_data.detect_os_build()
+        self.constants.detected_os_version = os_data.detect_os_version()
         self.constants.computer = self.computer
         launcher_binary = sys.executable
         if "python" in launcher_binary:

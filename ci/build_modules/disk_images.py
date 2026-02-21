@@ -76,7 +76,7 @@ class GenerateDiskImages:
             '/usr/bin/hdiutil', 'create', './payloads.dmg',
             '-megabytes', '32000',  # Overlays can only be as large as the disk image allows
             '-format', 'UDZO', '-ov',
-            '-volname', 'OCLP-R Resources (Base)',
+            '-volname', 'MacBoxTool Resources (Base)',
             '-fs', 'HFS+',
             '-layout', 'NONE',
             '-srcfolder', './payloads',
@@ -117,7 +117,7 @@ class GenerateDiskImages:
             subprocess_wrapper.run_and_verify(
                 [
                     "/usr/bin/curl", "-LO",
-                    f"https://github.com/hackdoc/PatcherSupportPkg/releases/download/{patcher_support_pkg_version}/{resource}"
+                    f"https://github.com/pyquick/PatcherSupportPkg/releases/download/{patcher_support_pkg_version}/{resource}"
                 ],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )

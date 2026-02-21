@@ -25,7 +25,7 @@ class ParseCommitInfo:
         """
 
         if Path(self.binary_path).exists():
-            plist_path = self.binary_path.replace("MacOS/OCLP-R", "Info.plist")
+            plist_path = self.binary_path.replace("MacOS/MacBoxTool", "Info.plist")
             if Path(plist_path).exists() and plist_path.endswith(".plist"):
                 return plist_path
         return None

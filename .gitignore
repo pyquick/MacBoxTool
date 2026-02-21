@@ -2,7 +2,7 @@
 __pycache__/
 *.py[codz]
 *$py.class
-
+.history
 # C extensions
 *.so
 
@@ -16,8 +16,10 @@ eggs/
 .eggs/
 lib/
 lib64/
+temp/
 parts/
 sdist/
+CLAUDE.md
 var/
 wheels/
 share/python-wheels/

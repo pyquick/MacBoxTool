@@ -4,6 +4,7 @@ from .gui_support import DefGUI
 from .gui_introduction import Introduction
 from .gui_build import BuildOCPage
 from .gui_about import AboutInterface
+from .gui_settings import SettingsInterface
 
 WINDOW_MIN_SIZE = (1000, 700)
 WINDOW_DEFAULT_SIZE = (1200, 800)
@@ -37,17 +38,15 @@ class Window(FluentWindow):
         logging.info("######################")
         logging.info("###gui_main_menu:OK###")
         logging.info("######################")
+        setTheme(Theme.AUTO)
         self.themeListener= SystemThemeListener(self)
         self.themeListener.start()
         self._init_state()
         self._setup_window()
-        
         self._init_ui()
+       
 
-    def _onThemeChangedFinished(self):
-        super()._onThemeChangedFinished()
-        self.refresh()
-        setTheme(Theme.AUTO)
+   
 
     def _setup_window(self):
         self.setWindowTitle("MacBoxTool")
@@ -156,6 +155,14 @@ class Window(FluentWindow):
             NavigationItemPosition.SCROLL
         )
 
+        self.settings_page=SettingsInterface(self.constants,self.gui_support,self.settings,self)
+        self.addSubInterface(
+            self.settings_page,
+            FluentIcon.SETTING,
+            "Settings",
+            NavigationItemPosition.BOTTOM
+        )
+
         self.about=AboutInterface(self.constants,self.gui_support,self.settings,self)
         self.addSubInterface(
             self.about,
@@ -164,5 +171,9 @@ class Window(FluentWindow):
             NavigationItemPosition.BOTTOM
         )
     
-    def refresh(self):
-        pass
+        self.stackedWidget.currentChanged.connect(self._on_page_changed)
+
+    def _on_page_changed(self, index):
+        widget = self.stackedWidget.widget(index)
+        if hasattr(widget, 'refresh'):
+            widget.refresh()

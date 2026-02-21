@@ -15,17 +15,31 @@ class Introduction(ScrollArea):
         logging.info("#############################") 
 
         self.global_constants = global_constants
-
+        
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-
         self.setWidget(self.scrollWidget)
         self.setWidgetResizable(True)
         self.enableTransparentBackground()
         self.scrollWidget.setStyleSheet("QWidget { background: transparent; }")
         self.ui_support=ui_support
+        
         self._init_ui()
+
+        qconfig.themeChanged.connect(self.update_theme)
+        setTheme(Theme.AUTO)
+
+    def update_theme(self):
+        setTheme(Theme.AUTO)
+        self.update()
+        
+       
+    def closeEvent(self, event):
+        self.themeListener.terminate()
+        self.themeListener.deleteLater()
+        super().closeEvent(event)
+
     def _init_ui(self):
         self.expandLayout.setContentsMargins(SPACING["xxlarge"], SPACING["xlarge"], SPACING["xxlarge"], SPACING["xlarge"])
         self.expandLayout.setSpacing(SPACING["large"])
@@ -51,7 +65,7 @@ class Introduction(ScrollArea):
         hero_text = QVBoxLayout()
         hero_text.setSpacing(SPACING["medium"])
 
-        hero_title = StrongBodyLabel("Introduction")
+        hero_title = QLabel("Introduction")
         hero_title.setStyleSheet("font-size: 18px; color: {};".format(COLORS["primary"]))
         hero_text.addWidget(hero_title)
 
@@ -77,11 +91,11 @@ class Introduction(ScrollArea):
     def _create_note_card(self):
         return self.ui_support.custom_card(
             card_type="note",
-            title="OCLP-R: - Now Supports macOS Tahoe 26!",
+            title="MacBoxTool: - Now Supports macOS Tahoe 26!",
             body=(
-                "The long awaited version 3.0.1 of OCLP-R is here, bringing <b>initial support for macOS Tahoe 26</b> to the community!<br><br>"
+                "The long awaited version 3.0.1 of MacBoxTool is here, bringing <b>initial support for macOS Tahoe 26</b> to the community!<br><br>"
                 "<b>Please Note:</b><br>"
-                "- Only OCLP-R 3.0.1 from the <a href=\"https://github.com/hackdoc/OCLP-R/releases/download/3.0.1/OCLP-R.pkg\" style=\"color: #0078D4; text-decoration: none;\">hackdoc/OCLP-R</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
+                "- Only MacBoxTool 3.0.2 from the <a href=\"https://github.com/pyquick/MacBoxTool/releases/download/3.0.2/MacBoxTool.pkg\" style=\"color: #0078D4; text-decoration: none;\">pyquick/MacBoxTool</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
                 "- Official Dortania releases or older patches <b>will NOT work</b> with macOS Tahoe 26."
             )
         )

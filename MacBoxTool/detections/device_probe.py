@@ -11,8 +11,10 @@ import re
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Optional, Type, Union
+import sys
+if sys.platform == "darwin":
+    from .ioreg import *
 
-from . import ioreg
 
 from ..support import utilities
 
@@ -44,8 +46,10 @@ class USBDevice:
     serial_number: Optional[str] = None
 
     @classmethod
-    def from_ioregistry(cls, entry: ioreg.io_registry_entry_t):
-        properties: dict = ioreg.corefoundation_to_native(ioreg.IORegistryEntryCreateCFProperties(entry, None, ioreg.kCFAllocatorDefault, ioreg.kNilOptions)[1])
+    def from_ioregistry(cls, entry: io_registry_entry_t):
+        if sys.platform != "darwin":
+            return cls("N/A", 0, 0, 0, "N/A")
+        properties: dict = corefoundation_to_native(IORegistryEntryCreateCFProperties(entry, None, kCFAllocatorDefault, kNilOptions)[1])
 
         vendor_id     = None
         device_id     = None
@@ -145,14 +149,18 @@ class PCIDevice:
 
     @classmethod
     def class_code_matching_dict(cls) -> dict:
+        if sys.platform != "darwin":
+            return {}
         return {
             "IOProviderClass": "IOPCIDevice",
             "IOPropertyMatch": [{"class-code": class_code_to_bytes(class_code)} for class_code in cls.CLASS_CODES]
         }
 
     @classmethod
-    def from_ioregistry(cls, entry: ioreg.io_registry_entry_t, anti_spoof=False):
-        properties: dict = ioreg.corefoundation_to_native(ioreg.IORegistryEntryCreateCFProperties(entry, None, ioreg.kCFAllocatorDefault, ioreg.kNilOptions)[1])  # type: ignore
+    def from_ioregistry(cls, entry: io_registry_entry_t, anti_spoof=False):
+        if sys.platform != "darwin":
+            return "N/A"
+        properties: dict = corefoundation_to_native(IORegistryEntryCreateCFProperties(entry, None, kCFAllocatorDefault, kNilOptions)[1])  # type: ignore
 
         vendor_id = None
         device_id = None
@@ -177,7 +185,7 @@ class PCIDevice:
             vendor_id_unspoofed = vendor_id
             device_id_unspoofed = device_id
 
-        device = cls(vendor_id, device_id, int.from_bytes(properties["class-code"][:6], byteorder="little"), name=ioreg.io_name_t_to_str(ioreg.IORegistryEntryGetName(entry, None)[1]))
+        device = cls(vendor_id, device_id, int.from_bytes(properties["class-code"][:6], byteorder="little"), name=io_name_t_to_str(IORegistryEntryGetName(entry, None)[1]))
         if "model" in properties:
             model = properties["model"]
             if isinstance(model, bytes):
@@ -196,6 +204,8 @@ class PCIDevice:
         return device
 
     def vendor_detect(self, *, inherits: Optional[Type["PCIDevice"]] = None, classes: Optional[list] = None):
+        if sys.platform != "darwin":
+            return
         for i in classes or itertools.chain.from_iterable([subclass.__subclasses__() for subclass in PCIDevice.__subclasses__()]):
             if issubclass(i, inherits or object) and i.detect(self):
                 return i
@@ -205,17 +215,20 @@ class PCIDevice:
     def detect(cls, device):
         return device.vendor_id == cls.VENDOR_ID and ((device.class_code in cls.CLASS_CODES) if getattr(cls, "CLASS_CODES", None) else True) and ((device.class_code == cls.CLASS_CODE) if getattr(cls, "CLASS_CODE", None) else True)  # type: ignore  # pylint: disable=no-member
 
-    def populate_pci_path(self, original_entry: ioreg.io_registry_entry_t):
+    def populate_pci_path(self, original_entry: io_registry_entry_t):
+        if sys.platform != "darwin":
+            self.pci_path = "N/A"
+            return
         # Based off gfxutil logic, seems to work.
         paths = []
         entry = original_entry
         while entry:
-            if ioreg.IOObjectConformsTo(entry, "IOPCIDevice".encode()):
+            if IOObjectConformsTo(entry, "IOPCIDevice".encode()):
                 # Virtual PCI devices provide a botched IOService path (us.electronic.kext.vusb)
                 # We only care about physical devices, so skip them
                 try:
                     # Extract location string and handle possible non-numeric prefixes
-                    location_str = ioreg.io_name_t_to_str(ioreg.IORegistryEntryGetLocationInPlane(entry, "IOService".encode(), None)[1])
+                    location_str = io_name_t_to_str(IORegistryEntryGetLocationInPlane(entry, "IOService".encode(), None)[1])
                     location_parts = location_str.split(",")
                     location_hex = []
                     
@@ -236,18 +249,18 @@ class PCIDevice:
                     paths.append(f"Pci({location_hex[0]},{location_hex[1]})")
                 except ValueError:
                     break
-            elif ioreg.IOObjectConformsTo(entry, "IOACPIPlatformDevice".encode()):
-                paths.append(f"PciRoot({hex(int(ioreg.corefoundation_to_native(ioreg.IORegistryEntryCreateCFProperty(entry, '_UID', ioreg.kCFAllocatorDefault, ioreg.kNilOptions)) or 0))})")  # type: ignore
+            elif IOObjectConformsTo(entry, "IOACPIPlatformDevice".encode()):
+                paths.append(f"PciRoot({hex(int(corefoundation_to_native(IORegistryEntryCreateCFProperty(entry, '_UID', kCFAllocatorDefault, kNilOptions)) or 0))})")  # type: ignore
                 break
-            elif ioreg.IOObjectConformsTo(entry, "IOPCIBridge".encode()):
+            elif IOObjectConformsTo(entry, "IOPCIBridge".encode()):
                 pass
             else:
                 # There's something in between that's not PCI! Abort
                 paths = []
                 break
-            parent = ioreg.IORegistryEntryGetParentEntry(entry, "IOService".encode(), None)[1]
+            parent = IORegistryEntryGetParentEntry(entry, "IOService".encode(), None)[1]
             if entry != original_entry:
-                ioreg.IOObjectRelease(entry)
+                IOObjectRelease(entry)
             entry = parent
         self.pci_path = "/".join(reversed(paths))
 
@@ -274,17 +287,19 @@ class WirelessCard(PCIDevice):
         self.detect_chipset()
 
     @classmethod
-    def from_ioregistry(cls, entry: ioreg.io_registry_entry_t, anti_spoof=True):
+    def from_ioregistry(cls, entry: io_registry_entry_t, anti_spoof=True):
+        if sys.platform != "darwin":
+            return "N/A"
         device = super().from_ioregistry(entry, anti_spoof=anti_spoof)
 
         matching_dict = {
-            "IOParentMatch": ioreg.corefoundation_to_native(ioreg.IORegistryEntryIDMatching(ioreg.IORegistryEntryGetRegistryEntryID(entry, None)[1])),
+            "IOParentMatch": corefoundation_to_native(IORegistryEntryIDMatching(IORegistryEntryGetRegistryEntryID(entry, None)[1])),
             "IOProviderClass": "IO80211Interface",
         }
 
-        interface = next(ioreg.ioiterator_to_list(ioreg.IOServiceGetMatchingServices(ioreg.kIOMasterPortDefault, matching_dict, None)[1]), None)
+        interface = next(ioiterator_to_list(IOServiceGetMatchingServices(kIOMasterPortDefault, matching_dict, None)[1]), None)
         if interface:
-            device.country_code = ioreg.corefoundation_to_native(ioreg.IORegistryEntryCreateCFProperty(interface, "IO80211CountryCode", ioreg.kCFAllocatorDefault, ioreg.kNilOptions))  # type: ignore # If not present, will be None anyways
+            device.country_code = corefoundation_to_native(IORegistryEntryCreateCFProperty(interface, "IO80211CountryCode", kCFAllocatorDefault, kNilOptions))  # type: ignore # If not present, will be None anyways
         else:
             device.country_code = None  # type: ignore
 
@@ -306,10 +321,12 @@ class NVMeController(PCIDevice):
     # parent_aspm: Optional[int] = None
 
     @classmethod
-    def from_ioregistry(cls, entry: ioreg.io_registry_entry_t, anti_spoof=True):
+    def from_ioregistry(cls, entry: io_registry_entry_t, anti_spoof=True):
+        if sys.platform != "darwin":
+            return "N/A"
         device = super().from_ioregistry(entry, anti_spoof=anti_spoof)
 
-        device.aspm: Union[int, bytes] = ioreg.corefoundation_to_native(ioreg.IORegistryEntryCreateCFProperty(entry, "pci-aspm-default", ioreg.kCFAllocatorDefault, ioreg.kNilOptions)) or 0  # type: ignore
+        device.aspm: Union[int, bytes] = corefoundation_to_native(IORegistryEntryCreateCFProperty(entry, "pci-aspm-default", kCFAllocatorDefault, kNilOptions)) or 0  # type: ignore
         if isinstance(device.aspm, bytes):
             device.aspm = int.from_bytes(device.aspm, byteorder="little")
 
@@ -686,9 +703,12 @@ class Computer:
     oclp_sys_signed: Optional[bool] = False
     firmware_vendor: Optional[str] = None
     rosetta_active: Optional[bool] = False
-
+    
     @staticmethod
     def probe():
+        if sys.platform == "win32":
+            from .device_probe_win import Computer as WinComputer
+            return WinComputer.probe()
         computer = Computer()
         computer.gpu_probe()
         computer.dgpu_probe()
@@ -713,9 +733,11 @@ class Computer:
 
 
     def usb_device_probe(self):
-        devices = ioreg.ioiterator_to_list(
-            ioreg.IOServiceGetMatchingServices(
-                ioreg.kIOMasterPortDefault, {"IOProviderClass": "IOUSBDevice"}, None
+        if sys.platform != "darwin":
+            return
+        devices = ioiterator_to_list(
+            IOServiceGetMatchingServices(
+                kIOMasterPortDefault, {"IOProviderClass": "IOUSBDevice"}, None
             )[1]
         )
         for device in devices:
@@ -723,14 +745,16 @@ class Computer:
             if properties:
                 properties.detect()
                 self.usb_devices.append(properties)
-            ioreg.IOObjectRelease(device)
+            IOObjectRelease(device)
 
 
     def gpu_probe(self):
+        if sys.platform != "darwin":
+            return
         # Chain together two iterators: one for class code 03:00:00, the other for class code 03:80:00
-        devices = ioreg.ioiterator_to_list(
-            ioreg.IOServiceGetMatchingServices(
-                ioreg.kIOMasterPortDefault, GPU.class_code_matching_dict(), None
+        devices = ioiterator_to_list(
+            IOServiceGetMatchingServices(
+                kIOMasterPortDefault, GPU.class_code_matching_dict(), None
             )[1]
         )
 
@@ -738,10 +762,12 @@ class Computer:
             vendor: Type[GPU] = PCIDevice.from_ioregistry(device).vendor_detect(inherits=GPU)  # type: ignore
             if vendor:
                 self.gpus.append(vendor.from_ioregistry(device))  # type: ignore
-            ioreg.IOObjectRelease(device)
+            IOObjectRelease(device)
 
     def dgpu_probe(self):
-        device = next(ioreg.ioiterator_to_list(ioreg.IOServiceGetMatchingServices(ioreg.kIOMasterPortDefault, ioreg.IOServiceNameMatching("GFX0".encode()), None)[1]), None)
+        if sys.platform != "darwin":
+            return
+        device = next(ioiterator_to_list(IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceNameMatching("GFX0".encode()), None)[1]), None)
         if not device:
             # No devices
             return
@@ -749,10 +775,12 @@ class Computer:
         vendor: Type[GPU] = PCIDevice.from_ioregistry(device).vendor_detect(inherits=GPU)  # type: ignore
         if vendor:
             self.dgpu = vendor.from_ioregistry(device)  # type: ignore
-        ioreg.IOObjectRelease(device)
+        IOObjectRelease(device)
 
     def igpu_probe(self):
-        device = next(ioreg.ioiterator_to_list(ioreg.IOServiceGetMatchingServices(ioreg.kIOMasterPortDefault, ioreg.IOServiceNameMatching("IGPU".encode()), None)[1]), None)
+        if sys.platform != "darwin":
+            return
+        device = next(ioiterator_to_list(IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceNameMatching("IGPU".encode()), None)[1]), None)
         if not device:
             # No devices
             return
@@ -760,12 +788,14 @@ class Computer:
         vendor: Type[GPU] = PCIDevice.from_ioregistry(device).vendor_detect(inherits=GPU)  # type: ignore
         if vendor:
             self.igpu = vendor.from_ioregistry(device)  # type: ignore
-        ioreg.IOObjectRelease(device)
+        IOObjectRelease(device)
 
     def wifi_probe(self):
-        devices = ioreg.ioiterator_to_list(
-            ioreg.IOServiceGetMatchingServices(
-                ioreg.kIOMasterPortDefault,
+        if sys.platform != "darwin":
+            return
+        devices = ioiterator_to_list(
+            IOServiceGetMatchingServices(
+                kIOMasterPortDefault,
                 WirelessCard.class_code_matching_dict(),
                 None,
             )[1]
@@ -776,25 +806,31 @@ class Computer:
             if vendor:
                 self.wifi = vendor.from_ioregistry(device, anti_spoof=True)  # type: ignore
                 break
-            ioreg.IOObjectRelease(device)
+            IOObjectRelease(device)
 
     def ambient_light_sensor_probe(self):
-        device = next(ioreg.ioiterator_to_list(ioreg.IOServiceGetMatchingServices(ioreg.kIOMasterPortDefault, ioreg.IOServiceNameMatching("ALS0".encode()), None)[1]), None)
+        if sys.platform != "darwin":
+            return
+        device = next(ioiterator_to_list(IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceNameMatching("ALS0".encode()), None)[1]), None)
         if device:
             self.ambient_light_sensor = True
-            ioreg.IOObjectRelease(device)
+            IOObjectRelease(device)
 
     def pcie_webcam_probe(self):
+        if sys.platform != "darwin":
+            return
         # CMRA/14E4:1570
-        device = next(ioreg.ioiterator_to_list(ioreg.IOServiceGetMatchingServices(ioreg.kIOMasterPortDefault, ioreg.IOServiceNameMatching("CMRA".encode()), None)[1]), None)
+        device = next(ioiterator_to_list(IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceNameMatching("CMRA".encode()), None)[1]), None)
         if device:
             self.pcie_webcam = True
-            ioreg.IOObjectRelease(device)
+            IOObjectRelease(device)
 
     def sdxc_controller_probe(self):
-        sdxc_controllers = ioreg.ioiterator_to_list(
-            ioreg.IOServiceGetMatchingServices(
-                ioreg.kIOMasterPortDefault,
+        if sys.platform != "darwin":
+            return
+        sdxc_controllers = ioiterator_to_list(
+            IOServiceGetMatchingServices(
+                kIOMasterPortDefault,
                 SDXCController.class_code_matching_dict(),
                 None,
             )[1]
@@ -802,55 +838,59 @@ class Computer:
 
         for device in sdxc_controllers:
             self.sdxc_controller.append(SDXCController.from_ioregistry(device))
-            ioreg.IOObjectRelease(device)
+            IOObjectRelease(device)
 
     def usb_controller_probe(self):
-        xhci_controllers = ioreg.ioiterator_to_list(
-            ioreg.IOServiceGetMatchingServices(
-                ioreg.kIOMasterPortDefault,
+        if sys.platform != "darwin":
+            return
+        xhci_controllers = ioiterator_to_list(
+            IOServiceGetMatchingServices(
+                kIOMasterPortDefault,
                 XHCIController.class_code_matching_dict(),
                 None,
             )[1]
         )
-        ehci_controllers = ioreg.ioiterator_to_list(
-            ioreg.IOServiceGetMatchingServices(
-                ioreg.kIOMasterPortDefault,
+        ehci_controllers = ioiterator_to_list(
+            IOServiceGetMatchingServices(
+                kIOMasterPortDefault,
                 EHCIController.class_code_matching_dict(),
                 None,
             )[1]
         )
-        ohci_controllers  = ioreg.ioiterator_to_list(
-            ioreg.IOServiceGetMatchingServices(
-                ioreg.kIOMasterPortDefault,
+        ohci_controllers  = ioiterator_to_list(
+            IOServiceGetMatchingServices(
+                kIOMasterPortDefault,
                 OHCIController.class_code_matching_dict(),
                 None,
             )[1]
         )
 
-        uhci_controllers  = ioreg.ioiterator_to_list(
-            ioreg.IOServiceGetMatchingServices(
-                ioreg.kIOMasterPortDefault,
+        uhci_controllers  = ioiterator_to_list(
+            IOServiceGetMatchingServices(
+                kIOMasterPortDefault,
                 UHCIController.class_code_matching_dict(),
                 None,
             )[1]
         )
         for device in xhci_controllers:
             self.usb_controllers.append(XHCIController.from_ioregistry(device))
-            ioreg.IOObjectRelease(device)
+            IOObjectRelease(device)
         for device in ehci_controllers:
             self.usb_controllers.append(EHCIController.from_ioregistry(device))
-            ioreg.IOObjectRelease(device)
+            IOObjectRelease(device)
         for device in ohci_controllers:
             self.usb_controllers.append(OHCIController.from_ioregistry(device))
-            ioreg.IOObjectRelease(device)
+            IOObjectRelease(device)
         for device in uhci_controllers:
             self.usb_controllers.append(UHCIController.from_ioregistry(device))
-            ioreg.IOObjectRelease(device)
+            IOObjectRelease(device)
 
     def ethernet_probe(self):
-        ethernet_controllers = ioreg.ioiterator_to_list(
-            ioreg.IOServiceGetMatchingServices(
-                ioreg.kIOMasterPortDefault,
+        if sys.platform != "darwin":
+            return
+        ethernet_controllers = ioiterator_to_list(
+            IOServiceGetMatchingServices(
+                kIOMasterPortDefault,
                 EthernetController.class_code_matching_dict(),
                 None,
             )[1]
@@ -860,56 +900,60 @@ class Computer:
             vendor: Type[EthernetController] = PCIDevice.from_ioregistry(device).vendor_detect(inherits=EthernetController)  # type: ignore
             if vendor:
                 self.ethernet.append(vendor.from_ioregistry(device))  # type: ignore
-            ioreg.IOObjectRelease(device)
+            IOObjectRelease(device)
 
     def storage_probe(self):
-        sata_controllers = ioreg.ioiterator_to_list(
-            ioreg.IOServiceGetMatchingServices(
-                ioreg.kIOMasterPortDefault,
+        if sys.platform != "darwin":
+            return
+        sata_controllers = ioiterator_to_list(
+            IOServiceGetMatchingServices(
+                kIOMasterPortDefault,
                 SATAController.class_code_matching_dict(),
                 None,
             )[1]
         )
-        sas_controllers = ioreg.ioiterator_to_list(
-            ioreg.IOServiceGetMatchingServices(
-                ioreg.kIOMasterPortDefault,
+        sas_controllers = ioiterator_to_list(
+            IOServiceGetMatchingServices(
+                kIOMasterPortDefault,
                 SASController.class_code_matching_dict(),
                 None,
             )[1]
         )
 
-        nvme_controllers = ioreg.ioiterator_to_list(
-            ioreg.IOServiceGetMatchingServices(
-                ioreg.kIOMasterPortDefault,
+        nvme_controllers = ioiterator_to_list(
+            IOServiceGetMatchingServices(
+                kIOMasterPortDefault,
                 NVMeController.class_code_matching_dict(),
                 None,
             )[1]
         )
         for device in sata_controllers:
             self.storage.append(SATAController.from_ioregistry(device))
-            ioreg.IOObjectRelease(device)
+            IOObjectRelease(device)
 
         for device in sas_controllers:
             self.storage.append(SASController.from_ioregistry(device))
-            ioreg.IOObjectRelease(device)
+            IOObjectRelease(device)
 
         for device in nvme_controllers:
             self.storage.append(NVMeController.from_ioregistry(device))
-            ioreg.IOObjectRelease(device)
+            IOObjectRelease(device)
 
     def smbios_probe(self):
+        if sys.platform != "darwin":
+            return
         # Reported model
-        entry = next(ioreg.ioiterator_to_list(ioreg.IOServiceGetMatchingServices(ioreg.kIOMasterPortDefault, ioreg.IOServiceMatching("IOPlatformExpertDevice".encode()), None)[1]))
-        self.reported_model = ioreg.corefoundation_to_native(ioreg.IORegistryEntryCreateCFProperty(entry, "model", ioreg.kCFAllocatorDefault, ioreg.kNilOptions)).strip(b"\0").decode()  # type: ignore
+        entry = next(ioiterator_to_list(IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching("IOPlatformExpertDevice".encode()), None)[1]))
+        self.reported_model = corefoundation_to_native(IORegistryEntryCreateCFProperty(entry, "model", kCFAllocatorDefault, kNilOptions)).strip(b"\0").decode()  # type: ignore
         translated = subprocess.run(["/usr/sbin/sysctl", "-in", "sysctl.proc_translated"], stdout=subprocess.PIPE).stdout.decode()
         if translated:
             board = "target-type"
         else:
             board = "board-id"
-        self.reported_board_id = ioreg.corefoundation_to_native(ioreg.IORegistryEntryCreateCFProperty(entry, board, ioreg.kCFAllocatorDefault, ioreg.kNilOptions)).strip(b"\0").decode()  # type: ignore
-        self.uuid_sha1 = ioreg.corefoundation_to_native(ioreg.IORegistryEntryCreateCFProperty(entry, "IOPlatformUUID", ioreg.kCFAllocatorDefault, ioreg.kNilOptions))  # type: ignore
+        self.reported_board_id = corefoundation_to_native(IORegistryEntryCreateCFProperty(entry, board, kCFAllocatorDefault, kNilOptions)).strip(b"\0").decode()  # type: ignore
+        self.uuid_sha1 = corefoundation_to_native(IORegistryEntryCreateCFProperty(entry, "IOPlatformUUID", kCFAllocatorDefault, kNilOptions))  # type: ignore
         self.uuid_sha1 = hashlib.sha1(self.uuid_sha1.encode()).hexdigest()
-        ioreg.IOObjectRelease(entry)
+        IOObjectRelease(entry)
 
         # Real model
         self.real_model = utilities.get_nvram("oem-product", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True) or self.reported_model
@@ -932,6 +976,8 @@ class Computer:
         self.firmware_vendor = firmware_vendor
 
     def cpu_probe(self):
+        if sys.platform != "darwin":
+            return
         self.cpu = CPU(
             subprocess.run(["/usr/sbin/sysctl", "machdep.cpu.brand_string"], stdout=subprocess.PIPE).stdout.decode().partition(": ")[2].strip(),
             subprocess.run(["/usr/sbin/sysctl", "machdep.cpu.features"], stdout=subprocess.PIPE).stdout.decode().partition(": ")[2].strip().split(" "),
@@ -939,6 +985,8 @@ class Computer:
         )
 
     def cpu_get_leafs(self):
+        if sys.platform != "darwin":
+            return
         leafs = []
         result = subprocess.run(["/usr/sbin/sysctl", "machdep.cpu.leaf7_features"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         if result.returncode == 0:
@@ -946,6 +994,8 @@ class Computer:
         return leafs
 
     def bluetooth_probe(self):
+        if sys.platform != "darwin":
+            return
         if not self.usb_devices:
             return
 
@@ -962,6 +1012,8 @@ class Computer:
             self.bluetooth_chipset = "Generic"
 
     def topcase_probe(self):
+        if sys.platform != "darwin":
+            return
         if not self.usb_devices:
             return
 
@@ -982,6 +1034,8 @@ class Computer:
                 self.trackpad_type = "Modern"
 
     def t1_probe(self):
+        if sys.platform != "darwin":
+            return
         if not self.usb_devices:
             return
 
@@ -1016,6 +1070,8 @@ class Computer:
                 break
 
     def sata_disk_probe(self):
+        if sys.platform != "darwin":
+            return
         # Get all SATA Controllers/Disks from 'system_profiler SPSerialATADataType'
         # Determine whether SATA SSD is present and Apple-made
         sp_sata_data = plistlib.loads(subprocess.run(["/usr/sbin/system_profiler", "SPSerialATADataType", "-xml"], stdout=subprocess.PIPE).stdout.decode().strip().encode())
@@ -1038,14 +1094,16 @@ class Computer:
                     continue
 
     def oclp_sys_patch_probe(self):
-        path = Path("/System/Library/CoreServices/OCLP-R.plist")
+        if sys.platform != "darwin":
+            return
+        path = Path("/System/Library/CoreServices/MacBoxTool.plist")
         if not path.exists():
             self.oclp_sys_signed = True  # No plist, so assume root is valid
             return
         sys_plist = plistlib.load(path.open("rb"))
         if sys_plist:
-            if "OCLP-R" in sys_plist:
-                self.oclp_sys_version = sys_plist["OCLP-R"]
+            if "MacBoxTool" in sys_plist:
+                self.oclp_sys_version = sys_plist["MacBoxTool"]
             if "Time Patched" in sys_plist:
                 self.oclp_sys_date = sys_plist["Time Patched"]
             if "Commit URL" in sys_plist:
@@ -1054,6 +1112,8 @@ class Computer:
                 self.oclp_sys_signed = sys_plist["Custom Signature"]
 
     def check_rosetta(self):
+        if sys.platform != "darwin":
+            return
         result = subprocess.run(["/usr/sbin/sysctl", "-in", "sysctl.proc_translated"], stdout=subprocess.PIPE).stdout.decode()
         if "1" in result:
             self.rosetta_active = True

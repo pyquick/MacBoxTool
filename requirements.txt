@@ -5,3 +5,6 @@ scipy
 termcolor
 pillow
 psutil
+wmi
+pywin32
+py-cpuinfo
