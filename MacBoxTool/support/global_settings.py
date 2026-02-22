@@ -63,7 +63,7 @@ class GlobalSettings:
         if self.check_key(key):
             return None
         self.settings[key] = value
-        logging.info("Adding key...")
+        logging.info(f"Adding {key} -> {value}")
         self.save_settings()
         return None
 
@@ -71,6 +71,7 @@ class GlobalSettings:
         if self.check_key(key):
             self.settings[key] = value
             self.save_settings()
+        logging.info(f"Setting {key} -> {value}")
         return None
 
     def save_settings(self):
@@ -78,7 +79,6 @@ class GlobalSettings:
 
         with open(self.settings_file, "w") as f:
             json.dump(self.settings, f, indent=4)
-        logging.info("Settings saved.")
         return None
 
     def show_settings(self):

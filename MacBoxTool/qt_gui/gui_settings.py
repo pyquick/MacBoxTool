@@ -89,6 +89,7 @@ class SettingsInterface(QWidget):
 
         self._build_boot_group()
         self._build_graphics_group()
+        self._build_advanced_boot_group()
         self._build_security_group()
         self._build_sip_group()
         self._build_smbios_group()
@@ -177,6 +178,48 @@ class SettingsInterface(QWidget):
         self.cb_gpu_override.comboBox.currentTextChanged.connect(self._on_gpu_override_changed)
         self.sw_amd_gop.checkedChanged.connect(lambda v: self._save("amd_gop_injection", v))
         self.sw_nv_gop.checkedChanged.connect(lambda v: self._save("nvidia_kepler_gop_injection", v))
+
+        self.sw_demux = SwitchSettingCard(FIF.REMOVE, "Software Demux", "Disable dGPU via software (MacBookPro8,2/8,3)", parent=group)
+        self.sw_dgpu_switch = SwitchSettingCard(FIF.LINK, "dGPU Switch", "Enable GPU switching for Windows dual-boot", parent=group)
+        self.sw_drm = SwitchSettingCard(FIF.PROJECTOR, "DRM Support", "Enable DRM playback (disables iGPU on iMac14,x)", parent=group)
+        self.sw_force_nv_web = SwitchSettingCard(FIF.CODE, "Force Nvidia Web Drivers", "Force Web Drivers on Tesla/Kepler Nvidia GPUs", parent=group)
+
+        for card in (self.sw_demux, self.sw_dgpu_switch, self.sw_drm, self.sw_force_nv_web):
+            group.addSettingCard(card)
+
+        self.sw_demux.checkedChanged.connect(lambda v: self._save("software_demux", v))
+        self.sw_dgpu_switch.checkedChanged.connect(lambda v: self._save("dGPU_switch", v))
+        self.sw_drm.checkedChanged.connect(lambda v: self._save("drm_support", v))
+        self.sw_force_nv_web.checkedChanged.connect(lambda v: self._save("force_nv_web", v))
+
+        self.tab_build._layout.addWidget(group)
+
+    # ── Advanced Boot ──
+
+    def _build_advanced_boot_group(self):
+        group = SettingCardGroup("Advanced Boot", self.tab_build._container)
+
+        self.oc_timeout_card = SettingCard(FIF.VIEW, "Boot Picker Timeout", "Seconds to wait before auto-boot (0 = no timeout)", parent=group)
+        self.oc_timeout_spin = SpinBox(self.oc_timeout_card)
+        self.oc_timeout_spin.setRange(0, 30)
+        self.oc_timeout_spin.setValue(self.constants.oc_timeout)
+        self.oc_timeout_card.hBoxLayout.addWidget(self.oc_timeout_spin, 0, Qt.AlignmentFlag.AlignRight)
+        self.oc_timeout_card.hBoxLayout.addSpacing(16)
+        group.addSettingCard(self.oc_timeout_card)
+
+        self.sw_apfs_trim = SwitchSettingCard(FIF.SPEED_HIGH, "APFS Trim Timeout", "Set APFS trim timeout to -1 (improves 3rd party SSD performance)", parent=group)
+        self.sw_connectdrivers = SwitchSettingCard(FIF.CONNECT, "Disable ConnectDrivers", "Disable for hibernation support", parent=group)
+        self.sw_nvram_write = SwitchSettingCard(FIF.SAVE, "NVRAM WriteFlash", "Write NVRAM variables to hardware flash", parent=group)
+        self.sw_apfs_aligned = SwitchSettingCard(FIF.SYNC, "APFS Aligned Patch", "Use macOS 15 APFS driver for macOS 26 FileVault 2 fix", parent=group)
+
+        for card in (self.sw_apfs_trim, self.sw_connectdrivers, self.sw_nvram_write, self.sw_apfs_aligned):
+            group.addSettingCard(card)
+
+        self.oc_timeout_spin.valueChanged.connect(lambda v: self._save("oc_timeout", v))
+        self.sw_apfs_trim.checkedChanged.connect(lambda v: self._save("apfs_trim_timeout", v))
+        self.sw_connectdrivers.checkedChanged.connect(lambda v: self._save("disable_connectdrivers", v))
+        self.sw_nvram_write.checkedChanged.connect(lambda v: self._save("nvram_write", v))
+        self.sw_apfs_aligned.checkedChanged.connect(lambda v: self._save("allow_apfs_aligned_patch", v))
 
         self.tab_build._layout.addWidget(group)
 
@@ -337,10 +380,12 @@ class SettingsInterface(QWidget):
         self.cb_spoof_model = SettingCard(FIF.PEOPLE, "Spoof Model", "Override SMBIOS model for spoofing", parent=group)
         self.cb_spoof_model.comboBox = ComboBox(self.cb_spoof_model)
         self.cb_spoof_model.comboBox.addItem("Default")
+        _APPLE_PREFIXES = ("MacBook", "MacPro", "Macmini", "iMac", "Xserve")
         spoof_models = [
             model for model in smbios_data.smbios_dictionary
             if "_" not in model and " " not in model
             and smbios_data.smbios_dictionary[model]["Board ID"] is not None
+            and model.startswith(_APPLE_PREFIXES)
         ]
         for m in spoof_models:
             self.cb_spoof_model.comboBox.addItem(m)
@@ -387,8 +432,8 @@ class SettingsInterface(QWidget):
         self.sn_gen_card.hBoxLayout.addSpacing(16)
         sn_group.addSettingCard(self.sn_gen_card)
 
-        self.sn_serial_edit.textChanged.connect(lambda v: self._save("custom_serial_number", v))
-        self.sn_board_edit.textChanged.connect(lambda v: self._save("custom_board_serial_number", v))
+        self.sn_serial_edit.textChanged.connect(lambda v: setattr(self.constants, "custom_serial_number", v))
+        self.sn_board_edit.textChanged.connect(lambda v: setattr(self.constants, "custom_board_serial_number", v))
 
         self.tab_smbios._layout.addWidget(sn_group)
 
@@ -400,12 +445,35 @@ class SettingsInterface(QWidget):
         self._save("override_smbios", self.constants.override_smbios)
 
     def _get_serial_target_model(self) -> str:
-        """Get the model to use for serial generation: spoof model > target model."""
+        """Get the model to use for serial generation.
+
+        Priority:
+          1. Explicit spoof model (override_smbios dropdown)
+          2. User-selected target model (custom_model from model selector)
+          3. Host real_model with spoofed-model fallback for VMs
+        """
+        # 1. Explicit spoof model override
         if self.constants.override_smbios != "Default":
             return self.constants.override_smbios
-        return self.constants.custom_model or (
-            self.constants.computer.real_model if self.constants.computer else ""
-        )
+
+        # 2. User-selected target model — already a valid Apple model
+        if self.constants.custom_model:
+            return self.constants.custom_model
+
+        # 3. Host model — may be a VM, so resolve via smbios_data / heuristic
+        base_model = self.constants.computer.real_model if self.constants.computer else ""
+        if not base_model:
+            return ""
+
+        info = smbios_data.smbios_dictionary.get(base_model, {})
+        spoofed = info.get("Spoofed Model")
+        if spoofed:
+            return spoofed
+
+        try:
+            return generate_smbios.set_smbios_model_spoof(base_model)
+        except Exception:
+            return base_model
 
     def _on_generate_serial(self):
         model = self._get_serial_target_model()
@@ -465,6 +533,21 @@ class SettingsInterface(QWidget):
         self.sw_cpufriend.checkedChanged.connect(lambda v: self._save("disallow_cpufriend", v))
         self.sw_fw_throttle.checkedChanged.connect(lambda v: self._save("disable_fw_throttle", v))
         self.sw_media.checkedChanged.connect(lambda v: self._save("disable_mediaanalysisd", v))
+
+        self.sw_fu = SwitchSettingCard(FIF.TRANSPARENT, "FeatureUnlock", "Enable Sidecar, AirPlay, etc. on unsupported models", parent=group)
+        self.sw_vmm_cpuid = SwitchSettingCard(FIF.CODE, "VMM CPUID", "Spoof VMM bit in CPUID (bypasses OS board-id checks)", parent=group)
+        self.sw_quad_thread = SwitchSettingCard(FIF.SPEED_OFF, "Force Quad Thread", "Limit kernel to 4 CPU threads (MacPro3,1 / Xserve2,1)", parent=group)
+        self.sw_oc_everywhere = SwitchSettingCard(FIF.CONNECT, "Allow OC Everywhere", "Allow OpenCore on natively supported models", parent=group)
+        self.sw_nvme_fix = SwitchSettingCard(FIF.SPEED_HIGH, "NVMe Fixing", "Enable NVMe kernel space patches and ASPM fixes", parent=group)
+
+        for card in (self.sw_fu, self.sw_vmm_cpuid, self.sw_quad_thread, self.sw_oc_everywhere, self.sw_nvme_fix):
+            group.addSettingCard(card)
+
+        self.sw_fu.checkedChanged.connect(lambda v: self._save("fu_status", v))
+        self.sw_vmm_cpuid.checkedChanged.connect(lambda v: self._save("set_vmm_cpuid", v))
+        self.sw_quad_thread.checkedChanged.connect(lambda v: self._save("force_quad_thread", v))
+        self.sw_oc_everywhere.checkedChanged.connect(lambda v: self._save("allow_oc_everywhere", v))
+        self.sw_nvme_fix.checkedChanged.connect(lambda v: self._save("allow_nvme_fixing", v))
 
         self.tab_misc._layout.addWidget(group)
 
@@ -598,8 +681,8 @@ class SettingsInterface(QWidget):
         self.sw_amd_gop.setChecked(_get("amd_gop_injection", False))
         self.sw_nv_gop.setChecked(_get("nvidia_kepler_gop_injection", False))
 
-        self.sn_serial_edit.setText(_get("custom_serial_number", ""))
-        self.sn_board_edit.setText(_get("custom_board_serial_number", ""))
+        self.sn_serial_edit.setText(self.constants.custom_serial_number or "")
+        self.sn_board_edit.setText(self.constants.custom_board_serial_number or "")
 
         self.sw_wowl.setChecked(_get("enable_wake_on_wlan", False))
         self.sw_tb.setChecked(_get("disable_tb", False))
@@ -609,6 +692,26 @@ class SettingsInterface(QWidget):
 
         self.sw_oc_debug.setChecked(_get("opencore_debug", False))
         self.sw_kext_debug.setChecked(_get("kext_debug", False))
+
+        # Advanced Boot
+        self.oc_timeout_spin.setValue(_get("oc_timeout", 5))
+        self.sw_apfs_trim.setChecked(_get("apfs_trim_timeout", True))
+        self.sw_connectdrivers.setChecked(_get("disable_connectdrivers", False))
+        self.sw_nvram_write.setChecked(_get("nvram_write", True))
+        self.sw_apfs_aligned.setChecked(_get("allow_apfs_aligned_patch", True))
+
+        # Graphics (new)
+        self.sw_demux.setChecked(_get("software_demux", False))
+        self.sw_dgpu_switch.setChecked(_get("dGPU_switch", False))
+        self.sw_drm.setChecked(_get("drm_support", False))
+        self.sw_force_nv_web.setChecked(_get("force_nv_web", False))
+
+        # Misc (new)
+        self.sw_fu.setChecked(_get("fu_status", False))
+        self.sw_vmm_cpuid.setChecked(_get("set_vmm_cpuid", False))
+        self.sw_quad_thread.setChecked(_get("force_quad_thread", False))
+        self.sw_oc_everywhere.setChecked(_get("allow_oc_everywhere", False))
+        self.sw_nvme_fix.setChecked(_get("allow_nvme_fixing", True))
 
     # ── Hardware Conditions ──
 
@@ -640,6 +743,35 @@ class SettingsInterface(QWidget):
         # Graphics Override: only for socketed GPU models
         is_socketed_gpu = model in self.SOCKETED_GPU_MODELS
         self._set_card_enabled(self.cb_gpu_override, is_socketed_gpu)
+
+        # Software Demux: MacBookPro8,2/8,3 only
+        self._set_card_enabled(self.sw_demux,
+            model in ("MacBookPro8,2", "MacBookPro8,3"))
+
+        # dGPU Switch: models with Switchable GPUs
+        self._set_card_enabled(self.sw_dgpu_switch,
+            "Switchable GPUs" in info)
+
+        # DRM Support: models in IntelNvidiaDRM list
+        self._set_card_enabled(self.sw_drm,
+            model in getattr(model_array, 'IntelNvidiaDRM', []))
+
+        # Force Nvidia Web Drivers: models that may have Nvidia GPUs
+        has_potential_nvidia = (
+            model in model_array.MacPro or
+            model in getattr(model_array, 'DualGPUPatch', []) or
+            model in getattr(model_array, 'MXMiMac', [])
+        )
+        self._set_card_enabled(self.sw_force_nv_web, has_potential_nvidia)
+
+        # FeatureUnlock: pre-Sonoma models only
+        max_os = info.get("Max OS Supported", 0)
+        self._set_card_enabled(self.sw_fu,
+            bool(max_os and max_os < os_data.os_data.sonoma))
+
+        # Force Quad Thread: MacPro3,1 / Xserve2,1
+        self._set_card_enabled(self.sw_quad_thread,
+            model in ("MacPro3,1", "Xserve2,1"))
 
     def _set_card_enabled(self, card, enabled: bool):
         card.setEnabled(enabled)

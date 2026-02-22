@@ -6,7 +6,7 @@ Logic from efi_builder: networking/wireless.py, networking/wired.py
 
 import logging
 from .base import KextManager
-from ...datasets import smbios_data, cpu_data
+from ...datasets import smbios_data, cpu_data,os_data
 import sys as _sys
 if _sys.platform == "darwin":
     from ...detections import device_probe as _dp
@@ -54,14 +54,18 @@ class NetworkKextManager(KextManager):
                 if entry.get("Identifier") == "com.apple.iokit.IOSkywalkFamily":
                     entry["Enabled"] = True
             self.enable_kext("IOSkywalkFamily.kext", self.constants.ioskywalk_version)
-            self.enable_kext("IO80211FamilyLegacy.kext", self.constants.io80211legacy_version)
             self.enable_kext("AirportBrcmFixup.kext", self.constants.airportbcrmfixup_version)
-            # BrcmNIC_Injector plugin (legacy wireless.py:153)
+            self.enable_kext("IO80211FamilyLegacy.kext", self.constants.io80211legacy_version)
+            # Enable AirPortBrcmNIC plugin (inside IO80211FamilyLegacy)
+            self.config_mgr.enable_kext(
+                "IO80211FamilyLegacy.kext/Contents/PlugIns/AirPortBrcmNIC.kext"
+            )
+            # Disable BrcmNIC_Injector plugin (legacy wireless.py:153)
             bp = "AirportBrcmFixup.kext/Contents/PlugIns/AirPortBrcmNIC_Injector.kext"
             for entry in self.config.get("Kernel", {}).get("Add", []):
                 if entry.get("BundlePath") == bp:
                     entry["Enabled"] = False
-            self._log("  WiFi: BrcmNIC - IOSkywalk + IO80211Legacy + BrcmFixup + Injector")
+            self._log("  WiFi: BrcmNIC - BrcmFixup + IOSkywalk + IO80211Legacy + AirPortBrcmNIC")
         elif hasattr(_dp, 'Atheros') and wireless == getattr(
             getattr(_dp, 'Atheros', None), 'Chipsets', object()
         ).get('AirPortAtheros40', None):
@@ -79,36 +83,132 @@ class NetworkKextManager(KextManager):
                 boot_guid["boot-args"] = (boot_args + " -brcmfxwowl").strip()
                 self._log("  WiFi: Wake on WLAN enabled")
 
-    def _ethernet_handling(self, model_info, cpu_gen):
-        """Ethernet kext handler (legacy wired.py)."""
-        ethernet = model_info.get("Ethernet Chipset")
-        nforce = model_info.get("nForce Chipset", False)
+    # ── Ethernet ──
 
-        if nforce:
-            self.enable_kext("nForceEthernet.kext", self.constants.nforce_version)
-            self._log("  Ethernet: nForce")
-        elif ethernet == "Broadcom":
+    def _ethernet_handling(self, model_info, cpu_gen):
+        """Ethernet kext handler (two-tier: on-model detection → prebuilt fallback)."""
+        if not self.constants.custom_model and self.constants.computer and self.constants.computer.ethernet:
+            self._log("  Ethernet: using on-model detection")
+            self._on_model_ethernet(cpu_gen)
+        else:
+            self._log("  Ethernet: using prebuilt assumptions")
+            self._prebuilt_ethernet(model_info, cpu_gen)
+
+        # Always enable — hot-plug dongles may be attached at any time
+        self._usb_ecm_dongles()
+        self._i210_handling(cpu_gen)
+
+    def _on_model_ethernet(self, cpu_gen):
+        """Iterate detected Ethernet controllers and enable matching kexts."""
+        pre_ivy = cpu_gen < cpu_data.CPUGen.ivy_bridge.value
+
+        for ctrl in self.constants.computer.ethernet:
+            if isinstance(ctrl, _dp.BroadcomEthernet):
+                self._handle_broadcom_ethernet(ctrl, pre_ivy)
+            elif isinstance(ctrl, _dp.IntelEthernet):
+                self._handle_intel_ethernet(ctrl, pre_ivy)
+            elif isinstance(ctrl, _dp.NVIDIAEthernet):
+                self._handle_nvidia_ethernet()
+            elif isinstance(ctrl, (_dp.Marvell, _dp.SysKonnect)):
+                self._handle_marvell_ethernet()
+            elif isinstance(ctrl, _dp.Aquantia):
+                self._handle_aquantia_ethernet(ctrl, pre_ivy)
+
+    def _prebuilt_ethernet(self, model_info, cpu_gen):
+        """Fall back to smbios_data lookup when no hardware is detected."""
+        ethernet = model_info.get("Ethernet Chipset")
+        if not ethernet:
+            return
+
+        pre_ivy = cpu_gen < cpu_data.CPUGen.ivy_bridge.value
+
+        if ethernet == "Broadcom" and pre_ivy:
             self.enable_kext("CatalinaBCM5701Ethernet.kext", self.constants.bcm570_version)
-            self._log("  Ethernet: Broadcom BCM5701")
-        elif ethernet == "Intel 80003ES2LAN":
-            self.enable_kext("AppleIntel8254XEthernet.kext", self.constants.intel_8254x_version)
-            self._log("  Ethernet: Intel 80003ES2LAN")
-        elif ethernet == "Intel 82574L":
-            self.enable_kext("Intel82574L.kext", self.constants.intel_82574l_version)
-            self._log("  Ethernet: Intel 82574L")
-        elif ethernet == "Intel i210":
-            self.enable_kext("CatalinaIntelI210Ethernet.kext", self.constants.i210_version)
-            self._log("  Ethernet: Intel i210")
+            self._log("  Ethernet: Broadcom BCM5701 (prebuilt)")
+        elif model_info.get("nForce Chipset", False) or ethernet == "Nvidia":
+            self.enable_kext("nForceEthernet.kext", self.constants.nforce_version)
+            self._log("  Ethernet: nForce (prebuilt)")
         elif ethernet == "Marvell":
             self.enable_kext("MarvelYukonEthernet.kext", self.constants.marvel_version)
-            self._log("  Ethernet: Marvell Yukon")
-        elif ethernet == "Aquantia":
-            self.enable_kext("AppleEthernetAbuantiaAqtion.kext", self.constants.aquantia_version)
-            self._log("  Ethernet: Aquantia")
+            self._log("  Ethernet: Marvell Yukon (prebuilt)")
+        elif ethernet == "Intel 80003ES2LAN":
+            self.enable_kext("AppleIntel8254XEthernet.kext", self.constants.intel_8254x_version)
+            self._log("  Ethernet: Intel 8254X (prebuilt)")
+        elif ethernet == "Intel 82574L":
+            self.enable_kext("Intel82574L.kext", self.constants.intel_82574l_version)
+            self._log("  Ethernet: Intel 82574L (prebuilt)")
 
-        # ECM-Override for USB Ethernet dongles (legacy wired.py:72)
-        if model_info.get("Stock Ethernet") == "None":
-            self.enable_kext("ECM-Override.kext", self.constants.ecm_override_version)
-            self._log("  Ethernet: ECM-Override (USB dongle)")
+    # ── Per-vendor handlers ──
 
-        return self.log_lines
+    def _handle_broadcom_ethernet(self, ctrl, pre_ivy: bool):
+        """Broadcom BCM5701 — needs Catalina kext on pre-Ivy Bridge (no VT-D)."""
+        if ctrl.chipset != _dp.BroadcomEthernet.Chipsets.AppleBCM5701Ethernet:
+            return
+        if not pre_ivy:
+            return
+        self.enable_kext("CatalinaBCM5701Ethernet.kext", self.constants.bcm570_version)
+        self._log("  Ethernet: Broadcom BCM5701")
+
+    def _handle_intel_ethernet(self, ctrl, pre_ivy: bool):
+        """Intel Ethernet — DriverKit requires VT-D, so pre-Ivy uses legacy kexts."""
+        if not pre_ivy:
+            return
+        if ctrl.chipset == _dp.IntelEthernet.Chipsets.AppleIntelI210Ethernet:
+            self.enable_kext("CatalinaIntelI210Ethernet.kext", self.constants.i210_version)
+            self._log("  Ethernet: Intel i210")
+        elif ctrl.chipset == _dp.IntelEthernet.Chipsets.AppleIntel8254XEthernet:
+            self.enable_kext("AppleIntel8254XEthernet.kext", self.constants.intel_8254x_version)
+            self._log("  Ethernet: Intel 8254X")
+        elif ctrl.chipset == _dp.IntelEthernet.Chipsets.Intel82574L:
+            self.enable_kext("Intel82574L.kext", self.constants.intel_82574l_version)
+            self._log("  Ethernet: Intel 82574L")
+
+    def _handle_nvidia_ethernet(self):
+        """NVIDIA nForce — vendor-ID match, all chipsets supported."""
+        self.enable_kext("nForceEthernet.kext", self.constants.nforce_version)
+        self._log("  Ethernet: nForce")
+
+    def _handle_marvell_ethernet(self):
+        """Marvell / SysKonnect Yukon."""
+        self.enable_kext("MarvelYukonEthernet.kext", self.constants.marvel_version)
+        self._log("  Ethernet: Marvell Yukon")
+
+    def _handle_aquantia_ethernet(self, ctrl, pre_ivy: bool):
+        """Aquantia — needs legacy kext on pre-Ivy Bridge."""
+        if ctrl.chipset != _dp.Aquantia.Chipsets.AppleEthernetAquantiaAqtion:
+            return
+        if not pre_ivy:
+            return
+        self.enable_kext("AppleEthernetAbuantiaAqtion.kext", self.constants.aquantia_version)
+        self._log("  Ethernet: Aquantia")
+
+    # ── Global handlers (always run) ──
+
+    def _usb_ecm_dongles(self):
+        """ECM-Override for USB Ethernet dongles (pre-Sonoma only).
+
+        Sonoma's WiFi patches downgrade IOSkywalk, breaking DriverKit ECM.
+        Force-load the kernel driver to prevent a panic.
+        """
+        if self.model not in smbios_data.smbios_dictionary:
+            return
+        if smbios_data.smbios_dictionary[self.model]["Max OS Supported"] >= os_data.os_data.sonoma:
+            return
+        self.enable_kext("ECM-Override.kext", self.constants.ecm_override_version)
+        self._log("  Ethernet: ECM-Override (USB dongle)")
+
+    def _i210_handling(self, cpu_gen):
+        """i210 NIC fix — DriverKit regression in macOS 14 (pre-Sonoma models).
+
+        Ivy Bridge+ natively supports DriverKit, so set MinKernel to 23.0.0.
+        """
+        if self.model not in smbios_data.smbios_dictionary:
+            return
+        if smbios_data.smbios_dictionary[self.model]["Max OS Supported"] >= os_data.os_data.sonoma:
+            return
+        self.enable_kext("CatalinaIntelI210Ethernet.kext", self.constants.i210_version)
+        if cpu_gen >= cpu_data.CPUGen.ivy_bridge.value:
+            for entry in self.config.get("Kernel", {}).get("Add", []):
+                if entry.get("BundlePath") == "CatalinaIntelI210Ethernet.kext":
+                    entry["MinKernel"] = "23.0.0"
+        self._log("  Ethernet: i210 DriverKit fix")

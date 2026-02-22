@@ -145,6 +145,8 @@ class NVRAMManager:
         # SIP: conditional on sip_status and custom_sip_value (legacy security.py)
         if not self.constants.sip_status:
             sip_value = self.constants.custom_sip_value if self.constants.custom_sip_value else 0x803
+            if isinstance(sip_value, str):
+                sip_value = int(sip_value, 16) if sip_value.startswith("0x") else int(sip_value)
             boot_guid["csr-active-config"] = int(sip_value).to_bytes(4, "little")
             self._log(f"  Set csr-active-config: {hex(sip_value)}")
 

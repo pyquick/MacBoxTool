@@ -215,8 +215,7 @@ class LoggingHandler:
             """
             logging.error("Uncaught exception in main thread", exc_info=(type, value, tb))
 
-            if self.constants.cli_mode is True:
-                return
+            
             self._display_debug_properties()
             error_msg = "MacBoxTool encountered the following internal error:\n\n"
             error_msg += f"{type.__name__}: {value}"

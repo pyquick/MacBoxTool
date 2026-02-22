@@ -261,11 +261,11 @@ class GPUKextManager(KextManager):
     def _kdkless_handling(self, computer, model_info, cpu_gen) -> None:
         """KDKlessWorkaround for KDKless GPUs."""
         gpu_archs = []
-        #if not self.constants.custom_model:
-            #gpu_archs = [gpu.arch for gpu in self.constants.computer.gpus]
-        #else:
-        if self.model not in smbios_data.smbios_dictionary:
-            return
+        if not self.constants.custom_model:
+            gpu_archs = [gpu.arch for gpu in self.constants.computer.gpus]
+        else:
+            if self.model not in smbios_data.smbios_dictionary:
+                return
         gpu_archs = smbios_data.smbios_dictionary[self.model]["Stock GPUs"]
         print(gpu_archs)
         has_kdkless_gpu = False

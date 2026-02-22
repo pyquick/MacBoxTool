@@ -70,11 +70,20 @@ def find_kext_zip(payload_kexts_path: Path, kext_name: str) -> Path | None:
 
     # Case-insensitive search across all zip files
     for p in payload_kexts_path.rglob("*.zip"):
-        if p.name.lower().startswith(name):
-            if "debug" not in p.name.lower():
-                release = p
-            else:
-                debug = p
+        fname = p.name.lower()
+        if not fname.startswith(name):
+            continue
+        # Ensure exact kext name match: after the name must come '-v' (version)
+        # to avoid e.g. "AppleIntelCPUPowerManagement" matching
+        # "AppleIntelCPUPowerManagementClient", or "NoAVXFSCompressionTypeZlib"
+        # matching "NoAVXFSCompressionTypeZlib-AVXpel"
+        rest = fname[len(name):]
+        if rest and not rest.startswith("-v"):
+            continue
+        if "debug" not in fname:
+            release = p
+        else:
+            debug = p
 
     return release or debug
 
