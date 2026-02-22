@@ -261,42 +261,75 @@ class GPUKextManager(KextManager):
     def _kdkless_handling(self, computer, model_info, cpu_gen) -> None:
         """KDKlessWorkaround for KDKless GPUs."""
         gpu_archs = []
-        if computer:
-            gpu_archs = [gpu.arch for gpu in computer.gpus]
-        else:
-            gpu_archs = model_info.get("Stock GPUs", [])
+        #if not self.constants.custom_model:
+            #gpu_archs = [gpu.arch for gpu in self.constants.computer.gpus]
+        #else:
+        if self.model not in smbios_data.smbios_dictionary:
+            return
+        gpu_archs = smbios_data.smbios_dictionary[self.model]["Stock GPUs"]
+        print(gpu_archs)
+        has_kdkless_gpu = False
+        has_kdk_gpu = False
+        
+        for arch in gpu_archs:
+            # KDKless GPUs (Metal, no KDK required)
+            if arch in [ 
+                device_probe.Intel.Archs.Ivy_Bridge,
+                device_probe.Intel.Archs.Haswell,
+                device_probe.Intel.Archs.Broadwell,
+                device_probe.Intel.Archs.Skylake,
+                device_probe.NVIDIA.Archs.Kepler,
+            ]:
+                has_kdkless_gpu = True
 
-        has_kdkless_gpu = any(arch in (
-            device_probe.Intel.Archs.Ivy_Bridge, device_probe.Intel.Archs.Haswell,
-            device_probe.Intel.Archs.Broadwell, device_probe.Intel.Archs.Skylake,
-            device_probe.NVIDIA.Archs.Kepler,
-        ) for arch in gpu_archs)
+            # Non-Metal KDK
+            if arch in [
+                device_probe.NVIDIA.Archs.Tesla,
+                device_probe.NVIDIA.Archs.Maxwell,
+                device_probe.NVIDIA.Archs.Pascal,
+                device_probe.AMD.Archs.TeraScale_1,
+                device_probe.AMD.Archs.TeraScale_2,
+                device_probe.Intel.Archs.Iron_Lake,
+                device_probe.Intel.Archs.Sandy_Bridge,
+            ]:
+                has_kdk_gpu = True
 
-        has_kdk_gpu = any(arch in (
-            device_probe.NVIDIA.Archs.Tesla, device_probe.NVIDIA.Archs.Maxwell, device_probe.NVIDIA.Archs.Pascal,
-            device_probe.AMD.Archs.TeraScale_1, device_probe.AMD.Archs.TeraScale_2,
-            device_probe.Intel.Archs.Iron_Lake, device_probe.Intel.Archs.Sandy_Bridge,
-            device_probe.AMD.Archs.Legacy_GCN_7000, device_probe.AMD.Archs.Legacy_GCN_8000,
-            device_probe.AMD.Archs.Legacy_GCN_9000,
-        ) for arch in gpu_archs)
+            # Metal KDK (always)
+            if arch in [
+                device_probe.AMD.Archs.Legacy_GCN_7000,
+                device_probe.AMD.Archs.Legacy_GCN_8000,
+                device_probe.AMD.Archs.Legacy_GCN_9000,
+            ]:
+                has_kdk_gpu = True
 
-        if not has_kdk_gpu:
-            for arch in gpu_archs:
-                if arch in (device_probe.AMD.Archs.Polaris, device_probe.AMD.Archs.Polaris_Spoof,
-                            device_probe.AMD.Archs.Vega, device_probe.AMD.Archs.Navi):
-                    if self.model == "MacBookPro13,3" or cpu_gen <= cpu_data.CPUGen.ivy_bridge.value:
-                        has_kdk_gpu = True
-                        break
+            # Metal KDK (pre-AVX2.0)
+            if arch in [
+                device_probe.AMD.Archs.Polaris,
+                device_probe.AMD.Archs.Polaris_Spoof,
+                device_probe.AMD.Archs.Vega,
+                device_probe.AMD.Archs.Navi,
+            ]:
+                if self.model == "MacBookPro13,3" or cpu_gen <= cpu_data.CPUGen.ivy_bridge.value:
+                    # MacBookPro13,3 has AVX2.0 however the GPU has an unsupported framebuffer
+                    has_kdk_gpu = True
 
         if has_kdkless_gpu and not has_kdk_gpu:
+            # KDKlessWorkaround is required for KDKless GPUs
             self.enable_kext("KDKlessWorkaround.kext", self.constants.kdkless_version)
             self._log("  KDKlessWorkaround (KDKless GPU)")
             return
 
-        if cpu_gen <= cpu_data.CPUGen.ivy_bridge.value:
-            for arch in gpu_archs:
-                if arch in (device_probe.AMD.Archs.Polaris, device_probe.AMD.Archs.Polaris_Spoof,
-                            device_probe.AMD.Archs.Vega, device_probe.AMD.Archs.Navi):
-                    self.enable_kext("KDKlessWorkaround.kext", self.constants.kdkless_version)
-                    self._log("  KDKlessWorkaround (pre-AVX2 AMD)")
-                    return
+        # KDKlessWorkaround supports disabling native AMD stack on Ventura for pre-AVX2.0 CPUs
+        # Applicable for Polaris, Vega, Navi GPUs
+        if cpu_gen > cpu_data.CPUGen.ivy_bridge.value:
+            return
+        for arch in gpu_archs:
+            if arch in [                
+                device_probe.AMD.Archs.Polaris,
+                device_probe.AMD.Archs.Polaris_Spoof,
+                device_probe.AMD.Archs.Vega,
+                device_probe.AMD.Archs.Navi,
+            ]:
+                self.enable_kext("KDKlessWorkaround.kext", self.constants.kdkless_version)
+                self._log("  KDKlessWorkaround (pre-AVX2 AMD)")
+                return

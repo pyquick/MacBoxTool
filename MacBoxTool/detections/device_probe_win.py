@@ -1,6 +1,7 @@
 """
 device_probe_win.py: Hardware probing for Windows
 """
+import sys
 import ctypes
 import enum
 import re

@@ -32,7 +32,7 @@ class Constants:
         self.lilu_version:               str = "1.7.0"  #      Lilu
         self.whatevergreen_version:      str = "1.7.1"  #      WhateverGreen
         self.whatevergreen_navi_version: str = "1.6.9-Navi"  # WhateverGreen (Navi Patch)
-        self.airportbcrmfixup_version:   str = "2.1.9"  #      AirPortBrcmFixup
+        self.airportbcrmfixup_version:   str = "2.1.9"  #      AirportBrcmFixup
         self.nvmefix_version:            str = "1.1.2"  #      NVMeFix
         self.applealc_version:           str = "1.6.3"  #      AppleALC
         self.restrictevents_version:     str = "1.1.7"  #      RestrictEvents

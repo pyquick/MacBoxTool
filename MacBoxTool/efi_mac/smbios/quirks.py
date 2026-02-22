@@ -37,17 +37,17 @@ class QuirksManager:
         max_os = model_info.get("Max OS Supported", 0)
 
         # --- Booter Quirks ---
-        base_booter = [
-            "AvoidRuntimeDefrag",
-            "EnableSafeModeSlide",
-            "ProvideCustomSlide",
-            "RebuildAppleMemoryMap",
-            "SyncRuntimePermissions",
-            "SetupVirtualMap",
-        ]
-        for quirk in base_booter:
-            config_mgr.set_booter_quirk(quirk, True)
-        self._log(f"  Booter quirks: {', '.join(base_booter)}")
+        # Only set: ProtectSecureBoot, ForceBooterSignature (always True)
+        # SignalAppleOS based on dGPU_switch and Switchable GPUs
+        # All others = False
+        config_mgr.set_booter_quirk("ProtectSecureBoot", True)
+        config_mgr.set_booter_quirk("ForceBooterSignature", True)
+        self._log("  Booter quirks: ProtectSecureBoot=True, ForceBooterSignature=True")
+
+        # SignalAppleOS: based on dGPU_switch and Switchable GPUs
+        if self.constants.dGPU_switch is True and "Switchable GPUs" in model_info:
+            config_mgr.set_booter_quirk("SignalAppleOS", True)
+            self._log("  Booter quirk: SignalAppleOS=True (dGPU switch + switchable GPU)")
 
         # MacBoxTool smbios.py: Skip Board ID check (conditional on serial_settings)
         if self.constants.serial_settings == "None" and not self.constants.allow_oc_everywhere:
@@ -65,11 +65,6 @@ class QuirksManager:
         ):
             self.config.setdefault("UEFI", {}).setdefault("Quirks", {})["EnableVmx"] = True
             self._log("  UEFI quirk: EnableVmx (Haswell/Broadwell MacBook)")
-
-        # MacBoxTool firmware.py: SignalAppleOS for switchable GPU models
-        if "Switchable GPUs" in model_info:
-            config_mgr.set_booter_quirk("SignalAppleOS", True)
-            self._log("  Booter quirk: SignalAppleOS (switchable GPU)")
 
         # --- Kernel Quirks ---
         # MacBoxTool: ThirdPartyDrives - only for models with 3rd party SATA support
@@ -122,8 +117,8 @@ class QuirksManager:
 
         # APFS Trim timeout (legacy storage.py:198)
         if self.constants.apfs_trim_timeout:
-            config_mgr.set_quirk("SetApfsTrimTimeout", 0)
-            self._log("  Kernel quirk: SetApfsTrimTimeout=0")
+            config_mgr.set_quirk("SetApfsTrimTimeout", -1)
+            self._log("  Kernel quirk: SetApfsTrimTimeout=-1")
 
         # ConnectDrivers disable for hibernation (legacy firmware.py:321)
         if self.constants.disable_connectdrivers:

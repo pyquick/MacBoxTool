@@ -3,6 +3,7 @@ gui_settings.py: Settings page using Fluent Design components
 """
 from ..include import *
 from ..support import generate_smbios
+from ..support import utilities
 from .gui_support import DefGUI
 
 
@@ -158,14 +159,22 @@ class SettingsInterface(QWidget):
     def _build_graphics_group(self):
         group = SettingCardGroup("Graphics", self.tab_build._container)
 
-        self.sw_drm = SwitchSettingCard(FIF.VIDEO, "DRM Support", "Enable iMac14,x DRM patches", parent=group)
+        # Graphics Override combo box
+        self.cb_gpu_override = SettingCard(FIF.PROJECTOR, "Graphics Override", "Override detected GPU for socketed MXM iMacs", parent=group)
+        self.cb_gpu_override.comboBox = ComboBox(self.cb_gpu_override)
+        gpu_options = ["None", "Nvidia Kepler", "AMD GCN", "AMD Polaris", "AMD Lexa", "AMD Navi"]
+        self.cb_gpu_override.comboBox.addItems(gpu_options)
+        self.cb_gpu_override.hBoxLayout.addWidget(self.cb_gpu_override.comboBox, 0, Qt.AlignmentFlag.AlignRight)
+        self.cb_gpu_override.hBoxLayout.addSpacing(16)
+        group.addSettingCard(self.cb_gpu_override)
+
         self.sw_amd_gop = SwitchSettingCard(FIF.PROJECTOR, "AMD GOP Injection", "Inject AMD GCN GOP driver", parent=group)
         self.sw_nv_gop = SwitchSettingCard(FIF.PROJECTOR, "Nvidia Kepler GOP", "Inject Nvidia Kepler GOP driver", parent=group)
 
-        for card in (self.sw_drm, self.sw_amd_gop, self.sw_nv_gop):
+        for card in (self.cb_gpu_override, self.sw_amd_gop, self.sw_nv_gop):
             group.addSettingCard(card)
 
-        self.sw_drm.checkedChanged.connect(lambda v: self._save("drm_support", v))
+        self.cb_gpu_override.comboBox.currentTextChanged.connect(self._on_gpu_override_changed)
         self.sw_amd_gop.checkedChanged.connect(lambda v: self._save("amd_gop_injection", v))
         self.sw_nv_gop.checkedChanged.connect(lambda v: self._save("nvidia_kepler_gop_injection", v))
 
@@ -206,7 +215,12 @@ class SettingsInterface(QWidget):
         else:
             self._sip_value = 0x803
 
-        self.sip_label_card = SettingCard(FIF.FRIGID, "Current SIP Value", f"{hex(self._sip_value)}", parent=group)
+        # Calculate flipped value: 0x803 -> 03080000
+        flipped_value = self._calculate_sip_flipped(self._sip_value)
+        self.sip_label_card = SettingCard(FIF.FRIGID, "Current SIP Value", f"{hex(self._sip_value)} -> {flipped_value}", parent=group)
+        # Make the flipped part clickable to copy
+        self.sip_label_card.contentLabel.setCursor(Qt.PointingHandCursor)
+        self.sip_label_card.contentLabel.mousePressEvent = lambda _: self._copy_sip_flipped(flipped_value)
         group.addSettingCard(self.sip_label_card)
 
         self.sip_checks = {}
@@ -221,6 +235,67 @@ class SettingsInterface(QWidget):
 
         self.tab_sip._layout.addWidget(group)
 
+    def _calculate_sip_flipped(self, sip_value: int) -> str:
+        """Calculate flipped SIP value: remove 0x, reverse hex pairs, add 4 zeros"""
+        hex_str = hex(sip_value).replace("0x", "")
+        # Pad to even length if needed
+        if len(hex_str) % 2:
+            hex_str = "0" + hex_str
+        # Use hexswap from utilities to reverse pairs
+        flipped = utilities.hexswap(hex_str)
+        # Add 4 zeros at the end
+        return flipped + "0000"
+
+    def _copy_sip_flipped(self, flipped_value: str):
+        """Copy flipped value to clipboard"""
+        clipboard = QApplication.clipboard()
+        clipboard.setText(flipped_value)
+        # Show feedback
+        original_text = self.sip_label_card.contentLabel.text()
+        self.sip_label_card.contentLabel.setText(f"Copied: {flipped_value}")
+        QTimer.singleShot(1500, lambda: self.sip_label_card.contentLabel.setText(original_text))
+
+    def _on_gpu_override_changed(self, text: str):
+        """Handle GPU override selection change"""
+        if text == "None":
+            self.constants.imac_vendor = "None"
+            self.constants.imac_model = ""
+            self.constants.metal_build = False
+            self._save("imac_vendor", "None")
+            self._save("imac_model", "")
+            self._save("metal_build", False)
+        elif "AMD" in text:
+            self.constants.imac_vendor = "AMD"
+            self.constants.metal_build = True
+            if "Polaris" in text:
+                self.constants.imac_model = "Polaris"
+            elif "GCN" in text:
+                self.constants.imac_model = "GCN"
+            elif "Lexa" in text:
+                self.constants.imac_model = "Lexa"
+            elif "Navi" in text:
+                self.constants.imac_model = "Navi"
+            else:
+                self.constants.imac_model = ""
+            self._save("imac_vendor", "AMD")
+            self._save("imac_model", self.constants.imac_model)
+            self._save("metal_build", True)
+        elif "Nvidia" in text:
+            self.constants.imac_vendor = "Nvidia"
+            self.constants.metal_build = True
+            if "Kepler" in text:
+                self.constants.imac_model = "Kepler"
+            else:
+                self.constants.imac_model = ""
+            self._save("imac_vendor", "Nvidia")
+            self._save("imac_model", self.constants.imac_model)
+            self._save("metal_build", True)
+        logging.info(f"Updating GPU Selection: {text}")
+
+    def _update_metal_build(self, vendor: str):
+        """Update metal_build based on vendor selection"""
+        self.constants.metal_build = vendor != "None"
+
     def _on_sip_bit_changed(self, key: str, checked: bool):
         bit_val = sip_data.system_integrity_protection.csr_values_extended[key]["value"]
         if checked:
@@ -228,8 +303,13 @@ class SettingsInterface(QWidget):
         else:
             self._sip_value &= ~bit_val
 
-        self.sip_label_card.setContent(f"{hex(self._sip_value)}")
-        self.sip_label_card.contentLabel.setText(f"{hex(self._sip_value)}")
+        # Update flipped value
+        flipped_value = self._calculate_sip_flipped(self._sip_value)
+        combined_text = f"{hex(self._sip_value)} -> {flipped_value}"
+        self.sip_label_card.setContent(combined_text)
+        self.sip_label_card.contentLabel.setText(combined_text)
+        # Re-bind click event with new value
+        self.sip_label_card.contentLabel.mousePressEvent = lambda _: self._copy_sip_flipped(flipped_value)
 
         if self._sip_value == 0x0:
             self.constants.custom_sip_value = None
@@ -245,18 +325,36 @@ class SettingsInterface(QWidget):
     def _build_smbios_group(self):
         group = SettingCardGroup("SMBIOS Spoofing", self.tab_smbios._container)
 
+        # Spoof Level
         self.cb_serial = SettingCard(FIF.PEOPLE, "SMBIOS Spoof Level", "Serial number spoofing level", parent=group)
         self.cb_serial.comboBox = ComboBox(self.cb_serial)
         for t in ("None", "Minimal", "Moderate", "Advanced"):
             self.cb_serial.comboBox.addItem(t)
         self.cb_serial.hBoxLayout.addWidget(self.cb_serial.comboBox, 0, Qt.AlignmentFlag.AlignRight)
         self.cb_serial.hBoxLayout.addSpacing(16)
+
+        # Spoof Model
+        self.cb_spoof_model = SettingCard(FIF.PEOPLE, "Spoof Model", "Override SMBIOS model for spoofing", parent=group)
+        self.cb_spoof_model.comboBox = ComboBox(self.cb_spoof_model)
+        self.cb_spoof_model.comboBox.addItem("Default")
+        spoof_models = [
+            model for model in smbios_data.smbios_dictionary
+            if "_" not in model and " " not in model
+            and smbios_data.smbios_dictionary[model]["Board ID"] is not None
+        ]
+        for m in spoof_models:
+            self.cb_spoof_model.comboBox.addItem(m)
+        self.cb_spoof_model.hBoxLayout.addWidget(self.cb_spoof_model.comboBox, 0, Qt.AlignmentFlag.AlignRight)
+        self.cb_spoof_model.hBoxLayout.addSpacing(16)
+
         self.sw_native_spoof = SwitchSettingCard(FIF.SYNC, "Allow Native Spoofs", "Allow spoofing on native models", parent=group)
 
         group.addSettingCard(self.cb_serial)
+        group.addSettingCard(self.cb_spoof_model)
         group.addSettingCard(self.sw_native_spoof)
 
         self.cb_serial.comboBox.currentTextChanged.connect(lambda v: self._save("serial_settings", v))
+        self.cb_spoof_model.comboBox.currentTextChanged.connect(self._on_spoof_model_changed)
         self.sw_native_spoof.checkedChanged.connect(lambda v: self._save("allow_native_spoofs", v))
 
         self.tab_smbios._layout.addWidget(group)
@@ -282,7 +380,7 @@ class SettingsInterface(QWidget):
         self.sn_board_card.hBoxLayout.addSpacing(16)
         sn_group.addSettingCard(self.sn_board_card)
 
-        self.sn_gen_card = SettingCard(FIF.SYNC, "Generate Serial", "Generate serial for target model via macserial", parent=sn_group)
+        self.sn_gen_card = SettingCard(FIF.SYNC, "Generate Serial", "Generate serial for spoof/target model via macserial", parent=sn_group)
         self.sn_gen_btn = PrimaryPushButton("Generate")
         self.sn_gen_btn.clicked.connect(self._on_generate_serial)
         self.sn_gen_card.hBoxLayout.addWidget(self.sn_gen_btn, 0, Qt.AlignmentFlag.AlignRight)
@@ -294,10 +392,42 @@ class SettingsInterface(QWidget):
 
         self.tab_smbios._layout.addWidget(sn_group)
 
+    def _on_spoof_model_changed(self, text: str):
+        if text == "Default":
+            self.constants.override_smbios = "Default"
+        else:
+            self.constants.override_smbios = text
+        self._save("override_smbios", self.constants.override_smbios)
+
+    def _get_serial_target_model(self) -> str:
+        """Get the model to use for serial generation: spoof model > target model."""
+        if self.constants.override_smbios != "Default":
+            return self.constants.override_smbios
+        return self.constants.custom_model or (
+            self.constants.computer.real_model if self.constants.computer else ""
+        )
+
     def _on_generate_serial(self):
-        model = self._current_model()
+        model = self._get_serial_target_model()
         if not model:
             return
+
+        # Warning dialog
+        w = MessageBox(
+            "Warning",
+            "Please take caution when using serial spoofing. "
+            "This should only be used on machines that were legally obtained and require reserialization.\n\n"
+            "Note: new serials are only overlayed through OpenCore and are not permanently installed into ROM.\n\n"
+            "Misuse of this setting can break power management and other aspects of the OS "
+            "if the system does not need spoofing.\n\n"
+            "Are you certain you want to continue?",
+            self.window()
+        )
+        w.yesButton.setText("Continue")
+        w.cancelButton.setText("Cancel")
+        if w.exec() != 1:
+            return
+
         try:
             result = subprocess.run(
                 [str(self.constants.macserial_path), "--generate", "--model", model, "--num", "1"],
@@ -307,8 +437,14 @@ class SettingsInterface(QWidget):
             if len(parts) == 2:
                 self.sn_serial_edit.setText(parts[0])
                 self.sn_board_edit.setText(parts[1])
-        except Exception:
-            pass
+            else:
+                err = MessageBox("Error", f"Failed to generate serial number:\n\n{result.stdout.decode().strip()}", self.window())
+                err.cancelButton.hide()
+                err.exec()
+        except Exception as e:
+            err = MessageBox("Error", f"Failed to generate serial number:\n\n{e}", self.window())
+            err.cancelButton.hide()
+            err.exec()
 
     # ── Misc ──
 
@@ -348,6 +484,65 @@ class SettingsInterface(QWidget):
 
         self.tab_debug._layout.addWidget(group)
 
+        # Add Global Settings viewer
+        settings_group = SettingCardGroup("Global Settings", self.tab_debug._container)
+
+        # Key input field using SearchLineEdit - placed more to the left
+        self.settings_key_input = SearchLineEdit(self)
+        self.settings_key_input.setPlaceholderText("Enter key to search...")
+        settings_key_card = SettingCard(FIF.SEARCH, "Search Key", parent=settings_group)
+        settings_key_card.hBoxLayout.addWidget(self.settings_key_input, 0, Qt.AlignmentFlag.AlignLeft)
+        settings_key_card.hBoxLayout.addStretch(1)
+
+        # Result display using ExpandGroupSettingCard with addGroup
+        self.settings_expand_card = ExpandGroupSettingCard(
+            FIF.INFO,
+            "Search Result",
+            "Click to expand",
+            parent=settings_group
+        )
+        self.settings_key_label = BodyLabel("No key searched yet")
+        self.settings_value_label = BodyLabel("Enter a key above and press Enter or click search button")
+        self.settings_key_label.setWordWrap(True)
+        self.settings_value_label.setWordWrap(True)
+
+        # Use addGroup to add key-value pairs
+        self.settings_expand_card.addGroup(FIF.INFO, "Key", "", self.settings_key_label)
+        self.settings_expand_card.addGroup(FIF.CODE, "Value", "", self.settings_value_label)
+
+        settings_group.addSettingCard(settings_key_card)
+        settings_group.addSettingCard(self.settings_expand_card)
+
+        # Connect search on Enter key or search button click
+        self.settings_key_input.searchSignal.connect(lambda text: self._search_settings_key(text))
+
+        self.tab_debug._layout.addWidget(settings_group)
+
+    def _search_settings_key(self, key: str):
+        """Search for a key in global settings and display its value"""
+        if not key:
+            self.settings_key_label.setText("No key searched yet")
+            self.settings_value_label.setText("Enter a key above and press Enter or click search button")
+            return
+
+        value = self.settings.find_key(key)
+        if value is not None:
+            # Format the value for display
+            if isinstance(value, dict):
+                value_str = json.dumps(value, indent=2)
+            elif isinstance(value, list):
+                value_str = str(value)
+            else:
+                value_str = str(value)
+            self.settings_key_label.setText(key)
+            self.settings_value_label.setText(value_str)
+        else:
+            self.settings_key_label.setText("Not found")
+            self.settings_value_label.setText("N/A")
+
+        # Expand the card to show results
+        self.settings_expand_card.setExpand(True)
+
     # ── Persistence ──
 
     def _save(self, key: str, value):
@@ -383,7 +578,23 @@ class SettingsInterface(QWidget):
             self.cb_serial.comboBox.setCurrentIndex(idx)
         self.sw_native_spoof.setChecked(_get("allow_native_spoofs", False))
 
-        self.sw_drm.setChecked(_get("drm_support", False))
+        # Spoof Model
+        spoof_model = _get("override_smbios", "Default")
+        idx = self.cb_spoof_model.comboBox.findText(spoof_model)
+        if idx >= 0:
+            self.cb_spoof_model.comboBox.setCurrentIndex(idx)
+
+        # Graphics Override
+        gpu_override = _get("imac_vendor", "None")
+        if gpu_override != "None":
+            # Restore full selection (e.g., "AMD Polaris")
+            model = _get("imac_model", "")
+            full_selection = f"{gpu_override} {model}" if model else gpu_override
+            idx = self.cb_gpu_override.comboBox.findText(full_selection)
+            if idx >= 0:
+                self.cb_gpu_override.comboBox.setCurrentIndex(idx)
+        self._update_metal_build(gpu_override)
+
         self.sw_amd_gop.setChecked(_get("amd_gop_injection", False))
         self.sw_nv_gop.setChecked(_get("nvidia_kepler_gop_injection", False))
 
@@ -400,6 +611,9 @@ class SettingsInterface(QWidget):
         self.sw_kext_debug.setChecked(_get("kext_debug", False))
 
     # ── Hardware Conditions ──
+
+    # Socketed GPU models that support Graphics Override
+    SOCKETED_GPU_MODELS = ["iMac9,1", "iMac10,1", "iMac11,1", "iMac11,2", "iMac11,3", "iMac12,1", "iMac12,2"]
 
     def _apply_hardware_conditions(self, model: str):
         info = smbios_data.smbios_dictionary.get(model, {})
@@ -423,8 +637,9 @@ class SettingsInterface(QWidget):
         self._set_card_enabled(self.sw_amd_gop, has_socketed)
         self._set_card_enabled(self.sw_nv_gop, has_socketed)
 
-        # DRM: iMac13/14 with Nvidia
-        self._set_card_enabled(self.sw_drm, model in model_array.IntelNvidiaDRM)
+        # Graphics Override: only for socketed GPU models
+        is_socketed_gpu = model in self.SOCKETED_GPU_MODELS
+        self._set_card_enabled(self.cb_gpu_override, is_socketed_gpu)
 
     def _set_card_enabled(self, card, enabled: bool):
         card.setEnabled(enabled)

@@ -63,18 +63,20 @@ def find_kext_zip(payload_kexts_path: Path, kext_name: str) -> Path | None:
     Returns:
         Path to the kext zip file, or None if not found
     """
-    name = kext_name.replace(".kext", "")
+    name = kext_name.replace(".kext", "").lower()
 
-    # First try to find non-DEBUG versions
-    for p in payload_kexts_path.rglob(f"{name}*.zip"):
-        if "DEBUG" not in p.name:
-            return p
+    release = None
+    debug = None
 
-    # Fallback to any version
-    for p in payload_kexts_path.rglob(f"{name}*.zip"):
-        return p
+    # Case-insensitive search across all zip files
+    for p in payload_kexts_path.rglob("*.zip"):
+        if p.name.lower().startswith(name):
+            if "debug" not in p.name.lower():
+                release = p
+            else:
+                debug = p
 
-    return None
+    return release or debug
 
 
 def find_acpi_file(payload_acpi_path: Path, acpi_name: str) -> Path | None:

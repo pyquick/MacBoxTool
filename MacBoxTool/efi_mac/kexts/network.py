@@ -43,8 +43,8 @@ class NetworkKextManager(KextManager):
             self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version)
             self._log("  WiFi: AirPortBrcm4331 - IO80211ElCap")
         elif wireless == _dp.Broadcom.Chipsets.AirPortBrcm4360:
-            self.enable_kext("AirPortBrcmFixup.kext", self.constants.airportbcrmfixup_version)
-            self._log("  WiFi: AirPortBrcm4360 - AirPortBrcmFixup")
+            self.enable_kext("AirportBrcmFixup.kext", self.constants.airportbcrmfixup_version)
+            self._log("  WiFi: AirPortBrcm4360 - AirportBrcmFixup")
         elif wireless in (
             _dp.Broadcom.Chipsets.AirportBrcmNIC,
             _dp.Broadcom.Chipsets.AirPortBrcmNICThirdParty,
@@ -55,12 +55,12 @@ class NetworkKextManager(KextManager):
                     entry["Enabled"] = True
             self.enable_kext("IOSkywalkFamily.kext", self.constants.ioskywalk_version)
             self.enable_kext("IO80211FamilyLegacy.kext", self.constants.io80211legacy_version)
-            self.enable_kext("AirPortBrcmFixup.kext", self.constants.airportbcrmfixup_version)
+            self.enable_kext("AirportBrcmFixup.kext", self.constants.airportbcrmfixup_version)
             # BrcmNIC_Injector plugin (legacy wireless.py:153)
-            bp = "AirPortBrcmFixup.kext/Contents/PlugIns/AirPortBrcmNIC_Injector.kext"
+            bp = "AirportBrcmFixup.kext/Contents/PlugIns/AirPortBrcmNIC_Injector.kext"
             for entry in self.config.get("Kernel", {}).get("Add", []):
                 if entry.get("BundlePath") == bp:
-                    entry["Enabled"] = True
+                    entry["Enabled"] = False
             self._log("  WiFi: BrcmNIC - IOSkywalk + IO80211Legacy + BrcmFixup + Injector")
         elif hasattr(_dp, 'Atheros') and wireless == getattr(
             getattr(_dp, 'Atheros', None), 'Chipsets', object()

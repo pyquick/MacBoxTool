@@ -51,10 +51,9 @@ class GlobalSettings:
 
     def find_key(self, key: str) -> str | None:
         """Finds a key in the settings file and returns its value."""
-
-        logging.info("Key is getting ...")
-        
-        return self.settings.get(key)
+        value = self.settings.get(key)
+        logging.info(f"Getting {key} -> {value}")
+        return value
     
     def check_key(self,key:str)->bool:
         return key in self.settings
