@@ -6,6 +6,8 @@ Logic from MacBoxTool: misc.py (FireWire, TopCase, Thunderbolt, Webcam, USB, T1)
 
 import binascii
 import logging
+import shutil
+from pathlib import Path
 from .base import KextManager
 from ...datasets import smbios_data, cpu_data, model_array
 
@@ -27,6 +29,7 @@ class MiscKextManager(KextManager):
         self._usb_handling(model_info, cpu_gen, computer)
         self._t1_handling()
         self._cpufriend_handling(model_info, cpu_gen)
+        self._noavxfs_handling(model_info, cpu_gen)
 
         return self.log_lines
 
@@ -157,10 +160,63 @@ class MiscKextManager(KextManager):
         self._log("  T1 Security Chip support")
 
     def _cpufriend_handling(self, model_info, cpu_gen):
-        """CPUFriend power management (legacy misc.py:168-178)."""
+        """CPUFriend power management with DataProvider (legacy misc.py:168-178)."""
         if self.constants.disallow_cpufriend:
             return
         if self.constants.serial_settings == "None":
             return
+
+        # Allow CPUFriend for most models, except special cases
+        if self.model in ("iMac7,1", "Xserve2,1", "Hackdoc1,1"):
+            return
+        if self.constants.allow_oc_everywhere:
+            return
+
+        # Enable CPUFriend.kext from payload
         self.enable_kext("CPUFriend.kext", self.constants.cpufriend_version)
-        self._log("  CPUFriend (power management)")
+
+        # Copy and enable CPUFriendDataProvider.kext for the target model
+        pp_map_path = self.constants.platform_plugin_plist_path / f"{self.model}/Info.plist"
+
+        # Use kexts_path from KextManager (not constants which might be different)
+        pp_kext_folder = self.kexts_path / "CPUFriendDataProvider.kext"
+
+        if pp_map_path.exists():
+            # Create kext folder structure
+            pp_contents = pp_kext_folder / "Contents"
+            pp_contents.mkdir(parents=True, exist_ok=True)
+
+            # Copy Info.plist
+            shutil.copy(pp_map_path, pp_contents / "Info.plist")
+
+            # Add/ensure entry in config.plist if not already present
+            kernel_add = self.config.get("Kernel", {}).get("Add", [])
+            found = False
+            for entry in kernel_add:
+                if entry.get("BundlePath") == "CPUFriendDataProvider.kext":
+                    entry["Enabled"] = True
+                    found = True
+                    break
+
+            # If not found in config, add it
+            if not found:
+                self.config.setdefault("Kernel", {}).setdefault("Add", []).append({
+                    "BundlePath": "CPUFriendDataProvider.kext",
+                    "Enabled": True,
+                    "MaxKernel": ""
+                })
+
+            self._log(f"  CPUFriend + DataProvider ({self.model})")
+        else:
+            self._log(f"  CPUFriend (no DataProvider for {self.model})")
+
+    def _noavxfs_handling(self, model_info, cpu_gen):
+        """NoAVXFSCompressionTypeZlib for pre-Sandy Bridge CPUs."""
+        # In macOS 12.4+, Apple added AVX1.0 usage in AppleFSCompressionTypeZlib
+        # Pre-Sandy Bridge CPUs don't support AVX1.0
+        if cpu_gen >= cpu_data.CPUGen.sandy_bridge.value:
+            return
+
+        self.enable_kext("NoAVXFSCompressionTypeZlib.kext", self.constants.apfs_zlib_version)
+        self.enable_kext("NoAVXFSCompressionTypeZlib-AVXpel.kext", self.constants.apfs_zlib_v2_version)
+        self._log("  NoAVXFS: AVX1.0 compression workaround (pre-Sandy Bridge)")

@@ -537,7 +537,7 @@ class SettingsInterface(QWidget):
         self.sw_fu = SwitchSettingCard(FIF.TRANSPARENT, "FeatureUnlock", "Enable Sidecar, AirPlay, etc. on unsupported models", parent=group)
         self.sw_vmm_cpuid = SwitchSettingCard(FIF.CODE, "VMM CPUID", "Spoof VMM bit in CPUID (bypasses OS board-id checks)", parent=group)
         self.sw_quad_thread = SwitchSettingCard(FIF.SPEED_OFF, "Force Quad Thread", "Limit kernel to 4 CPU threads (MacPro3,1 / Xserve2,1)", parent=group)
-        self.sw_oc_everywhere = SwitchSettingCard(FIF.CONNECT, "Allow OC Everywhere", "Allow OpenCore on natively supported models", parent=group)
+        self.sw_oc_everywhere = SwitchSettingCard(FIF.CONNECT, "Allow Native Models", "Allow OpenCore on natively supported models", parent=group)
         self.sw_nvme_fix = SwitchSettingCard(FIF.SPEED_HIGH, "NVMe Fixing", "Enable NVMe kernel space patches and ASPM fixes", parent=group)
 
         for card in (self.sw_fu, self.sw_vmm_cpuid, self.sw_quad_thread, self.sw_oc_everywhere, self.sw_nvme_fix):

@@ -1,5 +1,5 @@
 """
-gui_app.py: GUI Build for Hackintosh
+gui_app.py: App install in macOS
 """
 
 from ..include import *

@@ -95,6 +95,13 @@ class QuirksManager:
             self._enable_kernel_patch("SurPlus v1 - PART 2 of 2 - Patch register_and_init_prng")
             self._log("  Kernel patch: SurPlus (no RDRAND)")
 
+            # Allow SurPlus on newer OSes if force_surplus is enabled
+            if self.constants.force_surplus:
+                for patch in self.config.get("Kernel", {}).get("Patch", []):
+                    if "SurPlus v1" in patch.get("Comment", ""):
+                        patch["MaxKernel"] = ""
+                self._log("  SurPlus: allowed on newer OSes (force_surplus)")
+
         # MacBoxTool firmware.py: IOHIDFamily patch for Penryn and older
         if cpu_gen <= cpu_data.CPUGen.penryn.value:
             self._enable_kernel_patch_by_id("com.apple.iokit.IOHIDFamily")

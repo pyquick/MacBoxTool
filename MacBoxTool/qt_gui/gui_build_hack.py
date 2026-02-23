@@ -17,7 +17,7 @@ class GUIBuildHack(ScrollArea):
         logging.info("###########################")
 
         # SetObject
-        self.setObjectName("About")
+        self.setObjectName("build_hackintosh")
 
         # Add constants
         self.constants=global_constants
@@ -27,6 +27,7 @@ class GUIBuildHack(ScrollArea):
         #Add QWidgets
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
+        self.hlayout      = QHBoxLayout(self.scroll)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         # Interface
