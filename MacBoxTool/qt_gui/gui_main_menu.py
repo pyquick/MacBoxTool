@@ -140,6 +140,10 @@ class Window(FluentWindow):
             )
     def _init_ui(self):
         self.introduction=Introduction(self.constants,self.gui_support,self.settings,self)
+
+        # Set up navigation callback for introduction page
+        self.introduction.set_navigation_callback(self._on_intro_navigate)
+
         self.addSubInterface(
             self.introduction,
             FluentIcon.HOME,
@@ -172,6 +176,15 @@ class Window(FluentWindow):
         )
     
         self.stackedWidget.currentChanged.connect(self._on_page_changed)
+
+    def _on_intro_navigate(self, target: str):
+        """Handle navigation from introduction page."""
+        if target == Introduction.NAV_BUILD:
+            self.stackedWidget.setCurrentWidget(self.build)
+        elif target == Introduction.NAV_SETTINGS:
+            self.stackedWidget.setCurrentWidget(self.settings_page)
+        elif target == Introduction.NAV_ABOUT:
+            self.stackedWidget.setCurrentWidget(self.about)
 
     def _on_page_changed(self, index):
         widget = self.stackedWidget.widget(index)
