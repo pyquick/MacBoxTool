@@ -3,6 +3,8 @@ gui_build.py: Build OpenCore EFI for unsupported Macs
 """
 from ..include import *
 from .gui_support import DefGUI, ProgressStatusHelper
+from PySide6.QtGui import QDesktopServices
+from PySide6.QtCore import QUrl
 
 
 class _SignalHandler(logging.Handler):
@@ -73,6 +75,7 @@ class BuildOCPage(ScrollArea):
         self.gui_support = ui_support
         self.settings = global_settings
         self.worker = None
+        self.last_output_path = None  # Store last build output path
 
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
@@ -128,6 +131,13 @@ class BuildOCPage(ScrollArea):
         self.build_btn.clicked.connect(self._on_build)
         layout.addWidget(self.build_btn)
 
+        # Open folder button - hidden until build succeeds
+        self.open_folder_btn = PushButton(FIF.FOLDER, "Open folder in Finder")
+        self.open_folder_btn.setFixedHeight(36)
+        self.open_folder_btn.clicked.connect(self._open_output_folder)
+        self.open_folder_btn.setVisible(False)
+        layout.addWidget(self.open_folder_btn)
+
         # Progress area - vertical layout to avoid overlap
         self.progress_container = QWidget()
         prog_layout = QVBoxLayout(self.progress_container)
@@ -178,6 +188,7 @@ class BuildOCPage(ScrollArea):
 
         self.log_text.clear()
         self.build_btn.setEnabled(False)
+        self.open_folder_btn.setVisible(False)  # Hide open folder button during build
         self.progress_helper.update("loading", f"Building EFI for {model}...")
 
         self.worker = BuildWorker(model, self.constants)
@@ -203,10 +214,17 @@ class BuildOCPage(ScrollArea):
     def _on_build_done(self, success: bool, info: str):
         self.build_btn.setEnabled(True)
         if success:
+            self.last_output_path = info
             self.progress_helper.update("success", f"Build complete: {info}", 100)
+            self.open_folder_btn.setVisible(True)
         else:
             self.progress_helper.update("error", f"Build failed: {info}")
+            self.open_folder_btn.setVisible(False)
         self.worker = None
+
+    def _open_output_folder(self):
+        if self.last_output_path:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self.last_output_path))
 
     def _update_theme(self):
         pass
