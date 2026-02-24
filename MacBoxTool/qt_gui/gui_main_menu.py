@@ -5,6 +5,7 @@ from .gui_introduction import Introduction
 from .gui_build import BuildOCPage
 from .gui_about import AboutInterface
 from .gui_settings import SettingsInterface
+from .gui_task import TaskInterface
 
 WINDOW_MIN_SIZE = (1000, 700)
 WINDOW_DEFAULT_SIZE = (1200, 800)
@@ -156,6 +157,14 @@ class Window(FluentWindow):
             self.build,
             FluentIcon.DEVELOPER_TOOLS,
             "Build For Macs",
+            NavigationItemPosition.SCROLL
+        )
+
+        self.task_page=TaskInterface(self.constants,self.gui_support,self.settings,self)
+        self.addSubInterface(
+            self.task_page,
+            FluentIcon.DOWNLOAD,
+            "Download Tasks",
             NavigationItemPosition.SCROLL
         )
 

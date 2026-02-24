@@ -35,6 +35,11 @@ class AboutInterface(ScrollArea):
 
     def init_ui(self):
         
+        self.expandLayout.setContentsMargins(
+            SPACING["xxlarge"], SPACING["xlarge"],
+            SPACING["xxlarge"], SPACING["xlarge"]
+        )
+        self.expandLayout.setSpacing(SPACING["large"])
 
         self.expandLayout.addWidget(self.show_about_label())
         self.expandLayout.addWidget(self.show_your_model())
