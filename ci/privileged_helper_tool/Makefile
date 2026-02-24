@@ -1,5 +1,5 @@
 CC=clang
-OUTPUT=com.ghltbm.macboxtool.privileged-helper
+OUTPUT=com.pyquick.macboxtool.privileged-helper
 
 all: clean release
 

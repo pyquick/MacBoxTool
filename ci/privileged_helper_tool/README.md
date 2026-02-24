@@ -1,6 +1,6 @@
 # MacBoxTool Privileged Helper Tool
 
-`com.ghltbm.macboxtool.privileged-helper` is MacBoxTool's Privileged Helper Tool.
+`com.pyquick.macboxtool.privileged-helper` is MacBoxTool's Privileged Helper Tool.
 
 The architecture is as such:
 1. The main application (MacBoxTool.app) will send arguments to the privileged helper tool to execute.

@@ -252,8 +252,8 @@ class GPUKextManager(KextManager):
         self.config["DeviceProperties"]["Add"]["PciRoot(0x0)/Pci(0x1,0x0)/Pci(0x0,0x0)"] = {
             "class-code": binascii.unhexlify("FFFFFFFF"),
             "device-id": binascii.unhexlify("FFFF0000"),
-            "IOName": "Hackdoc Disabled Card",
-            "name": "Hackdoc Disabled Card",
+            "IOName": "Pyquick Disabled Card",
+            "name": "Pyquick Disabled Card",
         }
         self.config["DeviceProperties"]["Delete"]["PciRoot(0x0)/Pci(0x1,0x0)/Pci(0x0,0x0)"] = ["class-code", "device-id", "IOName", "name"]
         self.enable_kext("AMDGPUWakeHandler.kext", self.constants.gpu_wake_version)

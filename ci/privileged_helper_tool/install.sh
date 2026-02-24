@@ -11,7 +11,7 @@
 
 # MARK: Variables
 # ---------------------------
-helperName="com.ghltbm.macboxtool.privileged-helper"
+helperName="com.pyquick.macboxtool.privileged-helper"
 helperPath="/Library/PrivilegedHelperTools/$helperName"
 
 # MARK: Functions

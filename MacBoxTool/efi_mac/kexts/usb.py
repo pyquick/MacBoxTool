@@ -34,7 +34,7 @@ class USBKextManager(KextManager):
             usb_map_path.exists()
             and usb_map_tahoe_path.exists()
             and (not self.constants.allow_oc_everywhere or self.constants.allow_native_spoofs)
-            and self.model not in ("Xserve2,1", "Hackdoc1,1")
+            and self.model not in ("Xserve2,1", "Pyquick1,1")
             and needs_map
         ):
             return

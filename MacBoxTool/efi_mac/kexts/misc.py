@@ -167,7 +167,7 @@ class MiscKextManager(KextManager):
             return
 
         # Allow CPUFriend for most models, except special cases
-        if self.model in ("iMac7,1", "Xserve2,1", "Hackdoc1,1"):
+        if self.model in ("iMac7,1", "Xserve2,1", "Pyquick1,1"):
             return
         if self.constants.allow_oc_everywhere:
             return
