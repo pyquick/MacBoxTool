@@ -8,6 +8,7 @@ from .support.colors import *
 from .UIWindow.utils import *
 from PySide6.QtCore import QTimer,QObject
 from .support.toggle_theme import ThemeManager
+from .support import subprocess_wrapper
 
 #constants
 from .constants import *

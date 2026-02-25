@@ -7,6 +7,12 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QUrl
 
 
+from ..UIkit.components.dialog_box.message_box_base import MessageBoxBase
+from ..UIkit.components.widgets.button import RadioButton
+from ..UIkit.components.widgets.progress_ring import IndeterminateProgressRing
+from ..support.scan_disk_efi import get_efi_partitions, list_disks, list_partitions
+
+
 class _SignalHandler(logging.Handler):
     """Logging handler that emits Qt signals for real-time log display."""
     def __init__(self, log_signal, progress_signal=None, total_steps=1):
@@ -58,6 +64,340 @@ class BuildWorker(QThread):
             self.finished_signal.emit(False, str(e))
         finally:
             efi_logger.removeHandler(handler)
+
+
+class DiskScannerThread(QThread):
+    finished_signal = Signal(list)
+
+    def run(self):
+        partitions = get_efi_partitions()
+        self.finished_signal.emit(partitions)
+
+
+class DiskListScannerThread(QThread):
+    """Thread to scan all disks"""
+    finished_signal = Signal(dict)
+
+    def run(self):
+        disks = list_disks()
+        self.finished_signal.emit(disks)
+
+
+class InstallWorker(QThread):
+    """Background thread for EFI installation."""
+    log_signal = Signal(str)
+    finished_signal = Signal(bool, str)
+
+    def __init__(self, partition_ident, source_path, constants):
+        super().__init__()
+        self.partition_ident = partition_ident
+        self.source_path = source_path
+        self.constants = constants
+
+    def run(self):
+        import shutil
+        import os
+        import plistlib
+
+        ident = self.partition_ident
+
+        try:
+            # Mount
+            self.log_signal.emit(f"=== Installing EFI to {ident} ===")
+            self.log_signal.emit(f"Mounting {ident}...")
+            mount_res = subprocess_wrapper.run_as_root(
+                ["/usr/sbin/diskutil", "mount", ident],
+                capture_output=True, text=True
+            )
+            if mount_res.returncode != 0:
+                self.log_signal.emit(f"[ERROR] Failed to mount {ident}: {mount_res.stderr}")
+                self.finished_signal.emit(False, f"Failed to mount {ident}")
+                return
+            self.log_signal.emit(f"Mounted {ident} successfully.")
+
+            # Get mount point
+            self.log_signal.emit(f"Getting mount point for {ident}...")
+            info_res = subprocess.run(
+                ["/usr/sbin/diskutil", "info", "-plist", ident],
+                capture_output=True, text=True
+            )
+            if info_res.returncode != 0:
+                self.log_signal.emit(f"[ERROR] diskutil info failed for {ident}")
+                self.finished_signal.emit(False, f"diskutil info failed for {ident}")
+                return
+
+            info_data = plistlib.loads(info_res.stdout.encode('utf-8'))
+            mount_point = info_data.get('MountPoint')
+
+            if not mount_point:
+                self.log_signal.emit(f"[ERROR] Could not find mount point for {ident}.")
+                self.finished_signal.emit(False, f"No mount point for {ident}")
+                return
+
+            self.log_signal.emit(f"Mount point: {mount_point}")
+
+            # Copy EFI
+            src_efi = os.path.join(self.source_path, "EFI")
+            if not os.path.exists(src_efi):
+                src_efi = self.source_path
+            dest_efi = os.path.join(mount_point, "EFI")
+
+            if not os.path.exists(src_efi):
+                self.log_signal.emit(f"[WARN] EFI source not found at {src_efi}")
+                self.finished_signal.emit(False, f"EFI source not found")
+                return
+
+            self.log_signal.emit(f"Copying EFI: {src_efi} -> {dest_efi}")
+            if os.path.exists(dest_efi):
+                shutil.rmtree(dest_efi)
+            shutil.copytree(src_efi, dest_efi)
+            self.log_signal.emit("EFI copied successfully.")
+
+            # Copy System folder if exists
+            src_system = os.path.join(self.source_path, "System")
+            if os.path.exists(src_system):
+                dest_system = os.path.join(mount_point, "System")
+                self.log_signal.emit(f"Copying System: {src_system} -> {dest_system}")
+                if os.path.exists(dest_system):
+                    shutil.rmtree(dest_system)
+                shutil.copytree(src_system, dest_system)
+                self.log_signal.emit("System copied successfully.")
+
+            # Add drive icon
+            self._copy_drive_icon(ident, mount_point)
+
+            self.log_signal.emit(f"\n=== Install Complete ===")
+            self.finished_signal.emit(True, mount_point)
+
+        except Exception as e:
+            self.log_signal.emit(f"[ERROR] {e}")
+            self.finished_signal.emit(False, str(e))
+
+    def _copy_drive_icon(self, ident, mount_point):
+        """Determine disk type and copy appropriate drive icon."""
+        import os
+
+        # Get the parent disk identifier (e.g. disk0s1 -> disk0)
+        parent_disk = ident.rstrip('0123456789')
+        if parent_disk.endswith('s'):
+            parent_disk = parent_disk[:-1]
+
+        icon_path = None
+        try:
+            info_res = subprocess.run(
+                ["/usr/sbin/diskutil", "info", "-plist", parent_disk],
+                capture_output=True, text=True, check=True
+            )
+            import plistlib
+            disk_info = plistlib.loads(info_res.stdout.encode('utf-8'))
+
+            is_internal = disk_info.get("Internal", False)
+            is_ssd = disk_info.get("SolidState", False)
+            bus_protocol = disk_info.get("BusProtocol", "")
+            media_name = disk_info.get("MediaName", "").lower()
+
+            if "sd" in media_name or "card" in media_name:
+                self.log_signal.emit("Adding SD Card icon...")
+                icon_path = self.constants.icon_path_sd
+            elif is_ssd:
+                self.log_signal.emit("Adding SSD icon...")
+                icon_path = self.constants.icon_path_ssd
+            elif bus_protocol == "USB" or not is_internal:
+                self.log_signal.emit("Adding External USB Drive icon...")
+                icon_path = self.constants.icon_path_external
+            else:
+                self.log_signal.emit("Adding Internal Drive icon...")
+                icon_path = self.constants.icon_path_internal
+
+        except Exception as e:
+            self.log_signal.emit(f"[WARN] Could not determine disk type: {e}")
+            icon_path = self.constants.icon_path_internal
+
+        if icon_path and os.path.exists(str(icon_path)):
+            dest_icon = os.path.join(mount_point, ".VolumeIcon.icns")
+            subprocess.run(
+                ["/bin/cp", str(icon_path), dest_icon],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+            self.log_signal.emit("Drive icon added.")
+        else:
+            self.log_signal.emit("[WARN] Icon file not found, skipping.")
+
+
+class EFIDiskSelectionMessageBox(MessageBoxBase):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.titleLabel = SubtitleLabel("Select Target Disk")
+
+        # Loading State
+        self.loadingWidget = QWidget()
+        self.loadingLayout = QHBoxLayout(self.loadingWidget)
+
+        self.progressRing = IndeterminateProgressRing()
+        self.progressRing.setFixedSize(50, 50)
+        self.progressRing.setStrokeWidth(4)
+
+        self.progressLabel = BodyLabel("Scanning disks...")
+
+        self.loadingLayout.addWidget(self.progressRing)
+        self.loadingLayout.addWidget(self.progressLabel)
+        self.loadingLayout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Disk Selection State
+        self.diskSelectionWidget = QWidget()
+        self.diskSelectionLayout = QVBoxLayout(self.diskSelectionWidget)
+        self.diskButtonGroup = QButtonGroup(self)
+        self.diskSelectionWidget.hide()
+
+        # Partition Selection State
+        self.partitionSelectionWidget = QWidget()
+        self.partitionSelectionLayout = QVBoxLayout(self.partitionSelectionWidget)
+        self.partitionButtonGroup = QButtonGroup(self)
+        self.partitionSelectionWidget.hide()
+
+        # Back button
+        self.backButton = PrimaryPushButton("← Back")
+        self.backButton.clicked.connect(self._on_back_clicked)
+        self.backButton.hide()
+
+        self.viewLayout.addWidget(self.titleLabel)
+        self.viewLayout.addWidget(self.loadingWidget)
+        self.viewLayout.addWidget(self.diskSelectionWidget)
+        self.viewLayout.addWidget(self.partitionSelectionWidget)
+        self.viewLayout.addWidget(self.backButton)
+
+        self.widget.setMinimumWidth(350)
+        self.yesButton.setEnabled(False)
+        self.yesButton.setText("Install")
+
+        self.selected_disk = None
+        self.selected_partition = None
+        self.efi_partitions = None
+        self.all_disks = {}
+
+        # Start scan
+        self.progressRing.start()
+        self.scanner_thread = DiskListScannerThread()
+        self.scanner_thread.finished_signal.connect(self._on_disks_scanned)
+        self.scanner_thread.start()
+
+    def _on_disks_scanned(self, disks):
+        self.all_disks = disks
+        self.progressRing.stop()
+        self.loadingWidget.hide()
+        self.diskSelectionWidget.show()
+
+        if not disks:
+            self.diskSelectionLayout.addWidget(BodyLabel("No disks with EFI partitions found."))
+            return
+
+        for disk_ident, disk_data in disks.items():
+            rb = RadioButton(f"{disk_data['name']} ({disk_ident})")
+            self.diskButtonGroup.addButton(rb, list(disks.keys()).index(disk_ident))
+            self.diskSelectionLayout.addWidget(rb)
+            # Add spacing between RadioButtons
+            spacer = QWidget()
+            spacer.setFixedHeight(8)
+            self.diskSelectionLayout.addWidget(spacer)
+
+        self.diskButtonGroup.buttonClicked.connect(self._on_disk_selected)
+
+    def _on_disk_selected(self, btn):
+        disk_keys = list(self.all_disks.keys())
+        idx = self.diskButtonGroup.id(btn)
+        disk_ident = disk_keys[idx]
+        self.selected_disk = self.all_disks[disk_ident]
+
+        # Show partition selection
+        self.diskSelectionWidget.hide()
+        self.titleLabel.setText("Select Target Partition")
+        self.partitionSelectionWidget.show()
+        self.backButton.show()
+
+        # Clear previous partition buttons
+        while self.partitionSelectionLayout.count():
+            item = self.partitionSelectionLayout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        partitions = self.selected_disk.get("partitions", {})
+
+        # Filter to only show EFI partitions
+        self.efi_partitions = {
+            part_ident: part_data
+            for part_ident, part_data in partitions.items()
+            if part_data.get("fs") == "EFI" or part_data.get("fs") == "msdos" or part_data.get("type") == "EFI"
+        }
+
+        if not self.efi_partitions:
+            # No EFI partition found
+            self.partitionSelectionLayout.addWidget(BodyLabel("No EFI partition found on this disk."))
+            return
+
+        for part_ident, part_data in self.efi_partitions.items():
+            part_name = part_data.get("name", "")
+            part_type = part_data.get("type", "")
+            part_size = part_data.get("size", 0)
+
+            # Format size
+            size_str = self._format_size(part_size)
+
+            # Create label
+            if part_name:
+                label = f"{part_name} ({part_ident}) - {part_type} - {size_str}"
+            else:
+                label = f"{part_ident} - {part_type} - {size_str}"
+
+            rb = RadioButton(label)
+            self.partitionButtonGroup.addButton(rb, list(self.efi_partitions.keys()).index(part_ident))
+            self.partitionSelectionLayout.addWidget(rb)
+
+            # Add spacing between RadioButtons
+            spacer = QWidget()
+            spacer.setFixedHeight(8)
+            self.partitionSelectionLayout.addWidget(spacer)
+
+        self.partitionButtonGroup.buttonClicked.connect(self._on_partition_selected)
+
+    def _on_partition_selected(self, btn):
+        # Use EFI partitions list to get the correct partition identifier
+        part_keys = list(self.efi_partitions.keys())
+        idx = self.partitionButtonGroup.id(btn)
+        part_ident = part_keys[idx]
+
+        self.selected_partition = {
+            "identifier": part_ident,
+            "disk_name": self.selected_disk["name"],
+            "name": f"{self.selected_disk['name']} - {part_ident}"
+        }
+        self.yesButton.setEnabled(True)
+
+    def _on_back_clicked(self):
+        # If we're in partition selection, go back to disk selection
+        if self.partitionSelectionWidget.isVisible():
+            self.titleLabel.setText("Select Target Disk")
+            self.partitionSelectionWidget.hide()
+            self.backButton.hide()
+            self.diskSelectionWidget.show()
+            self.selected_disk = None
+            self.selected_partition = None
+            self.yesButton.setEnabled(False)
+        # If we're in disk selection, just clear selection
+        else:
+            self.selected_disk = None
+            self.selected_partition = None
+            self.yesButton.setEnabled(False)
+
+    def _format_size(self, size_bytes):
+        """Format size in bytes to human readable string."""
+        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+            if size_bytes < 1024.0:
+                return f"{size_bytes:.1f} {unit}"
+            size_bytes /= 1024.0
+        return f"{size_bytes:.1f} PB"
+
+    def validate(self):
+        return self.selected_partition is not None
 
 
 class BuildOCPage(ScrollArea):
@@ -138,6 +478,13 @@ class BuildOCPage(ScrollArea):
         self.open_folder_btn.setVisible(False)
         layout.addWidget(self.open_folder_btn)
 
+        # Install to disk button - hidden until build succeeds
+        self.install_btn = PrimaryPushButton(FIF.SAVE, "Install to disk")
+        self.install_btn.setFixedHeight(36)
+        self.install_btn.clicked.connect(self._on_install_clicked)
+        self.install_btn.setVisible(False)
+        layout.addWidget(self.install_btn)
+
         # Progress area - vertical layout to avoid overlap
         self.progress_container = QWidget()
         prog_layout = QVBoxLayout(self.progress_container)
@@ -189,6 +536,7 @@ class BuildOCPage(ScrollArea):
         self.log_text.clear()
         self.build_btn.setEnabled(False)
         self.open_folder_btn.setVisible(False)  # Hide open folder button during build
+        self.install_btn.setVisible(False)      # Hide install button during build
         self.progress_helper.update("loading", f"Building EFI for {model}...")
 
         self.worker = BuildWorker(model, self.constants)
@@ -217,14 +565,56 @@ class BuildOCPage(ScrollArea):
             self.last_output_path = info
             self.progress_helper.update("success", f"Build complete: {info}", 100)
             self.open_folder_btn.setVisible(True)
+            self.install_btn.setVisible(sys.platform == "darwin")
         else:
             self.progress_helper.update("error", f"Build failed: {info}")
             self.open_folder_btn.setVisible(False)
+            self.install_btn.setVisible(False)
         self.worker = None
 
     def _open_output_folder(self):
         if self.last_output_path:
             QDesktopServices.openUrl(QUrl.fromLocalFile(self.last_output_path))
+
+    def _on_install_clicked(self):
+        w = EFIDiskSelectionMessageBox(self.window())
+        if w.exec():
+            selected = w.selected_partition
+            if selected:
+                ident = selected['identifier']
+                self.log_text.clear()
+                self.install_btn.setEnabled(False)
+                self.build_btn.setEnabled(False)
+
+                self.install_worker = InstallWorker(ident, self.last_output_path, self.constants)
+                self.install_worker.log_signal.connect(self._append_log)
+                self.install_worker.finished_signal.connect(self._on_install_done)
+                self.install_worker.start()
+
+    def _on_install_done(self, success, info):
+        self.install_btn.setEnabled(True)
+        self.build_btn.setEnabled(True)
+        if success:
+            InfoBar.success(
+                title="Install Success",
+                content=f"Successfully installed EFI to {info}",
+                orient=Qt.Orientation.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=4000,
+                parent=self.window()
+            )
+        else:
+            InfoBar.error(
+                title="Install Failed",
+                content=info,
+                orient=Qt.Orientation.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=8000,
+                parent=self.window()
+            )
+        self.install_worker = None
 
     def _update_theme(self):
         pass
