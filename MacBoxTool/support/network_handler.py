@@ -162,8 +162,14 @@ class DownloadWorker(QThread):
 
             self.download.total_size = total_size
 
-            # Create temp directory for parts
-            temp_dir = os.path.join(self.download.save_path, ".temp")
+            # Fall back to single-thread for small files
+            if total_size < 16 * 8192:
+                self._download_single_thread(total_size)
+                return
+
+            # Create temp directory for parts (unique per download to avoid race conditions)
+            safe_name = self.download.filename.replace(os.sep, "_")
+            temp_dir = os.path.join(self.download.save_path, f".temp_{safe_name}")
             os.makedirs(temp_dir, exist_ok=True)
 
             # Calculate chunk size for 16 threads
@@ -207,10 +213,16 @@ class DownloadWorker(QThread):
             final_path = os.path.join(self.download.save_path, self.download.filename)
             self._combine_parts(parts, final_path)
 
+            # Correct total_size from actual file size
+            actual_size = os.path.getsize(final_path)
+            self.download.total_size = actual_size
+            self.download.downloaded_size = actual_size
+
             # Cleanup temp directory
             self._cleanup_temp(temp_dir)
 
             self.download.status = DownloadStatus.COMPLETED
+            self.download.completed_at = QDateTime.currentDateTime()
             self.status_changed_signal.emit(DownloadStatus.COMPLETED)
             self.finished_signal.emit(True, final_path)
 
@@ -232,11 +244,9 @@ class DownloadWorker(QThread):
                     if self._is_cancelled:
                         return
                     f.write(chunk)
-
-            # Update progress
-            with self._lock:
-                self.download.downloaded_size += (end - start + 1)
-                self.progress_signal.emit(self.download.downloaded_size, self.download.total_size)
+                    with self._lock:
+                        self.download.downloaded_size += len(chunk)
+                        self.progress_signal.emit(self.download.downloaded_size, self.download.total_size)
 
         except Exception as e:
             logging.error(f"Thread {thread_id} download failed: {e}")
@@ -246,6 +256,11 @@ class DownloadWorker(QThread):
         try:
             final_path = os.path.join(self.download.save_path, self.download.filename)
             response = NetworkUtilities.custom_get(self.download.url, stream=True)
+
+            # Try to get total size from response headers if not known
+            if total_size == 0:
+                total_size = int(response.headers.get('content-length', 0))
+                self.download.total_size = total_size
 
             with open(final_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
@@ -258,7 +273,12 @@ class DownloadWorker(QThread):
                     self.download.downloaded_size += len(chunk)
                     self.progress_signal.emit(self.download.downloaded_size, total_size)
 
+            # Correct total_size to match actual downloaded bytes
+            # (content-length header can be unreliable with chunked encoding)
+            self.download.total_size = self.download.downloaded_size
+
             self.download.status = DownloadStatus.COMPLETED
+            self.download.completed_at = QDateTime.currentDateTime()
             self.status_changed_signal.emit(DownloadStatus.COMPLETED)
             self.finished_signal.emit(True, final_path)
 

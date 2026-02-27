@@ -12,7 +12,7 @@ else:
 
 from .datasets import os_data
 from typing import Optional
-
+from packaging import version
 
 
 class Constants:
@@ -261,10 +261,6 @@ class Constants:
         self.custom_sip_value:        int = None   #  Set custom SIP value
         self.allow_apfs_aligned_patch:           bool = True
         
-        
-       
-        
-
         ## Non-Metal OS support
         self.legacy_accel_support = [
             os_data.os_data.big_sur,
@@ -273,7 +269,20 @@ class Constants:
             os_data.os_data.sonoma,
             os_data.os_data.sequoia,
         ]
+        self.kdk_api_link="https://dortania.github.io/KdkSupportPkg/manifest.json"
+        self.metallib_api_link="https://dortania.github.io/MetallibSupportPkg/manifest.json"
 
+    @property
+    def special_build(self):
+        """
+        Special builds are used for testing. They do not get updates through the updater
+        """
+
+        try:
+            version.parse(self.mactoolbox_version)
+            return False
+        except version.InvalidVersion:
+            return True
     # Support Disk Images
     @property
     def payload_path_dmg(self):

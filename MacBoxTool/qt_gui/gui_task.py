@@ -6,7 +6,7 @@ from ..include import *
 from .gui_support import DefGUI
 from .gui_download import DownloadCard
 from ..support.network_handler import (
-    DownloadObject,
+    DownloadObject, DownloadWorker, DownloadStatus,
     NetworkUtilities, DownloadHistory
 )
 
@@ -16,11 +16,49 @@ class TaskManager:
     """Global task manager for download tasks"""
     _instance = None
     _downloads: list[DownloadObject] = []
+    _workers: dict[int, DownloadWorker] = {}
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
+
+    @classmethod
+    def start_download(cls, download: DownloadObject) -> DownloadWorker:
+        """Start a download and register it for display in TaskInterface.
+
+        Usage:
+            download = DownloadObject(url, save_path, filename)
+            TaskManager.start_download(download)
+        """
+        cls.register_download(download)
+
+        worker = DownloadWorker(download)
+        cls._workers[id(download)] = worker
+
+        worker.finished_signal.connect(
+            lambda success, msg: cls._on_download_finished(download, success, msg)
+        )
+        worker.start()
+        return worker
+
+    @classmethod
+    def cancel_download(cls, download: DownloadObject):
+        """Cancel an active download"""
+        worker = cls._workers.get(id(download))
+        if worker and worker.isRunning():
+            worker.cancel()
+
+    @classmethod
+    def _on_download_finished(cls, download: DownloadObject, success: bool, message: str):
+        """Handle download completion — cleanup worker reference"""
+        worker = cls._workers.pop(id(download), None)
+        if worker:
+            worker.deleteLater()
+        if success:
+            logging.info(f"Download completed: {download.filename}")
+        else:
+            logging.warning(f"Download failed: {download.filename} - {message}")
 
     @classmethod
     def register_download(cls, download: DownloadObject):
@@ -33,6 +71,7 @@ class TaskManager:
         """Unregister a download task"""
         if download in cls._downloads:
             cls._downloads.remove(download)
+        cls._workers.pop(id(download), None)
 
     @classmethod
     def get_downloads(cls) -> list[DownloadObject]:
@@ -43,6 +82,7 @@ class TaskManager:
     def clear(cls):
         """Clear all registered downloads"""
         cls._downloads.clear()
+        cls._workers.clear()
 
 
 class TaskInterface(ScrollArea):
@@ -192,9 +232,6 @@ class TaskInterface(ScrollArea):
                 card.open_folder_signal.connect(self._on_open_folder)
                 card.remove_signal.connect(self._on_remove_download)
 
-                # Hide more button for passive display
-                card.more_button.hide()
-
                 self.download_cards[download_id] = card
 
                 # Remove empty label if exists
@@ -204,9 +241,15 @@ class TaskInterface(ScrollArea):
 
                 self.active_downloads_layout.addWidget(card)
 
-        # Update progress for all cards
-        for card in self.download_cards.values():
+        # Update progress for all cards and auto-move completed to history
+        completed = []
+        for download_id, card in list(self.download_cards.items()):
             card.update_progress()
+            if card.download.status in (DownloadStatus.COMPLETED, DownloadStatus.FAILED):
+                completed.append(card.download)
+
+        for download in completed:
+            self._move_to_history(download)
 
         # Show empty label if no downloads
         if not current_downloads and self.empty_label is None:
@@ -249,6 +292,8 @@ class TaskInterface(ScrollArea):
 
     def _on_remove_download(self, download: DownloadObject):
         """Handle remove download action"""
+        # Cancel if still running
+        self.task_manager.cancel_download(download)
         # Unregister from task manager
         self.task_manager.unregister_download(download)
 
@@ -258,6 +303,22 @@ class TaskInterface(ScrollArea):
             card = self.download_cards.pop(download_id)
             self.active_downloads_layout.removeWidget(card)
             card.deleteLater()
+
+    def _move_to_history(self, download: DownloadObject):
+        """Move a completed/failed download from active to history"""
+        download_id = id(download)
+
+        # Remove from active
+        self.task_manager.unregister_download(download)
+        if download_id in self.download_cards:
+            card = self.download_cards.pop(download_id)
+            self.active_downloads_layout.removeWidget(card)
+            card.deleteLater()
+
+        # Add to history
+        self.download_history.add(download)
+        self._add_history_card(download)
+        self.history_empty_label.hide()
 
     def _load_history(self):
         """Load download history"""

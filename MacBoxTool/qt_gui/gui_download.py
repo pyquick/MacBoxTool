@@ -172,7 +172,7 @@ class IconWidget(QWidget):
 
     def paintEvent(self, _event=None):
         painter = QPainter(self)
-        painter.setRenderHints(QPainter.Antialiasing)
+        painter.setRenderHints(QPainter.RenderHint.Antialiasing)
 
         if hasattr(self.icon, 'icon'):
             pixmap = self.icon.icon.pixmap(self._icon_size)
