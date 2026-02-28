@@ -107,7 +107,7 @@ class SecurityKextManager(KextManager):
 
     def _restrict_events_handling(self, model_info, cpu_gen):
         """RestrictEvents handler with NVRAM revblock/revpatch args."""
-        oclp_guid = self.config.setdefault("NVRAM", {}).setdefault("Add", {}).setdefault(
+        mbt_guid = self.config.setdefault("NVRAM", {}).setdefault("Add", {}).setdefault(
             "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", {}
         )
 
@@ -139,12 +139,12 @@ class SecurityKextManager(KextManager):
 
         if block_str:
             self.enable_kext("RestrictEvents.kext", self.constants.restrictevents_version)
-            oclp_guid["revblock"] = block_str
+            mbt_guid["revblock"] = block_str
             self._log(f"  RestrictEvents revblock: {block_str}")
 
         if patch_str:
             self.enable_kext("RestrictEvents.kext", self.constants.restrictevents_version)
-            oclp_guid["revpatch"] = patch_str
+            mbt_guid["revpatch"] = patch_str
             self._log(f"  RestrictEvents revpatch: {patch_str}")
 
         # EFICheckDisabler only if RestrictEvents is NOT enabled (they conflict)

@@ -392,7 +392,7 @@ def enable_sleep_after_running():
 def check_kext_loaded(bundle_id: str) -> str:
     return ""
 
-def check_oclp_boot():
+def check_mbt_boot():
     return False
 
 def check_monterey_wifi():

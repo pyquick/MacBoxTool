@@ -28,7 +28,7 @@ class MacBook:
             flags=["FPU", "VME", "DE", "PSE", "TSC", "MSR", "PAE", "MCE", "CX8", "APIC", "SEP", "MTRR", "PGE", "MCA", "CMOV", "PAT", "PSE36", "CLFSH", "DS", "ACPI", "MMX", "FXSR", "SSE", "SSE2", "SS", "HTT", "TM", "PBE", "SSE3", "DTES64", "MON", "DSCPL", "VMX", "SMX", "EST", "TM2", "SSSE3", "CX16", "TPR", "PDCM", "SSE4.1"],
             leafs=[],
         ),
-        oclp_version=None,
+        mbt_version=None,
         opencore_version=None,
     )
 
@@ -51,7 +51,7 @@ class MacBookPro:
             flags=['FPU', 'VME', 'DE', 'PSE', 'TSC', 'MSR', 'PAE', 'MCE', 'CX8', 'APIC', 'SEP', 'MTRR', 'PGE', 'MCA', 'CMOV', 'PAT', 'PSE36', 'CLFSH', 'DS', 'ACPI', 'MMX', 'FXSR', 'SSE', 'SSE2', 'SS', 'HTT', 'TM', 'PBE', 'SSE3', 'PCLMULQDQ', 'DTES64', 'MON', 'DSCPL', 'VMX', 'EST', 'TM2', 'SSSE3', 'CX16', 'TPR', 'PDCM', 'SSE4.1', 'SSE4.2', 'x2APIC', 'POPCNT', 'AES', 'PCID', 'XSAVE', 'OSXSAVE', 'TSCTMR', 'AVX1.0', 'RDRAND', 'F16C'],
             leafs=[],
         ),
-        oclp_version=None,
+        mbt_version=None,
         opencore_version=None,
     )
 
@@ -77,7 +77,7 @@ class MacBookPro:
             flags=['FPU', 'VME', 'DE', 'PSE', 'TSC', 'MSR', 'PAE', 'MCE', 'CX8', 'APIC', 'SEP', 'MTRR', 'PGE', 'MCA', 'CMOV', 'PAT', 'PSE36', 'CLFSH', 'DS', 'ACPI', 'MMX', 'FXSR', 'SSE', 'SSE2', 'SS', 'HTT', 'TM', 'PBE', 'SSE3', 'PCLMULQDQ', 'DTES64', 'MON', 'DSCPL', 'VMX', 'EST', 'TM2', 'SSSE3', 'FMA', 'CX16', 'TPR', 'PDCM', 'SSE4.1', 'SSE4.2', 'x2APIC', 'MOVBE', 'POPCNT', 'AES', 'PCID', 'XSAVE', 'OSXSAVE', 'SEGLIM64', 'TSCTMR', 'AVX1.0', 'RDRAND', 'F16C'],
             leafs=[],
         ),
-        oclp_version='0.4.2',
+        mbt_version='0.4.2',
         opencore_version='DBG-077-2022-01-10',
         bluetooth_chipset='BRCM20702 Hub',
         third_party_sata_ssd=False
@@ -111,7 +111,7 @@ class MacBookPro:
             flags=['FPU', 'VME', 'DE', 'PSE', 'TSC', 'MSR', 'PAE', 'MCE', 'CX8', 'APIC', 'SEP', 'MTRR', 'PGE', 'MCA', 'CMOV', 'PAT', 'PSE36', 'CLFSH', 'DS', 'ACPI', 'MMX', 'FXSR', 'SSE', 'SSE2', 'SS', 'HTT', 'TM', 'PBE', 'SSE3', 'PCLMULQDQ', 'DTES64', 'MON', 'DSCPL', 'VMX', 'SMX', 'EST', 'TM2', 'SSSE3', 'FMA', 'CX16', 'TPR', 'PDCM', 'SSE4.1', 'SSE4.2', 'x2APIC', 'MOVBE', 'POPCNT', 'AES', 'PCID', 'XSAVE', 'OSXSAVE', 'SEGLIM64', 'TSCTMR', 'AVX1.0', 'RDRAND', 'F16C'],
             leafs=[]
         ),
-        oclp_version='0.5.0',
+        mbt_version='0.5.0',
         opencore_version=None,
         opencore_path=None,
         bluetooth_chipset=None,
@@ -119,9 +119,9 @@ class MacBookPro:
         third_party_sata_ssd=False,
         secure_boot_model='x86legacyap',
         secure_boot_policy=0,
-        oclp_sys_version=None,
-        oclp_sys_date=None,
-        oclp_sys_url=None,
+        mbt_sys_version=None,
+        mbt_sys_date=None,
+        mbt_sys_url=None,
         firmware_vendor='Apple'
     )
 
@@ -147,7 +147,7 @@ class MacBookPro:
             name='Intel(R) Core(TM) i5-7360U CPU @ 2.30GHz',
             flags=['FPU', 'VME', 'DE', 'PSE', 'TSC', 'MSR', 'PAE', 'MCE', 'CX8', 'APIC', 'SEP', 'MTRR', 'PGE', 'MCA', 'CMOV', 'PAT', 'PSE36', 'CLFSH', 'DS', 'ACPI', 'MMX', 'FXSR', 'SSE', 'SSE2', 'SS', 'HTT', 'TM', 'PBE', 'SSE3', 'PCLMULQDQ', 'DTES64', 'MON', 'DSCPL', 'VMX', 'SMX', 'EST', 'TM2', 'SSSE3', 'FMA', 'CX16', 'TPR', 'PDCM', 'SSE4.1', 'SSE4.2', 'x2APIC', 'MOVBE', 'POPCNT', 'AES', 'PCID', 'XSAVE', 'OSXSAVE', 'SEGLIM64', 'TSCTMR', 'AVX1.0', 'RDRAND', 'F16C'],
             leafs=[],
-        ), oclp_version='0.4.1',
+        ), mbt_version='0.4.1',
         opencore_version=None,
         bluetooth_chipset=None,
         third_party_sata_ssd=False)
@@ -168,7 +168,7 @@ class MacBookPro:
             flags=["FPU", "VME", "DE", "PSE", "TSC", "MSR", "PAE", "MCE", "CX8", "APIC", "SEP", "MTRR", "PGE", "MCA", "CMOV", "PAT", "PSE36", "CLFSH", "DS", "ACPI", "MMX", "FXSR", "SSE", "SSE2", "SS", "HTT", "TM", "PBE", "SSE3", "PCLMULQDQ", "DTSE64", "MON", "DSCPL", "VMX", "EST", "TM2", "SSSE3", "CX16", "TPR", "PDCM", "SSE4.1", "SSE4.2", "AES", "SEGLIM64"],
             leafs=[],
         ),
-        oclp_version=None,
+        mbt_version=None,
         opencore_version=None,
     )
 
@@ -206,7 +206,7 @@ class Macmini:
             flags=['FPU', 'VME', 'DE', 'PSE', 'TSC', 'MSR', 'PAE', 'MCE', 'CX8', 'APIC', 'SEP', 'MTRR', 'PGE', 'MCA', 'CMOV', 'PAT', 'PSE36', 'CLFSH', 'DS', 'ACPI', 'MMX', 'FXSR', 'SSE', 'SSE2', 'SS', 'HTT', 'TM', 'PBE', 'SSE3', 'PCLMULQDQ', 'DTES64', 'MON', 'DSCPL', 'VMX', 'SMX', 'EST', 'TM2', 'SSSE3', 'CX16', 'TPR', 'PDCM', 'SSE4.1', 'SSE4.2', 'x2APIC', 'POPCNT', 'AES', 'PCID', 'XSAVE', 'OSXSAVE', 'TSCTMR', 'AVX1.0'],
             leafs=['']
         ),
-        oclp_version='0.5.0',
+        mbt_version='0.5.0',
         opencore_version='REL-083-2022-08-01',
         opencore_path='PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0x0,0x0)/HD(1,GPT,D011D782-7E9A-459B-905D-9DA8D6494A53,0x28,0x64000)/EFI\\OC\\OpenCore.efi',
         bluetooth_chipset='BRCM20702 Hub',
@@ -214,9 +214,9 @@ class Macmini:
         third_party_sata_ssd=True,
         secure_boot_model='x86legacyap',
         secure_boot_policy=0,
-        oclp_sys_version='v0.4.11',
-        oclp_sys_date='October 06, 2022 @ 10:06:53',
-        oclp_sys_url=None,
+        mbt_sys_version='v0.4.11',
+        mbt_sys_date='October 06, 2022 @ 10:06:53',
+        mbt_sys_url=None,
         firmware_vendor='Apple',
         rosetta_active=False
     )
@@ -253,7 +253,7 @@ class Macmini:
             flags=['FPU', 'VME', 'DE', 'PSE', 'TSC', 'MSR', 'PAE', 'MCE', 'CX8', 'APIC', 'SEP', 'MTRR', 'PGE', 'MCA', 'CMOV', 'PAT', 'PSE36', 'CLFSH', 'DS', 'ACPI', 'MMX', 'FXSR', 'SSE', 'SSE2', 'SS', 'HTT', 'TM', 'PBE', 'SSE3', 'PCLMULQDQ', 'DTES64', 'MON', 'DSCPL', 'VMX', 'EST', 'TM2', 'SSSE3', 'CX16', 'TPR', 'PDCM', 'SSE4.1', 'SSE4.2', 'x2APIC', 'POPCNT', 'AES', 'PCID', 'XSAVE', 'OSXSAVE', 'TSCTMR', 'AVX1.0', 'RDRAND', 'F16C'],
             leafs=['RDWRFSGS', 'SMEP', 'ERMS', 'MDCLEAR', 'IBRS', 'STIBP', 'L1DF', 'SSBD']
         ),
-        oclp_version='0.5.0',
+        mbt_version='0.5.0',
         opencore_version='REL-083-2022-08-01',
         opencore_path='PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0x0,0x0)/HD(1,GPT,B46958E3-7EB7-40C2-BB3A-2C88A0856DC7,0x28,0x64000)/EFI\\OC\\OpenCore.efi',
         bluetooth_chipset='BRCM20702 Hub',
@@ -261,9 +261,9 @@ class Macmini:
         third_party_sata_ssd=True,
         secure_boot_model='x86legacyap',
         secure_boot_policy=0,
-        oclp_sys_version='v0.5.0',
-        oclp_sys_date='October 04, 2022 @ 12:24:50',
-        oclp_sys_url='',
+        mbt_sys_version='v0.5.0',
+        mbt_sys_date='October 04, 2022 @ 12:24:50',
+        mbt_sys_url='',
         firmware_vendor='Apple',
         rosetta_active=False
     )
@@ -297,7 +297,7 @@ class Macmini:
             flags=['FPU', 'VME', 'DE', 'PSE', 'TSC', 'MSR', 'PAE', 'MCE', 'CX8', 'APIC', 'SEP', 'MTRR', 'PGE', 'MCA', 'CMOV', 'PAT', 'PSE36', 'CLFSH', 'DS', 'ACPI', 'MMX', 'FXSR', 'SSE', 'SSE2', 'SS', 'HTT', 'TM', 'PBE', 'SSE3', 'PCLMULQDQ', 'DTES64', 'MON', 'DSCPL', 'VMX', 'EST', 'TM2', 'SSSE3', 'FMA', 'CX16', 'TPR', 'PDCM', 'SSE4.1', 'SSE4.2', 'x2APIC', 'MOVBE', 'POPCNT', 'AES', 'PCID', 'XSAVE', 'OSXSAVE', 'SEGLIM64', 'TSCTMR', 'AVX1.0', 'RDRAND', 'F16C'],
             leafs=['RDWRFSGS', 'TSC_THREAD_OFFSET', 'BMI1', 'AVX2', 'SMEP', 'BMI2', 'ERMS', 'INVPCID', 'FPU_CSDS', 'MDCLEAR', 'IBRS', 'STIBP', 'L1DF', 'SSBD']
         ),
-        oclp_version='0.5.0',
+        mbt_version='0.5.0',
         opencore_version='REL-083-2022-08-01',
         opencore_path='PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0x0,0x0)/HD(1,GPT,293E8ABF-B98C-4258-A811-04464BCA90EF,0x28,0x64000)/EFI\\OC\\OpenCore.efi',
         bluetooth_chipset='BRCM20702 Hub',
@@ -305,9 +305,9 @@ class Macmini:
         third_party_sata_ssd=True,
         secure_boot_model='x86legacyap',
         secure_boot_policy=0,
-        oclp_sys_version='v0.5.0',
-        oclp_sys_date='October 04, 2022 @ 12:04:48',
-        oclp_sys_url='https://github.com/dortania/OpenCore-Legacy-Patcher/commit/daf28a62effb2ce06a71cb5961c9d0c79d72c16b',
+        mbt_sys_version='v0.5.0',
+        mbt_sys_date='October 04, 2022 @ 12:04:48',
+        mbt_sys_url='https://github.com/dortania/OpenCore-Legacy-Patcher/commit/daf28a62effb2ce06a71cb5961c9d0c79d72c16b',
         firmware_vendor='Apple',
         rosetta_active=False
     )
@@ -327,7 +327,7 @@ class Macmini:
             flags=["FPU", "VME", "DE", "PSE", "TSC", "MSR", "PAE", "MCE", "CX8", "APIC", "SEP", "MTRR", "PGE", "MCA", "CMOV", "PAT", "PSE36", "CLFSH", "DS", "ACPI", "MMX", "FXSR", "SSE", "SSE2", "SS", "HTT", "TM", "PBE", "SSE3", "PCLMULQDQ", "DTES64", "MON", "DSCPL", "VMX", "SMX", "EST", "TM2", "SSSE3", "FMA", "CX16", "TPR", "PDCM", "SSE4.1", "SSE4.2", "x2APIC", "MOVBE", "POPCNT", "AES", "PCID", "XSAVE", "OSXSAVE", "SEGLIM64", "TSCTMR", "AVX1.0", "RDRAND", "F16C"],
             leafs=[],
         ),
-        oclp_version=None,
+        mbt_version=None,
         opencore_version=None
     )
 
@@ -349,7 +349,7 @@ class Macmini:
             flags=["FPU", "VME", "DE", "PSE", "TSC", "MSR", "PAE", "MCE", "CX8", "APIC", "SEP", "MTRR", "PGE", "MCA", "CMOV", "PAT", "PSE36", "CLFSH", "DS", "ACPI", "MMX", "FXSR", "SSE", "SSE2", "SS", "HTT", "TM", "PBE", "SSE3", "PCLMULQDQ", "DTSE64", "MON", "DSCPL", "VMX", "EST", "TM2", "SSSE3", "CX16", "TPR", "PDCM", "SSE4.1", "SSE4.2", "AES", "SEGLIM64"],
             leafs=[],
         ),
-        oclp_version=None,
+        mbt_version=None,
         opencore_version=None
     )
 
@@ -375,7 +375,7 @@ class iMac:
             flags=["FPU", "VME", "DE", "PSE", "TSC", "MSR", "PAE", "MCE", "CX8", "APIC", "SEP", "MTRR", "PGE", "MCA", "CMOV", "PAT", "PSE36", "CLFSH", "DS", "ACPI", "MMX", "FXSR", "SSE", "SSE2", "SS", "HTT", "TM", "PBE", "SSE3", "DTES64", "MON", "DSCPL", "VMX", "EST", "TM2", "SSSE3", "CX16", "TPR", "PDCM", "SSE4.1"],
             leafs=[],
         ),
-        oclp_version=None,
+        mbt_version=None,
         opencore_version=None,
     )
 
@@ -399,7 +399,7 @@ class iMac:
             flags=["FPU", "VME", "DE", "PSE", "TSC", "MSR", "PAE", "MCE", "CX8", "APIC", "SEP", "MTRR", "PGE", "MCA", "CMOV", "PAT", "PSE36", "CLFSH", "DS", "ACPI", "MMX", "FXSR", "SSE", "SSE2", "SS", "HTT", "TM", "PBE", "SSE3", "DTES64", "MON", "DSCPL", "VMX", "EST", "TM2", "SSSE3", "CX16", "TPR", "PDCM", "SSE4.1", "SSE4.2", "POPCNT", "PCID"],
             leafs=[],
         ),
-        oclp_version=None,
+        mbt_version=None,
         opencore_version=None,
     )
 
@@ -423,7 +423,7 @@ class iMac:
             flags=["FPU", "VME", "DE", "PSE", "TSC", "MSR", "PAE", "MCE", "CX8", "APIC", "SEP", "MTRR", "PGE", "MCA", "CMOV", "PAT", "PSE36", "CLFSH", "DS", "ACPI", "MMX", "FXSR", "SSE", "SSE2", "SS", "HTT", "TM", "PBE", "SSE3", "PCLMULQDQ", "DTES64", "MON", "DSCPL", "VMX", "SMX", "EST", "TM2", "SSSE3", "CX16", "TPR", "PDCM", "SSE4.1", "SSE4.2", "xAPIC", "POPCNT", "AES", "PCID", "XSAVE", "OSXSAVE", "TSCTMR", "AVX1.0"],
             leafs=[],
         ),
-        oclp_version=None,
+        mbt_version=None,
         opencore_version=None,
     )
 
@@ -450,7 +450,7 @@ class iMac:
             flags=['FPU', 'VME', 'DE', 'PSE', 'TSC', 'MSR', 'PAE', 'MCE', 'CX8', 'APIC', 'SEP', 'MTRR', 'PGE', 'MCA', 'CMOV', 'PAT', 'PSE36', 'CLFSH', 'DS', 'ACPI', 'MMX', 'FXSR', 'SSE', 'SSE2', 'SS', 'HTT', 'TM', 'PBE', 'SSE3', 'PCLMULQDQ', 'DTES64', 'MON', 'DSCPL', 'VMX', 'SMX', 'EST', 'TM2', 'SSSE3', 'CX16', 'TPR', 'PDCM', 'SSE4.1', 'SSE4.2', 'x2APIC', 'POPCNT', 'AES', 'PCID', 'XSAVE', 'OSXSAVE', 'TSCTMR', 'AVX1.0'],
             leafs=[],
         ),
-        oclp_version='0.3.3',
+        mbt_version='0.3.3',
         opencore_version=None,
         bluetooth_chipset='BRCM2046 Hub',
         third_party_sata_ssd=True
@@ -477,7 +477,7 @@ class iMac:
             flags=['FPU', 'VME', 'DE', 'PSE', 'TSC', 'MSR', 'PAE', 'MCE', 'CX8', 'APIC', 'SEP', 'MTRR', 'PGE', 'MCA', 'CMOV', 'PAT', 'PSE36', 'CLFSH', 'DS', 'ACPI', 'MMX', 'FXSR', 'SSE', 'SSE2', 'SS', 'HTT', 'TM', 'PBE', 'SSE3', 'PCLMULQDQ', 'DTES64', 'MON', 'DSCPL', 'VMX', 'SMX', 'EST', 'TM2', 'SSSE3', 'FMA', 'CX16', 'TPR', 'PDCM', 'SSE4.1', 'SSE4.2', 'x2APIC', 'MOVBE', 'POPCNT', 'AES', 'PCID', 'XSAVE', 'OSXSAVE', 'SEGLIM64', 'TSCTMR', 'AVX1.0', 'RDRAND', 'F16C'],
             leafs=[],
         ),
-        oclp_version=None,
+        mbt_version=None,
         opencore_version=None,
         bluetooth_chipset='BRCM20702 Hub',
         third_party_sata_ssd=False
@@ -505,7 +505,7 @@ class iMac:
             flags=['FPU', 'VME', 'DE', 'PSE', 'TSC', 'MSR', 'PAE', 'MCE', 'CX8', 'APIC', 'SEP', 'MTRR', 'PGE', 'MCA', 'CMOV', 'PAT', 'PSE36', 'CLFSH', 'DS', 'ACPI', 'MMX', 'FXSR', 'SSE', 'SSE2', 'SS', 'HTT', 'TM', 'PBE', 'SSE3', 'PCLMULQDQ', 'DTES64', 'MON', 'DSCPL', 'VMX', 'SMX', 'EST', 'TM2', 'SSSE3', 'FMA', 'CX16', 'TPR', 'PDCM', 'SSE4.1', 'SSE4.2', 'x2APIC', 'MOVBE', 'POPCNT', 'AES', 'PCID', 'XSAVE', 'OSXSAVE', 'SEGLIM64', 'TSCTMR', 'AVX1.0', 'RDRAND', 'F16C'],
             leafs=[],
         ),
-        oclp_version=None,
+        mbt_version=None,
         opencore_version=None,
         bluetooth_chipset=None,
         third_party_sata_ssd=False
@@ -533,7 +533,7 @@ class MacPro:
             flags=["FPU", "VME", "DE", "PSE", "TSC", "MSR", "PAE", "MCE", "CX8", "APIC", "SEP", "MTRR", "PGE", "MCA", "CMOV", "PAT", "PSE36", "CLFSH", "DS", "ACPI", "MMX", "FXSR", "SSE", "SSE2", "SS", "HTT", "TM", "PBE", "SSE3", "DTES64", "MON", "DSCPL", "VMX", "EST", "TM2", "SSSE3", "CX16", "TPR", "PDCM", "SSE4.1"],
             leafs=[],
         ),
-        oclp_version=None,
+        mbt_version=None,
         opencore_version=None,
     )
 
@@ -559,7 +559,7 @@ class MacPro:
             flags=["FPU", "VME", "DE", "PSE", "TSC", "MSR", "PAE", "MCE", "CX8", "APIC", "SEP", "MTRR", "PGE", "MCA", "CMOV", "PAT", "PSE36", "CLFSH", "DS", "ACPI", "MMX", "FXSR", "SSE", "SSE2", "SS", "HTT", "TM", "PBE", "SSE3", "DTES64", "MON", "DSCPL", "VMX", "EST", "TM2", "SSSE3", "CX16", "TPR", "PDCM", "SSE4.1"],
             leafs=[],
         ),
-        oclp_version=None,
+        mbt_version=None,
         opencore_version=None,
     )
 
@@ -585,7 +585,7 @@ class MacPro:
             flags=["FPU", "VME", "DE", "PSE", "TSC", "MSR", "PAE", "MCE", "CX8", "APIC", "SEP", "MTRR", "PGE", "MCA", "CMOV", "PAT", "PSE36", "CLFSH", "DS", "ACPI", "MMX", "FXSR", "SSE", "SSE2", "SS", "HTT", "TM", "PBE", "SSE3", "DTES64", "MON", "DSCPL", "VMX", "EST", "TM2", "SSSE3", "CX16", "TPR", "PDCM", "SSE4.1"],
             leafs=[],
         ),
-        oclp_version=None,
+        mbt_version=None,
         opencore_version=None,
     )
 
@@ -609,7 +609,7 @@ class MacPro:
             flags=["FPU", "VME", "DE", "PSE", "TSC", "MSR", "PAE", "MCE", "CX8", "APIC", "SEP", "MTRR", "PGE", "MCA", "CMOV", "PAT", "PSE36", "CLFSH", "DS", "ACPI", "MMX", "FXSR", "SSE", "SSE2", "SS", "HTT", "TM", "PBE", "SSE3", "DTES64", "MON", "DSCPL", "VMX", "EST", "TM2", "SSSE3", "CX16", "TPR", "PDCM", "SSE4.1"],
             leafs=[],
         ),
-        oclp_version=None,
+        mbt_version=None,
         opencore_version=None,
     )
 
@@ -629,7 +629,7 @@ class MacPro:
             flags=["FPU", "VME", "DE", "PSE", "TSC", "MSR", "PAE", "MCE", "CX8", "APIC", "SEP", "MTRR", "PGE", "MCA", "CMOV", "PAT", "PSE36", "CLFSH", "DS", "ACPI", "MMX", "FXSR", "SSE", "SSE2", "SS", "HTT", "TM", "PBE", "SSE3", "DTES64", "MON", "DSCPL", "VMX", "EST", "TM2", "SSSE3", "CX16", "TPR", "PDCM", "SSE4.1", "SSE4.2", "POPCNT"],
             leafs=[],
         ),
-        oclp_version=None,
+        mbt_version=None,
         opencore_version=None
     )
 
@@ -653,7 +653,7 @@ class MacPro:
             flags=["FPU", "VME", "DE", "PSE", "TSC", "MSR", "PAE", "MCE", "CX8", "APIC", "SEP", "MTRR", "PGE", "MCA", "CMOV", "PAT", "PSE36", "CLFSH", "DS", "ACPI", "MMX", "FXSR", "SSE", "SSE2", "SS", "HTT", "TM", "PBE", "SSE3", "DTES64", "MON", "DSCPL", "VMX", "EST", "TM2", "SSSE3", "CX16", "TPR", "PDCM", "SSE4.1", "SSE4.2", "POPCNT"],
             leafs=[],
         ),
-        oclp_version="0.2.5",
+        mbt_version="0.2.5",
         opencore_version="REL-071-2021-07-02"
     )
 
@@ -677,7 +677,7 @@ class MacPro:
             flags=["FPU", "VME", "DE", "PSE", "TSC", "MSR", "PAE", "MCE", "CX8", "APIC", "SEP", "MTRR", "PGE", "MCA", "CMOV", "PAT", "PSE36", "CLFSH", "DS", "ACPI", "MMX", "FXSR", "SSE", "SSE2", "SS", "HTT", "TM", "PBE", "SSE3", "PCLMULQDQ", "DTES64", "MON", "DSCPL", "VMX", "SMX", "EST", "TM2", "SSSE3", "CX16", "TPR", "PDCM", "SSE4.1", "SSE4.2", "POPCNT", "AES", "PCID"],
             leafs=[],
         ),
-        oclp_version="0.2.5",
+        mbt_version="0.2.5",
         opencore_version="REL-071-2021-07-02"
     )
 
@@ -716,7 +716,7 @@ class MacPro:
             flags=['FPU', 'VME', 'DE', 'PSE', 'TSC', 'MSR', 'PAE', 'MCE', 'CX8', 'APIC', 'SEP', 'MTRR', 'PGE', 'MCA', 'CMOV', 'PAT', 'PSE36', 'CLFSH', 'DS', 'ACPI', 'MMX', 'FXSR', 'SSE', 'SSE2', 'SS', 'HTT', 'TM', 'PBE', 'SSE3', 'PCLMULQDQ', 'DTES64', 'MON', 'DSCPL', 'VMX', 'SMX', 'EST', 'TM2', 'SSSE3', 'CX16', 'TPR', 'PDCM', 'SSE4.1', 'SSE4.2', 'POPCNT', 'AES', 'PCID'],
             leafs=[],
         ),
-        oclp_version='0.4.6',
+        mbt_version='0.4.6',
         opencore_version='REL-080-2022-04-18',
         opencore_path='PciRoot(0x0)/Pci(0x1D,0x7)/USB(0x4,0x0)/HD(2,GPT,AEC1E933-C311-40E2-BBCE-FC4B14BCD770,0x64800,0x38E3000)/EFI\\OC\\OpenCore.efi',
         bluetooth_chipset='BRCM2046 Hub',
@@ -724,8 +724,8 @@ class MacPro:
         third_party_sata_ssd=True,
         secure_boot_model='x86legacyap',
         secure_boot_policy=0,
-        oclp_sys_version='v0.4.6',
-        oclp_sys_date='September 03, 2019 @ 23:13:43',
+        mbt_sys_version='v0.4.6',
+        mbt_sys_date='September 03, 2019 @ 23:13:43',
         firmware_vendor='Apple'
     )
 
@@ -767,7 +767,7 @@ class Hackintosh:
             flags=['FPU', 'VME', 'DE', 'PSE', 'TSC', 'MSR', 'PAE', 'MCE', 'CX8', 'APIC', 'SEP', 'MTRR', 'PGE', 'MCA', 'CMOV', 'PAT', 'PSE36', 'CLFSH', 'MMX', 'FXSR', 'SSE', 'SSE2', 'SS', 'HTT', 'SSE3', 'PCLMULQDQ', 'VMX', 'SSSE3', 'FMA', 'CX16', 'PDCM', 'SSE4.1', 'SSE4.2', 'x2APIC', 'MOVBE', 'POPCNT', 'AES', 'VMM', 'PCID', 'XSAVE', 'OSXSAVE', 'TSCTMR', 'AVX1.0', 'RDRAND', 'F16C'],
             leafs=['RDWRFSGS', 'TSC_THREAD_OFFSET', 'BMI1', 'HLE', 'AVX2', 'SMEP', 'BMI2', 'ERMS', 'INVPCID', 'RTM', 'MPX', 'AVX512F', 'AVX512DQ', 'RDSEED', 'ADX', 'SMAP', 'CLFSOPT', 'CLWB', 'AVX512CD', 'AVX512BW', 'AVX512VL', 'UMIP', 'MDCLEAR', 'IBRS', 'STIBP', 'ACAPMSR', 'SSBD']
         ),
-        oclp_version=None,
+        mbt_version=None,
         opencore_version='REL-083-2022-08-01',
         opencore_path=None,
         bluetooth_chipset=None,
@@ -775,9 +775,9 @@ class Hackintosh:
         third_party_sata_ssd=False,
         secure_boot_model='x86legacyap',
         secure_boot_policy=0,
-        oclp_sys_version=None,
-        oclp_sys_date=None,
-        oclp_sys_url=None,
+        mbt_sys_version=None,
+        mbt_sys_date=None,
+        mbt_sys_url=None,
         firmware_vendor='EDK II',
         rosetta_active=False
     )

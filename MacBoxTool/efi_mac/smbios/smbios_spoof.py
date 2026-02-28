@@ -138,11 +138,11 @@ class SMBIOSSpoofManager:
         generic["MLB"] = mlb
         generic["SystemUUID"] = str(uuid.uuid4()).upper()
 
-        oclp = self.config.setdefault("NVRAM", {}).setdefault("Add", {}).setdefault(
+        mbt = self.config.setdefault("NVRAM", {}).setdefault("Add", {}).setdefault(
             "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", {}
         )
-        oclp["OCLP-Spoofed-SN"] = sn
-        oclp["OCLP-Spoofed-MLB"] = mlb
+        mbt["OCLP-Spoofed-SN"] = sn
+        mbt["OCLP-Spoofed-MLB"] = mlb
         self._log("  Advanced spoof applied")
 
     def _get_serials(self) -> tuple:

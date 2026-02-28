@@ -22,6 +22,18 @@ class GlobalSettings:
         self.settings: dict = self.read_settings()
         self.create_file()
 
+        # Ensure first_run flag exists
+        if "first_run" not in self.settings:
+            self.add_key("first_run", True)
+
+    def is_first_run(self) -> bool:
+        """Check if this is the first run of the application."""
+        return self.settings.get("first_run", True)
+
+    def mark_first_run_complete(self) -> None:
+        """Mark that first run has completed."""
+        self.edit_key("first_run", False)
+
     def create_file(self) -> None:
         if self.settings_path.exists():
             logging.info("Settings Path has already created.")

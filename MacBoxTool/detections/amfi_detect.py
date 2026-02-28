@@ -41,28 +41,28 @@ class AmfiConfigurationDetection:
         self.SKIP_LIBRARY_VALIDATION:      bool = False
 
         self.boot_args: list = []
-        self.oclp_args: list = []
+        self.mbt_args: list = []
 
         self._init_nvram_dicts()
 
         self._parse_amfi_bitmask()
         self._parse_amfi_boot_args()
-        self._parse_oclp_configuration()
+        self._parse_mbt_configuration()
 
 
     def _init_nvram_dicts(self) -> None:
         """
-        Initialize the boot-args and OCLP-Settings NVRAM dictionaries
+        Initialize the boot-args and MBT-Settings NVRAM dictionaries
         """
 
         boot_args = utilities.get_nvram("boot-args", decode=True)
-        oclp_args = utilities.get_nvram("OCLP-Settings", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
+        mbt_args = utilities.get_nvram("OCLP-Settings", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
 
         if boot_args:
             self.boot_args = boot_args.split(" ")
 
-        if oclp_args:
-            self.oclp_args = oclp_args.split(" ")
+        if mbt_args:
+            self.mbt_args = mbt_args.split(" ")
 
 
     def _parse_amfi_bitmask(self) -> None:
@@ -126,12 +126,12 @@ class AmfiConfigurationDetection:
                         self.AMFI_ALLOW_INVALID_SIGNATURE = True
 
 
-    def _parse_oclp_configuration(self) -> None:
+    def _parse_mbt_configuration(self) -> None:
         """
-        Parse the OCLP configuration
+        Parse the MBT configuration
         """
 
-        if "-allow_amfi" in self.oclp_args:
+        if "-allow_amfi" in self.mbt_args:
             self.SKIP_LIBRARY_VALIDATION = True
 
 

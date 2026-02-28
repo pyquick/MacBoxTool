@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 from ..constants import Constants
 
-OCLP_PRIVILEGED_HELPER = "/Library/PrivilegedHelperTools/com.hackdoc.oclp-r.privileged-helper"
+MBT_PRIVILEGED_HELPER = "/Library/PrivilegedHelperTools/com.hackdoc.macboxtool.privileged-helper"
 
 constants: Constants = Constants()
 
@@ -22,17 +22,17 @@ class PrivilegedHelperErrorCodes(enum.IntEnum):
     Reference:
         payloads/Tools/PrivilegedHelperTool/main.m
     """
-    OCLP_PHT_ERROR_MISSING_ARGUMENTS           = 160
-    OCLP_PHT_ERROR_SET_UID_MISSING             = 161
-    OCLP_PHT_ERROR_SET_UID_FAILED              = 162
-    OCLP_PHT_ERROR_SELF_PATH_MISSING           = 163
-    OCLP_PHT_ERROR_PARENT_PATH_MISSING         = 164
-    OCLP_PHT_ERROR_SIGNING_INFORMATION_MISSING = 165
-    OCLP_PHT_ERROR_INVALID_TEAM_ID             = 166
-    OCLP_PHT_ERROR_INVALID_CERTIFICATES        = 167
-    OCLP_PHT_ERROR_COMMAND_MISSING             = 168
-    OCLP_PHT_ERROR_COMMAND_FAILED              = 169
-    OCLP_PHT_ERROR_CATCH_ALL                   = 170
+    MBT_PHT_ERROR_MISSING_ARGUMENTS           = 160
+    MBT_PHT_ERROR_SET_UID_MISSING             = 161
+    MBT_PHT_ERROR_SET_UID_FAILED              = 162
+    MBT_PHT_ERROR_SELF_PATH_MISSING           = 163
+    MBT_PHT_ERROR_PARENT_PATH_MISSING         = 164
+    MBT_PHT_ERROR_SIGNING_INFORMATION_MISSING = 165
+    MBT_PHT_ERROR_INVALID_TEAM_ID             = 166
+    MBT_PHT_ERROR_INVALID_CERTIFICATES        = 167
+    MBT_PHT_ERROR_COMMAND_MISSING             = 168
+    MBT_PHT_ERROR_COMMAND_FAILED              = 169
+    MBT_PHT_ERROR_CATCH_ALL                   = 170
     
 
 
@@ -54,7 +54,7 @@ def run_as_root(*args, **kwargs) -> subprocess.CompletedProcess:
     if not Path(args[0][0]).exists():
         raise FileNotFoundError("file_not_found: {0}".format(args[0][0]))
 
-    return subprocess.run([OCLP_PRIVILEGED_HELPER] + [args[0][0]] + args[0][1:], **kwargs)
+    return subprocess.run([MBT_PRIVILEGED_HELPER] + [args[0][0]] + args[0][1:], **kwargs)
 
 
 def verify(process_result: subprocess.CompletedProcess) -> None:

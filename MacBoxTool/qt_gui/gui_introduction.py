@@ -4,6 +4,45 @@ gui_introduction.py: Give introduction on GUI
 from ..include import *
 from ..constants import Constants
 from .gui_support import DefGUI
+from PySide6.QtCore import QThread, Signal
+
+# Import install_helper only on macOS
+import sys
+if sys.platform == "darwin":
+    try:
+        from ..support.install_helper import check_helper_installed, install_privileged_helper, is_root
+    except ImportError:
+        check_helper_installed = None
+        install_privileged_helper = None
+        is_root = None
+else:
+    check_helper_installed = None
+    install_privileged_helper = None
+    is_root = None
+
+
+class HelperInstallWorker(QThread):
+    """Worker thread for installing privileged helper."""
+    finished_signal = Signal(bool, str)  # success, message
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def run(self):
+        """Run the installation in background thread."""
+        if install_privileged_helper:
+            success, msg = install_privileged_helper(verbose=False)
+            self.finished_signal.emit(success, msg)
+        else:
+            self.finished_signal.emit(False, "Helper installation not available on this platform")
+        is_root = None
+
+    check_helper_installed = None
+    install_privileged_helper = None
+    is_root = None
+
+# Import MessageBox for dialogs
+from ..UIkit.components.dialog_box.dialog import MessageBox
 
 
 class Introduction(ScrollArea):
@@ -22,6 +61,7 @@ class Introduction(ScrollArea):
         logging.info("#############################")
 
         self.global_constants = global_constants
+        self.global_settings = global_settings
         self.navigation_callback = None  # For page navigation
 
         self.scrollWidget = QWidget()
@@ -68,9 +108,202 @@ class Introduction(ScrollArea):
 
         self.expandLayout.addWidget(self._create_warning_card())
 
+        # Show helper installation prompt on first run (macOS only)
+        if sys.platform == "darwin" and self.global_settings and self.global_settings.is_first_run():
+            self._show_helper_install_dialog()
+            self.expandLayout.addWidget(self._create_helper_install_button())
+
         self.expandLayout.addWidget(self._create_guide_card())
 
         self.expandLayout.addStretch()
+
+    def _create_helper_install_button(self):
+        """Create a small button for helper installation."""
+        card = CardWidget()
+
+        layout = QHBoxLayout(card)
+        layout.setContentsMargins(SPACING["large"], SPACING["small"], SPACING["large"], SPACING["small"])
+        layout.setSpacing(SPACING["medium"])
+
+        # Check if already installed
+        helper_installed = False
+        if check_helper_installed:
+            helper_installed = check_helper_installed()
+
+        if helper_installed:
+            icon = self.ui_support.build_icon_label(FluentIcon.ACCEPT, COLORS["success"], size=20)
+            status = BodyLabel("Privileged Helper is installed")
+            status.setStyleSheet(f"color: {COLORS['success']}; font-size: 12px;")
+            layout.addWidget(icon)
+            layout.addWidget(status)
+
+            # Mark first run as complete
+            if self.global_settings:
+                self.global_settings.mark_first_run_complete()
+        else:
+            icon = self.ui_support.build_icon_label(FluentIcon.INFO, COLORS["warning"], size=20)
+            status = BodyLabel("Privileged Helper is NOT installed - Some features may be limited")
+            status.setStyleSheet(f"color: {COLORS['warning']}; font-size: 12px;")
+            layout.addWidget(icon)
+            layout.addWidget(status)
+
+            install_btn = PrimaryPushButton("Install Helper")
+            install_btn.clicked.connect(self._on_install_helper_clicked)
+            layout.addWidget(install_btn)
+
+        layout.addStretch()
+        return card
+
+    def _show_helper_install_dialog(self):
+        """Show a dialog asking to install the helper if not already installed."""
+        if not check_helper_installed:
+            return
+
+        # Check if helper is installed
+        if not check_helper_installed():
+            # Show dialog - if helper file doesn't exist, always prompt
+            dialog = MessageBox(
+                "Privileged Helper Required",
+                "MacBoxTool requires a privileged helper tool to perform certain operations.\n\n"
+                "The helper will be installed to /Library/PrivilegedHelperTools/ with root privileges.\n\n"
+                "Would you like to install it now?",
+                self
+            )
+
+            if dialog.exec():
+                # User clicked OK
+                self._on_install_helper_clicked()
+            else:
+                # User clicked Cancel - don't mark first run complete, will ask again next time
+                pass
+
+    def _on_install_helper_clicked(self):
+        """Handle install helper button click - relaunch as root if needed."""
+        if not install_privileged_helper or (is_root and not is_root()):
+            # Need to get root privileges
+            self._relaunch_as_root()
+            return
+
+        # Show installing indicator
+        InfoBar.info(
+            title="Installing",
+            content="Installing Privileged Helper...",
+            orient=Qt.Orientation.Horizontal,
+            isClosable=False,
+            position=InfoBarPosition.TOP_RIGHT,
+            duration=0,  # Don't auto-close
+            parent=self
+        )
+
+        # Run installation in background thread
+        self._install_worker = HelperInstallWorker(self)
+        self._install_worker.finished_signal.connect(self._on_install_helper_finished)
+        self._install_worker.start()
+
+    def _on_install_helper_finished(self, success: bool, msg: str):
+        """Handle helper installation completion."""
+        if success:
+            # Show success message
+            InfoBar.success(
+                title="Success",
+                content="Privileged Helper installed successfully!",
+                orient=Qt.Orientation.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=3000,
+                parent=self
+            )
+
+            # Mark first run complete and refresh UI
+            if self.global_settings:
+                self.global_settings.mark_first_run_complete()
+
+            # Refresh to update the button
+            self.update()
+        else:
+            InfoBar.error(
+                title="Installation Failed",
+                content=msg,
+                orient=Qt.Orientation.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=5000,
+                parent=self
+            )
+
+    def _relaunch_as_root(self):
+        """Relaunch the application with sudo using AppleScript."""
+        import subprocess
+
+        # Get the current script path
+        script_path = sys.executable
+        app_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        main_script = os.path.join(app_path, "MacBoxTool", "app_entry.py")
+
+        # Build the AppleScript command
+        script = f'''
+        do shell script "echo 'Installing Privileged Helper...' && cd '{app_path}' && {script_path} -m MacBoxTool.support.install_helper" with administrator privileges
+        '''
+
+        try:
+            # Run AppleScript to get admin privileges and install
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+
+            if result.returncode == 0:
+                # Success - show message and mark first run complete
+                InfoBar.success(
+                    title="Installed",
+                    content="Privileged Helper installed successfully!",
+                    orient=Qt.Orientation.Horizontal,
+                    isClosable=True,
+                    position=InfoBarPosition.TOP_RIGHT,
+                    duration=3000,
+                    parent=self
+                )
+
+                if self.global_settings:
+                    self.global_settings.mark_first_run_complete()
+
+                # Refresh UI
+                self._init_ui()
+            else:
+                # User cancelled or error
+                error_msg = result.stderr or "Installation was cancelled or failed."
+                InfoBar.warning(
+                    title="Installation",
+                    content=error_msg,
+                    orient=Qt.Orientation.Horizontal,
+                    isClosable=True,
+                    position=InfoBarPosition.TOP_RIGHT,
+                    duration=5000,
+                    parent=self
+                )
+
+        except subprocess.TimeoutExpired:
+            InfoBar.error(
+                title="Timeout",
+                content="Installation timed out.",
+                orient=Qt.Orientation.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=5000,
+                parent=self
+            )
+        except Exception as e:
+            InfoBar.error(
+                title="Error",
+                content=f"Failed to install: {str(e)}",
+                orient=Qt.Orientation.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=5000,
+                parent=self
+            )
 
     def _create_hero_section(self):
         hero_card = CardWidget()

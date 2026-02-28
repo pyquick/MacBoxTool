@@ -89,7 +89,7 @@ class BuildOpenCore:
         logs = driver_mgr.enable_base_drivers()
         self.log_lines.extend(logs)
 
-        # Step 7: Apply NVRAM settings (boot-args, SIP, BT, OCLP flags)
+        # Step 7: Apply NVRAM settings (boot-args, SIP, BT, MBT flags)
         from .smbios.nvram import NVRAMManager
         nvram_mgr = NVRAMManager(self.config, self.constants, self.model, self.paths)
         logs = nvram_mgr.apply()

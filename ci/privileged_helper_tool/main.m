@@ -14,7 +14,7 @@
 #import <Security/Security.h>
 #include <libproc.h>
 
-#define UTILITY_VERSION "1.0.0"
+#define UTILITY_VERSION "1.0.1"
 
 #define VALID_CLIENT_TEAM_ID @"74U2H5D43E"
 

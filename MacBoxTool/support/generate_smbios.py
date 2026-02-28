@@ -1,5 +1,5 @@
 """
-generate_smbios.py: SMBIOS generation for OCLP-R
+generate_smbios.py: SMBIOS generation for MacBoxTool
 """
 
 import logging

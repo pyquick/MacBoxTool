@@ -35,10 +35,10 @@ class NVRAMManager:
 
         nvram = self.config.setdefault("NVRAM", {}).setdefault("Add", {})
 
-        # OCLP GUID for version and model info
-        oclp_guid = nvram.setdefault("4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", {})
-        oclp_guid["OCLP-Version"] = self.constants.mactoolbox_version
-        oclp_guid["OCLP-Model"] = self.model
+        # MBT GUID for version and model info
+        mbt_guid = nvram.setdefault("4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", {})
+        mbt_guid["OCLP-Version"] = self.constants.mactoolbox_version
+        mbt_guid["OCLP-Model"] = self.model
 
         # Boot GUID for boot args and SIP
         boot_guid = nvram.setdefault("7C436110-AB2A-4BBB-A880-FE41995C9F82", {})
@@ -97,15 +97,15 @@ class NVRAMManager:
                 boot_args += " cpus=4"
                 self._log("  Added boot-arg: cpus=4 (thread limit)")
 
-        # OCLP-Settings flags (conditional on SIP status)
+        # MBT-Settings flags (conditional on SIP status)
         if max_os and max_os < os_data.os_data.sonoma:
-            oclp_guid.setdefault("OCLP-Settings", "")
+            mbt_guid.setdefault("OCLP-Settings", "")
             if not self.constants.sip_status:
-                if "-allow_fv" not in oclp_guid["OCLP-Settings"]:
-                    oclp_guid["OCLP-Settings"] += " -allow_fv"
+                if "-allow_fv" not in mbt_guid["OCLP-Settings"]:
+                    mbt_guid["OCLP-Settings"] += " -allow_fv"
             if self.constants.disable_cs_lv:
-                if "-allow_amfi" not in oclp_guid["OCLP-Settings"]:
-                    oclp_guid["OCLP-Settings"] += " -allow_amfi"
+                if "-allow_amfi" not in mbt_guid["OCLP-Settings"]:
+                    mbt_guid["OCLP-Settings"] += " -allow_amfi"
 
         # Bluetooth NVRAM variables and boot-args
         # Logic from MacBoxTool efi_builder/bluetooth.py (_prebuilt_assumption path)

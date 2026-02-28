@@ -210,7 +210,7 @@ def check_kext_loaded(bundle_id: str) -> str:
     return ""
 
 
-def check_oclp_boot():
+def check_mbt_boot():
     if get_nvram("OCLP-Version", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True):
         return True
     else:

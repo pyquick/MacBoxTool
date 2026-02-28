@@ -685,7 +685,7 @@ class Computer:
     wifi: Optional[WirelessCard] = None
     cpu: Optional[CPU] = None
     usb_devices: list[USBDevice] = field(default_factory=list)
-    oclp_version: Optional[str] = None
+    mbt_version: Optional[str] = None
     opencore_version: Optional[str] = None
     opencore_path: Optional[str] = None
     bluetooth_chipset: Optional[str] = None
@@ -697,10 +697,10 @@ class Computer:
     t1_chip: Optional[bool] = False
     secure_boot_model: Optional[str] = None
     secure_boot_policy: Optional[int] = None
-    oclp_sys_version: Optional[str] = None
-    oclp_sys_date: Optional[str] = None
-    oclp_sys_url: Optional[str] = None
-    oclp_sys_signed: Optional[bool] = False
+    mbt_sys_version: Optional[str] = None
+    mbt_sys_date: Optional[str] = None
+    mbt_sys_url: Optional[str] = None
+    mbt_sys_signed: Optional[bool] = False
     firmware_vendor: Optional[str] = None
     rosetta_active: Optional[bool] = False
     
@@ -727,7 +727,7 @@ class Computer:
         computer.ambient_light_sensor_probe()
         computer.pcie_webcam_probe()
         computer.sata_disk_probe()
-        computer.oclp_sys_patch_probe()
+        computer.mbt_sys_patch_probe()
         computer.check_rosetta()
         return computer
 
@@ -960,8 +960,8 @@ class Computer:
         self.real_board_id = utilities.get_nvram("oem-board", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True) or self.reported_board_id
         self.build_model = utilities.get_nvram("OCLP-Model", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
 
-        # OCLP version
-        self.oclp_version = utilities.get_nvram("OCLP-Version", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
+        # MBT version
+        self.mbt_version = utilities.get_nvram("OCLP-Version", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
         self.opencore_version = utilities.get_nvram("opencore-version", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
         self.opencore_path = utilities.get_nvram("boot-path", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
 
@@ -1093,23 +1093,23 @@ class Computer:
                     # - 'spsata_physical_interconnect' was not introduced till 10.9
                     continue
 
-    def oclp_sys_patch_probe(self):
+    def mbt_sys_patch_probe(self):
         if sys.platform != "darwin":
             return
         path = Path("/System/Library/CoreServices/MacBoxTool.plist")
         if not path.exists():
-            self.oclp_sys_signed = True  # No plist, so assume root is valid
+            self.mbt_sys_signed = True  # No plist, so assume root is valid
             return
         sys_plist = plistlib.load(path.open("rb"))
         if sys_plist:
             if "MacBoxTool" in sys_plist:
-                self.oclp_sys_version = sys_plist["MacBoxTool"]
+                self.mbt_sys_version = sys_plist["MacBoxTool"]
             if "Time Patched" in sys_plist:
-                self.oclp_sys_date = sys_plist["Time Patched"]
+                self.mbt_sys_date = sys_plist["Time Patched"]
             if "Commit URL" in sys_plist:
-                self.oclp_sys_url = sys_plist["Commit URL"]
+                self.mbt_sys_url = sys_plist["Commit URL"]
             if "Custom Signature" in sys_plist:
-                self.oclp_sys_signed = sys_plist["Custom Signature"]
+                self.mbt_sys_signed = sys_plist["Custom Signature"]
 
     def check_rosetta(self):
         if sys.platform != "darwin":

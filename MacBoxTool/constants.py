@@ -156,7 +156,7 @@ class Constants:
         self.cli_mode:                  bool = True  #  Determine if running in CLI mode
         self.validate:                  bool = False  # Enable validation testing for CI
         self.recovery_status:           bool = False  # Detect if booted into RecoveryOS
-        self.ignore_updates:            bool = False  # Ignore OCLP updates
+        self.ignore_updates:            bool = False  # Ignore MBT updates
         self.wxpython_variant:          bool = False  # Determine if using wxPython variant
         self.has_checked_updates:       bool = False  # Determine if check for updates has been run
         self.root_patcher_succeeded:    bool = False  # Determine if root patcher succeeded
@@ -167,7 +167,7 @@ class Constants:
         self.should_nuke_kdks:          bool = True  #  Determine if KDKs should be nuked if unused in /L*/D*/KDKs
         self.launcher_binary:            str = None  #  Determine launch binary path (ie. Python vs PyInstaller)
         self.launcher_script:            str = None  #  Determine launch file path   (None if PyInstaller)
-        self.booted_oc_disk:             str = None  #  Determine current disk OCLP booted from
+        self.booted_oc_disk:             str = None  #  Determine current disk MBT booted from
         self.unpack_thread                   = None  #  Determine if unpack thread finished (threading.Thread)
         self.update_stage:               int = 0  #     Determine update stage (see gui_support.py)
         self.log_filepath:              Path = None  #  Path to log file
@@ -782,7 +782,7 @@ class Constants:
         return self.payload_path / Path(f"OpenCore/ocvalidate")
 
     @property
-    def oclp_helper_path(self):
+    def mbt_helper_path(self):
         return self.payload_path / Path("Tools/MacBoxTool.app/Contents/MacOS/MacBoxTool")
 
     @property

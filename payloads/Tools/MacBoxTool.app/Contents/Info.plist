@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>OCLP-R</string>
+	<string>MacBoxTool</string>
 	<key>CFBundleExecutable</key>
-	<string>OCLP-R</string>
+	<string>MacBoxTool</string>
 	<key>CFBundleIconFile</key>
 	<string>OC-Patcher.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.pyquick.oclp-r-helper</string>
+	<string>com.pyquick.macboxtool-helper</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>OCLP-R</string>
+	<string>MacBoxTool</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>LSMinimumSystemVersion</key>

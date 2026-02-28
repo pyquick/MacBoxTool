@@ -670,7 +670,7 @@ class Computer:
     wifi:                 Optional[WirelessCard] = None
     cpu:                  Optional[CPU]  = None
     usb_devices:          list           = field(default_factory=list)
-    oclp_version:         Optional[str]  = None
+    mbt_version:         Optional[str]  = None
     opencore_version:     Optional[str]  = None
     opencore_path:        Optional[str]  = None
     bluetooth_chipset:    Optional[str]  = None
@@ -682,10 +682,10 @@ class Computer:
     t1_chip:              bool           = False
     secure_boot_model:    Optional[str]  = None
     secure_boot_policy:   Optional[int]  = None
-    oclp_sys_version:     Optional[str]  = None
-    oclp_sys_date:        Optional[str]  = None
-    oclp_sys_url:         Optional[str]  = None
-    oclp_sys_signed:      bool           = False
+    mbt_sys_version:     Optional[str]  = None
+    mbt_sys_date:        Optional[str]  = None
+    mbt_sys_url:         Optional[str]  = None
+    mbt_sys_signed:      bool           = False
     firmware_vendor:      Optional[str]  = None
     rosetta_active:       bool           = False
     _wmi:                 object         = field(default=None, repr=False)
@@ -715,7 +715,7 @@ class Computer:
         computer.ambient_light_sensor_probe()
         computer.pcie_webcam_probe()
         computer.sata_disk_probe()
-        computer.oclp_sys_patch_probe()
+        computer.mbt_sys_patch_probe()
         return computer
 
     def _make_pci(self, cls, vid, did, cc, name, pp):
@@ -837,8 +837,8 @@ class Computer:
         self.real_board_id = utilities.get_nvram("oem-board", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True) or self.reported_board_id
         self.build_model = utilities.get_nvram("OCLP-Model", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
 
-        # OCLP / OpenCore version
-        self.oclp_version = utilities.get_nvram("OCLP-Version", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
+        # MBT / OpenCore version
+        self.mbt_version = utilities.get_nvram("OCLP-Version", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
         self.opencore_version = utilities.get_nvram("opencore-version", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
         self.opencore_path = utilities.get_nvram("boot-path", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
 
@@ -910,20 +910,20 @@ class Computer:
         except Exception:
             pass
 
-    def oclp_sys_patch_probe(self):
+    def mbt_sys_patch_probe(self):
         from pathlib import Path
         import plistlib
         path = Path("/System/Library/CoreServices/MacBoxTool.plist")
         if not path.exists():
-            self.oclp_sys_signed = True
+            self.mbt_sys_signed = True
             return
         try:
             sys_plist = plistlib.load(path.open("rb"))
         except Exception:
             return
         if sys_plist:
-            self.oclp_sys_version = sys_plist.get("MacBoxTool")
-            self.oclp_sys_date = sys_plist.get("Time Patched")
-            self.oclp_sys_url = sys_plist.get("Commit URL")
+            self.mbt_sys_version = sys_plist.get("MacBoxTool")
+            self.mbt_sys_date = sys_plist.get("Time Patched")
+            self.mbt_sys_url = sys_plist.get("Commit URL")
             if "Custom Signature" in sys_plist:
-                self.oclp_sys_signed = sys_plist["Custom Signature"]
+                self.mbt_sys_signed = sys_plist["Custom Signature"]

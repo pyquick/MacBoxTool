@@ -4,13 +4,13 @@
 <dict>
 	<key>AssociatedBundleIdentifiers</key>
 	<array>
-		<string>com.pyquick.oclp-r</string>
+		<string>com.pyquick.macboxtool</string>
 	</array>
 	<key>Label</key>
-	<string>com.pyquick.oclp-r.os-caching</string>
+	<string>com.pyquick.macboxtool.os-caching</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/Library/Application Support/Pyquick/OCLP-R.app/Contents/MacOS/OCLP-R</string>
+		<string>/Library/Application Support/Pyquick/MacBoxTool.app/Contents/MacOS/MacBoxTool</string>
 		<string>--cache_os</string>
 	</array>
 	<key>WatchPaths</key>
