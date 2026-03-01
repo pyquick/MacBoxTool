@@ -140,7 +140,7 @@ class Window(FluentWindow):
                 parent=self
             )
     def _init_ui(self):
-        self.introduction=Introduction(self.constants,self.gui_support,self.settings,self)
+        self.introduction=Introduction(self.constants,self.gui_support,self)
 
         # Set up navigation callback for introduction page
         self.introduction.set_navigation_callback(self._on_intro_navigate)

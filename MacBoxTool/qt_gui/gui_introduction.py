@@ -4,7 +4,7 @@ gui_introduction.py: Give introduction on GUI
 from ..include import *
 from ..constants import Constants
 from .gui_support import DefGUI
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QThread, Signal, QTimer
 
 # Import install_helper only on macOS
 import sys
@@ -52,7 +52,7 @@ class Introduction(ScrollArea):
     NAV_SETTINGS = "settings"
     NAV_ABOUT = "about"
 
-    def __init__(self,global_constants:Constants,ui_support:DefGUI=None,global_settings:GlobalSettings=None,parent=None):
+    def __init__(self,global_constants:Constants,ui_support:DefGUI=None,parent=None):
         super().__init__(parent=parent)
         self.setObjectName("Introduction")
 
@@ -61,7 +61,6 @@ class Introduction(ScrollArea):
         logging.info("#############################")
 
         self.global_constants = global_constants
-        self.global_settings = global_settings
         self.navigation_callback = None  # For page navigation
 
         self.scrollWidget = QWidget()
@@ -108,14 +107,13 @@ class Introduction(ScrollArea):
 
         self.expandLayout.addWidget(self._create_warning_card())
 
-        # Show helper installation prompt on first run (macOS only)
-        if sys.platform == "darwin" and self.global_settings and self.global_settings.is_first_run():
-            self._show_helper_install_dialog()
-            self.expandLayout.addWidget(self._create_helper_install_button())
-
         self.expandLayout.addWidget(self._create_guide_card())
 
         self.expandLayout.addStretch()
+
+        # Defer helper check to after UI is shown (macOS only)
+        if sys.platform == "darwin":
+            QTimer.singleShot(100, self._check_and_show_helper_prompt)
 
     def _create_helper_install_button(self):
         """Create a small button for helper installation."""
@@ -132,17 +130,13 @@ class Introduction(ScrollArea):
 
         if helper_installed:
             icon = self.ui_support.build_icon_label(FluentIcon.ACCEPT, COLORS["success"], size=20)
-            status = BodyLabel("Privileged Helper is installed")
+            status = StrongBodyLabel("Privileged Helper is installed")
             status.setStyleSheet(f"color: {COLORS['success']}; font-size: 12px;")
             layout.addWidget(icon)
             layout.addWidget(status)
-
-            # Mark first run as complete
-            if self.global_settings:
-                self.global_settings.mark_first_run_complete()
         else:
             icon = self.ui_support.build_icon_label(FluentIcon.INFO, COLORS["warning"], size=20)
-            status = BodyLabel("Privileged Helper is NOT installed - Some features may be limited")
+            status = StrongBodyLabel("Privileged Helper is NOT installed - Some features may be limited")
             status.setStyleSheet(f"color: {COLORS['warning']}; font-size: 12px;")
             layout.addWidget(icon)
             layout.addWidget(status)
@@ -153,6 +147,17 @@ class Introduction(ScrollArea):
 
         layout.addStretch()
         return card
+
+    def _check_and_show_helper_prompt(self):
+        """Check helper status and show installation prompt if needed (deferred after UI init)."""
+        if not check_helper_installed:
+            return
+
+        if not check_helper_installed():
+            self._show_helper_install_dialog()
+            # Insert the button after warning card (index 4)
+            button = self._create_helper_install_button()
+            self.expandLayout.insertWidget(4, button)
 
     def _show_helper_install_dialog(self):
         """Show a dialog asking to install the helper if not already installed."""
@@ -214,10 +219,6 @@ class Introduction(ScrollArea):
                 parent=self
             )
 
-            # Mark first run complete and refresh UI
-            if self.global_settings:
-                self.global_settings.mark_first_run_complete()
-
             # Refresh to update the button
             self.update()
         else:
@@ -255,7 +256,7 @@ class Introduction(ScrollArea):
             )
 
             if result.returncode == 0:
-                # Success - show message and mark first run complete
+                # Success - show message
                 InfoBar.success(
                     title="Installed",
                     content="Privileged Helper installed successfully!",
@@ -265,9 +266,6 @@ class Introduction(ScrollArea):
                     duration=3000,
                     parent=self
                 )
-
-                if self.global_settings:
-                    self.global_settings.mark_first_run_complete()
 
                 # Refresh UI
                 self._init_ui()

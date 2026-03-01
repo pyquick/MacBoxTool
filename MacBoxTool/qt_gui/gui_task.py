@@ -11,6 +11,15 @@ from ..support.network_handler import (
 )
 
 
+class NetworkCheckWorker(QThread):
+    """Worker thread for checking network connectivity."""
+    finished_signal = Signal(bool)
+
+    def run(self):
+        result = NetworkUtilities.check_network()
+        self.finished_signal.emit(result)
+
+
 # Global task manager for registering downloads from other services
 class TaskManager:
     """Global task manager for download tasks"""
@@ -201,9 +210,15 @@ class TaskInterface(ScrollArea):
         return header
 
     def _check_network_status(self):
-        """Check network connectivity"""
-        self.network_connected = NetworkUtilities.check_network()
-        if self.network_connected:
+        """Check network connectivity using a worker thread"""
+        worker = NetworkCheckWorker(self)
+        worker.finished_signal.connect(self._on_network_check_finished)
+        worker.start()
+
+    def _on_network_check_finished(self, connected: bool):
+        """Handle network check result"""
+        self.network_connected = connected
+        if connected:
             self.network_status_card.setContent("Connected")
         else:
             self.network_status_card.setContent("Disconnected - Cannot access network")

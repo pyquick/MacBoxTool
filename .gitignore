@@ -15,6 +15,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+prompt.md
 lib64/
 temp/
 parts/

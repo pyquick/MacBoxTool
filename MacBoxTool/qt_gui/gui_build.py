@@ -6,6 +6,15 @@ from .gui_support import DefGUI, ProgressStatusHelper
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QUrl
 
+import sys
+# Import install_helper only on macOS
+if sys.platform == "darwin":
+    try:
+        from ..support.install_helper import check_helper_installed
+    except ImportError:
+        check_helper_installed = None
+else:
+    check_helper_installed = None
 
 from ..UIkit.components.dialog_box.message_box_base import MessageBoxBase
 from ..UIkit.components.widgets.button import RadioButton
@@ -97,7 +106,8 @@ class InstallWorker(QThread):
     def run(self):
         import shutil
         import os
-        import plistlib
+
+        from ..support.mount import EFIPartitionMount
 
         ident = self.partition_ident
 
@@ -105,35 +115,16 @@ class InstallWorker(QThread):
             # Mount
             self.log_signal.emit(f"=== Installing EFI to {ident} ===")
             self.log_signal.emit(f"Mounting {ident}...")
-            mount_res = subprocess_wrapper.run_as_root(
-                ["/usr/sbin/diskutil", "mount", ident],
-                capture_output=True, text=True
-            )
-            if mount_res.returncode != 0:
-                self.log_signal.emit(f"[ERROR] Failed to mount {ident}: {mount_res.stderr}")
-                self.finished_signal.emit(False, f"Failed to mount {ident}")
-                return
-            self.log_signal.emit(f"Mounted {ident} successfully.")
 
-            # Get mount point
-            self.log_signal.emit(f"Getting mount point for {ident}...")
-            info_res = subprocess.run(
-                ["/usr/sbin/diskutil", "info", "-plist", ident],
-                capture_output=True, text=True
-            )
-            if info_res.returncode != 0:
-                self.log_signal.emit(f"[ERROR] diskutil info failed for {ident}")
-                self.finished_signal.emit(False, f"diskutil info failed for {ident}")
-                return
-
-            info_data = plistlib.loads(info_res.stdout.encode('utf-8'))
-            mount_point = info_data.get('MountPoint')
+            efi_mount = EFIPartitionMount(ident)
+            mount_point = efi_mount.mount()
 
             if not mount_point:
-                self.log_signal.emit(f"[ERROR] Could not find mount point for {ident}.")
-                self.finished_signal.emit(False, f"No mount point for {ident}")
+                self.log_signal.emit(f"[ERROR] Failed to mount {ident}")
+                self.finished_signal.emit(False, f"Failed to mount {ident}")
                 return
 
+            self.log_signal.emit(f"Mounted {ident} successfully.")
             self.log_signal.emit(f"Mount point: {mount_point}")
 
             # Copy EFI
@@ -177,19 +168,14 @@ class InstallWorker(QThread):
         """Determine disk type and copy appropriate drive icon."""
         import os
 
-        # Get the parent disk identifier (e.g. disk0s1 -> disk0)
-        parent_disk = ident.rstrip('0123456789')
-        if parent_disk.endswith('s'):
-            parent_disk = parent_disk[:-1]
+        from ..support.mount import EFIPartitionMount
 
         icon_path = None
         try:
-            info_res = subprocess.run(
-                ["/usr/sbin/diskutil", "info", "-plist", parent_disk],
-                capture_output=True, text=True, check=True
-            )
-            import plistlib
-            disk_info = plistlib.loads(info_res.stdout.encode('utf-8'))
+            disk_info = EFIPartitionMount(ident).get_disk_info()
+
+            if disk_info is None:
+                raise RuntimeError("Could not get disk info")
 
             is_internal = disk_info.get("Internal", False)
             is_ssd = disk_info.get("SolidState", False)
@@ -565,7 +551,10 @@ class BuildOCPage(ScrollArea):
             self.last_output_path = info
             self.progress_helper.update("success", f"Build complete: {info}", 100)
             self.open_folder_btn.setVisible(True)
-            self.install_btn.setVisible(sys.platform == "darwin")
+            # Show install button only if helper is installed
+            self.install_btn.setVisible(
+                sys.platform == "darwin" and check_helper_installed and check_helper_installed()
+            )
         else:
             self.progress_helper.update("error", f"Build failed: {info}")
             self.open_folder_btn.setVisible(False)
