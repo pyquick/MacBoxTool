@@ -215,6 +215,7 @@ class TaskInterface(ScrollArea):
             "Checking...",
             self
         )
+        self.network_status_card.setMinimumWidth(1000)
         return self.network_status_card
 
     def _create_active_downloads_header(self) -> QWidget:
@@ -423,3 +424,10 @@ class TaskInterface(ScrollArea):
         """Refresh the page"""
         self._check_network_status()
         self._refresh_downloads()
+
+    def closeEvent(self, event):
+        """Handle close event - cancel all active downloads"""
+        for download in self.task_manager.get_downloads():
+            if download.status in (DownloadStatus.DOWNLOADING, DownloadStatus.PAUSED):
+                self.task_manager.cancel_download(download)
+        event.accept()

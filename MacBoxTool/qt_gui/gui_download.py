@@ -40,23 +40,31 @@ class DownloadCard(CardWidget):
         self.iconWidget.setFixedSize(48, 48)
 
         self.titleLabel = BodyLabel(self.download.filename, self)
+        self.titleLabel.setWordWrap(False)
         self.contentLabel = CaptionLabel(self._get_status_text(), self)
         self.contentLabel.setTextColor("#606060", "#d2d2d2")
+        self.contentLabel.setWordWrap(False)
 
         self.progressBar = ProgressBar(self)
-        self.progressBar.setFixedWidth(120)
+        self.progressBar.setFixedWidth(200)
         self.progressBar.setFixedHeight(4)
         self.progressBar.setRange(0, 100)
         self.progressBar.setValue(self.download.get_progress_percentage())
 
         self.speedLabel = CaptionLabel(self.download.get_speed_display(), self)
         self.speedLabel.setTextColor("#606060", "#d2d2d2")
+        self.speedLabel.setFixedWidth(80)
+        self.speedLabel.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.sizeLabel = CaptionLabel(self.download.get_size_display(), self)
         self.sizeLabel.setTextColor("#606060", "#d2d2d2")
+        self.sizeLabel.setFixedWidth(150)
+        self.sizeLabel.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.percentLabel = CaptionLabel(f"{self.download.get_progress_percentage()}%", self)
         self.percentLabel.setTextColor("#0078D4", "#0078D4")
+        self.percentLabel.setFixedWidth(50)
+        self.percentLabel.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.moreButton = TransparentToolButton(FluentIcon.MORE, self)
         self.moreButton.setFixedSize(32, 32)
@@ -71,18 +79,16 @@ class DownloadCard(CardWidget):
         self.hBoxLayout.addWidget(self.iconWidget)
 
         self.vBoxLayout.setContentsMargins(0, 0, 0, 0)
-        self.vBoxLayout.setSpacing(0)
-        self.vBoxLayout.addWidget(self.titleLabel, 0, Qt.AlignVCenter)
-        self.vBoxLayout.addWidget(self.contentLabel, 0, Qt.AlignVCenter)
-        self.vBoxLayout.setAlignment(Qt.AlignVCenter)
-        self.hBoxLayout.addLayout(self.vBoxLayout)
+        self.vBoxLayout.setSpacing(4)
+        self.vBoxLayout.addWidget(self.titleLabel)
+        self.vBoxLayout.addWidget(self.contentLabel)
+        self.hBoxLayout.addLayout(self.vBoxLayout, 1)
 
-        self.hBoxLayout.addStretch(1)
         self.hBoxLayout.addWidget(self.progressBar, 0, Qt.AlignVCenter)
-        self.hBoxLayout.addWidget(self.speedLabel, 0, Qt.AlignRight)
-        self.hBoxLayout.addWidget(self.sizeLabel, 0, Qt.AlignRight)
-        self.hBoxLayout.addWidget(self.percentLabel, 0, Qt.AlignRight)
-        self.hBoxLayout.addWidget(self.moreButton, 0, Qt.AlignRight)
+        self.hBoxLayout.addWidget(self.speedLabel, 0, Qt.AlignVCenter)
+        self.hBoxLayout.addWidget(self.sizeLabel, 0, Qt.AlignVCenter)
+        self.hBoxLayout.addWidget(self.percentLabel, 0, Qt.AlignVCenter)
+        self.hBoxLayout.addWidget(self.moreButton, 0, Qt.AlignVCenter)
 
     # ── Context Menu ──
 

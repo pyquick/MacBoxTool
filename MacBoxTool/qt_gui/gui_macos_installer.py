@@ -146,6 +146,11 @@ class MacOSInstallerList(ScrollArea):
 
     def init_ui(self):
         """Initialize UI layout by assembling sub-components"""
+        self.expandLayout.setContentsMargins(
+            SPACING["xxlarge"], SPACING["xlarge"],
+            SPACING["xxlarge"], SPACING["xlarge"]
+        )
+        self.expandLayout.setSpacing(SPACING["large"])
         self._init_layout()
         self._init_progress_ring()
         self._init_loading_label()
@@ -333,7 +338,7 @@ class MacOSInstallerList(ScrollArea):
         png_path = icon_path.rsplit('.', 1)[0] + '.png'
 
         save_path = str(self.constants.payload_path)
-        filename = "InstallAssistant.pkg"
+        filename = f"InstallAssistant-macOS_{version}-{build}.pkg"
         download_obj = DownloadObject(url, save_path, filename)
 
         TaskManager.start_download(download_obj, icon=png_path)

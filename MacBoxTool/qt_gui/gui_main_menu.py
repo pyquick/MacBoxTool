@@ -5,7 +5,7 @@ from .gui_introduction import Introduction
 from .gui_build import BuildOCPage
 from .gui_about import AboutInterface
 from .gui_settings import SettingsInterface
-from .gui_task import TaskInterface
+from .gui_task import TaskInterface, TaskManager
 from .gui_all_download import DownloadInterface
 
 WINDOW_MIN_SIZE = (1000, 700)
@@ -89,11 +89,22 @@ class Window(FluentWindow):
             "height": geometry.height()
         }
         
+        
 
     def _init_state(self):
         pass
 
     def closeEvent(self, event):
+        # Cancel all active downloads
+        task_manager = TaskManager()
+        for download in task_manager.get_downloads():
+            task_manager.cancel_download(download)
+
+        # Wait for workers to finish
+        for worker in task_manager._workers.values():
+            if worker.isRunning():
+                worker.wait(1000)
+
         self._save_window_geometry()
         self.themeListener.terminate()
         self.themeListener.deleteLater()
@@ -141,6 +152,8 @@ class Window(FluentWindow):
                 parent=self
             )
     def _init_ui(self):
+        self.setResizeEnabled(True)
+        self.setMinimumWidth(1200)
         self.introduction=Introduction(self.constants,self.gui_support,self)
 
         # Set up navigation callback for introduction page
