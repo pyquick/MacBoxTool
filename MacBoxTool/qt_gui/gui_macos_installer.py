@@ -7,7 +7,7 @@ from .. import sucatalog
 from .gui_support import DefGUI
 from ..UIkit.components.widgets.card_widget import CardWidget
 from ..UIkit.components.widgets.label import BodyLabel, CaptionLabel
-from ..UIkit.components.widgets.button import PrimaryPushButton
+from ..UIkit.components.widgets.button import PrimaryPushButton, TransparentToolButton
 from ..UIkit.components.widgets.label import ImageLabel
 from ..UIkit.components.widgets.progress_ring import IndeterminateProgressRing
 from ..support.network_handler import DownloadObject
@@ -82,6 +82,11 @@ class InstallerCard(CardWidget):
         self.download_button.setFixedWidth(100)
         self.download_button.clicked.connect(self._on_download_clicked)
 
+        self.copy_link_button = TransparentToolButton(FluentIcon.COPY)
+        self.copy_link_button.setFixedSize(32, 32)
+        self.copy_link_button.setToolTip("Copy Download Link")
+        self.copy_link_button.clicked.connect(self._on_copy_link_clicked)
+
     def _init_layout(self):
         """Assemble card layout: icon | info | button"""
         self.main_layout = QHBoxLayout(self)
@@ -102,6 +107,7 @@ class InstallerCard(CardWidget):
         self.main_layout.addLayout(self.info_layout, 1)
 
         # Right: Download button
+        self.main_layout.addWidget(self.copy_link_button, 0, Qt.AlignmentFlag.AlignVCenter)
         self.main_layout.addWidget(self.download_button, 0, Qt.AlignmentFlag.AlignVCenter)
 
     # ── Actions ──
@@ -109,6 +115,20 @@ class InstallerCard(CardWidget):
     def _on_download_clicked(self):
         """Handle download button click"""
         self.download_clicked.emit(self.installer_data)
+
+    def _on_copy_link_clicked(self):
+        """Handle copy link button click"""
+        install_assistant = self.installer_data.get("InstallAssistant") or {}
+        url = install_assistant.get("URL")
+        if url:
+            QApplication.clipboard().setText(url)
+            InfoBar.success(
+                "Link Copied",
+                "Download link copied to clipboard",
+                duration=2000,
+                position=InfoBarPosition.TOP_RIGHT,
+                parent=self.window()
+            )
 
 
 class MacOSInstallerList(ScrollArea):
@@ -337,7 +357,8 @@ class MacOSInstallerList(ScrollArea):
         icon_path = self.constants.icons_path[icon_index]
         png_path = icon_path.rsplit('.', 1)[0] + '.png'
 
-        save_path = str(self.constants.payload_path)
+        # Use configured download path or fallback to payload_path
+        save_path = self.settings.find_key("download_path") or str(self.constants.payload_path)
         filename = f"InstallAssistant-macOS_{version}-{build}.pkg"
         download_obj = DownloadObject(url, save_path, filename)
 

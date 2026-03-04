@@ -549,6 +549,18 @@ class SettingsInterface(QWidget):
         self.sw_oc_everywhere.checkedChanged.connect(lambda v: self._save("allow_oc_everywhere", v))
         self.sw_nvme_fix.checkedChanged.connect(lambda v: self._save("allow_nvme_fixing", v))
 
+        # Download path setting
+        download_path = self.settings.find_key("download_path") or str(Path.home() / "Downloads")
+        self.download_path_card = PushSettingCard(
+            "Choose folder",
+            FIF.DOWNLOAD,
+            "Download Path",
+            download_path,
+            parent=group
+        )
+        self.download_path_card.clicked.connect(self._on_download_path_clicked)
+        group.addSettingCard(self.download_path_card)
+
         self.tab_misc._layout.addWidget(group)
 
     # ── Debug ──
@@ -627,6 +639,16 @@ class SettingsInterface(QWidget):
         self.settings_expand_card.setExpand(True)
 
     # ── Persistence ──
+
+    # ── Helpers ──
+
+    def _on_download_path_clicked(self):
+        """Handle download path selection"""
+        current_path = self.settings.find_key("download_path") or str(Path.home() / "Downloads")
+        folder = QFileDialog.getExistingDirectory(self, "Select Download Folder", current_path)
+        if folder:
+            self._save("download_path", folder)
+            self.download_path_card.setContent(folder)
 
     def _save(self, key: str, value):
         setattr(self.constants, key, value)

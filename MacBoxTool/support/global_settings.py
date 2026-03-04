@@ -26,6 +26,11 @@ class GlobalSettings:
         if "first_run" not in self.settings:
             self.add_key("first_run", True)
 
+        # Ensure download_path exists (default to Downloads folder)
+        if "download_path" not in self.settings:
+            default_download_path = str(Path.home() / "Downloads")
+            self.add_key("download_path", default_download_path)
+
     def is_first_run(self) -> bool:
         """Check if this is the first run of the application."""
         return self.settings.get("first_run", True)
