@@ -14,6 +14,7 @@ class DownloadStatus:
     """Download task status enum"""
     PENDING = "pending"
     DOWNLOADING = "downloading"
+    PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -33,12 +34,29 @@ class DownloadObject:
         self.error_message = ""
         self.created_at = QDateTime.currentDateTime()
         self.completed_at = None
+        self.last_update_time = QDateTime.currentDateTime()
+        self.last_downloaded_size = 0
+        self.download_speed = 0
 
     def update_progress(self, downloaded: int, total: int):
-        """Update download progress"""
+        """Update download progress and calculate speed"""
+        current_time = QDateTime.currentDateTime()
+        time_diff = self.last_update_time.msecsTo(current_time) / 1000.0
+
+        # Only update speed if enough time has passed (at least 0.1s)
+        if time_diff >= 0.1:
+            bytes_diff = downloaded - self.last_downloaded_size
+            self.download_speed = bytes_diff / time_diff if time_diff > 0 else 0
+            self.last_update_time = current_time
+            self.last_downloaded_size = downloaded
+
         self.downloaded_size = downloaded
         if total > 0:
             self.total_size = total
+
+    def get_speed_display(self) -> str:
+        """Get formatted speed display"""
+        return f"{self._format_size(int(self.download_speed))}/s"
 
     def get_progress_percentage(self) -> int:
         """Get download progress percentage"""
@@ -110,6 +128,13 @@ class NetworkUtilities:
             return False
 
     @classmethod
+    def get(cls, url: str, **kwargs) -> requests.Response:
+        """GET request (compatible with sucatalog module)"""
+        if 'timeout' not in kwargs:
+            kwargs['timeout'] = 60
+        return cls.custom_get(url, **kwargs)
+
+    @classmethod
     def custom_get(cls, url: str, **kwargs) -> requests.Response:
         """Custom GET request wrapper"""
         session = cls._get_session()
@@ -137,7 +162,7 @@ class NetworkUtilities:
 
 class DownloadWorker(QThread):
     """Multi-threaded download worker (16 threads)"""
-    progress_signal = Signal(int, int)  # downloaded, total
+    progress_signal = Signal(object, object)  # downloaded, total (object to avoid 32-bit int overflow)
     finished_signal = Signal(bool, str)  # success, message
     status_changed_signal = Signal(str)  # DownloadStatus
 
@@ -145,6 +170,7 @@ class DownloadWorker(QThread):
         super().__init__()
         self.download = download_object
         self._is_cancelled = False
+        self._is_paused = False
         self._lock = threading.Lock()
 
     def run(self):
@@ -243,10 +269,15 @@ class DownloadWorker(QThread):
                 for chunk in response.iter_content(chunk_size=8192):
                     if self._is_cancelled:
                         return
+                    while self._is_paused:
+                        if self._is_cancelled:
+                            return
+                        threading.Event().wait(0.1)
                     f.write(chunk)
                     with self._lock:
                         self.download.downloaded_size += len(chunk)
                         self.progress_signal.emit(self.download.downloaded_size, self.download.total_size)
+                        self.download.update_progress(self.download.downloaded_size, self.download.total_size)
 
         except Exception as e:
             logging.error(f"Thread {thread_id} download failed: {e}")
@@ -269,9 +300,17 @@ class DownloadWorker(QThread):
                         self.status_changed_signal.emit(DownloadStatus.CANCELLED)
                         self.finished_signal.emit(False, "Download cancelled")
                         return
+                    while self._is_paused:
+                        if self._is_cancelled:
+                            self.download.status = DownloadStatus.CANCELLED
+                            self.status_changed_signal.emit(DownloadStatus.CANCELLED)
+                            self.finished_signal.emit(False, "Download cancelled")
+                            return
+                        threading.Event().wait(0.1)
                     f.write(chunk)
                     self.download.downloaded_size += len(chunk)
                     self.progress_signal.emit(self.download.downloaded_size, total_size)
+                    self.download.update_progress(self.download.downloaded_size, total_size)
 
             # Correct total_size to match actual downloaded bytes
             # (content-length header can be unreliable with chunked encoding)
@@ -306,6 +345,18 @@ class DownloadWorker(QThread):
     def cancel(self):
         """Cancel the download"""
         self._is_cancelled = True
+
+    def pause(self):
+        """Pause the download"""
+        self._is_paused = True
+        self.download.status = DownloadStatus.PAUSED
+        self.status_changed_signal.emit(DownloadStatus.PAUSED)
+
+    def resume(self):
+        """Resume the download"""
+        self._is_paused = False
+        self.download.status = DownloadStatus.DOWNLOADING
+        self.status_changed_signal.emit(DownloadStatus.DOWNLOADING)
 
 
 class DownloadHistory:

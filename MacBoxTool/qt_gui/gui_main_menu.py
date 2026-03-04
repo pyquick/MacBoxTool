@@ -6,6 +6,7 @@ from .gui_build import BuildOCPage
 from .gui_about import AboutInterface
 from .gui_settings import SettingsInterface
 from .gui_task import TaskInterface
+from .gui_all_download import DownloadInterface
 
 WINDOW_MIN_SIZE = (1000, 700)
 WINDOW_DEFAULT_SIZE = (1200, 800)
@@ -165,6 +166,14 @@ class Window(FluentWindow):
             self.task_page,
             FluentIcon.DOWNLOAD,
             "Download Tasks",
+            NavigationItemPosition.SCROLL
+        )
+
+        self.download_page=DownloadInterface(self.constants,self.gui_support,self.settings,self)
+        self.addSubInterface(
+            self.download_page,
+            FluentIcon.SYNC,
+            "Downloads",
             NavigationItemPosition.SCROLL
         )
 

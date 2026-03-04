@@ -26,6 +26,7 @@ class TaskManager:
     _instance = None
     _downloads: list[DownloadObject] = []
     _workers: dict[int, DownloadWorker] = {}
+    _icons: dict[int, object] = {}  # download id -> icon for DownloadCard
 
     def __new__(cls):
         if cls._instance is None:
@@ -33,14 +34,16 @@ class TaskManager:
         return cls._instance
 
     @classmethod
-    def start_download(cls, download: DownloadObject) -> DownloadWorker:
+    def start_download(cls, download: DownloadObject, icon=None) -> DownloadWorker:
         """Start a download and register it for display in TaskInterface.
 
         Usage:
             download = DownloadObject(url, save_path, filename)
-            TaskManager.start_download(download)
+            TaskManager.start_download(download, icon="/path/to/icon.png")
         """
         cls.register_download(download)
+        if icon is not None:
+            cls._icons[id(download)] = icon
 
         worker = DownloadWorker(download)
         cls._workers[id(download)] = worker
@@ -59,11 +62,26 @@ class TaskManager:
             worker.cancel()
 
     @classmethod
+    def pause_download(cls, download: DownloadObject):
+        """Pause an active download"""
+        worker = cls._workers.get(id(download))
+        if worker and worker.isRunning():
+            worker.pause()
+
+    @classmethod
+    def resume_download(cls, download: DownloadObject):
+        """Resume a paused download"""
+        worker = cls._workers.get(id(download))
+        if worker:
+            worker.resume()
+
+    @classmethod
     def _on_download_finished(cls, download: DownloadObject, success: bool, message: str):
-        """Handle download completion — cleanup worker reference"""
+        """Handle download completion — cleanup worker and icon references"""
         worker = cls._workers.pop(id(download), None)
         if worker:
             worker.deleteLater()
+        cls._icons.pop(id(download), None)
         if success:
             logging.info(f"Download completed: {download.filename}")
         else:
@@ -131,7 +149,7 @@ class TaskInterface(ScrollArea):
         # Timer for refreshing download list
         self.refresh_timer = QTimer(self)
         self.refresh_timer.timeout.connect(self._refresh_downloads)
-        self.refresh_timer.start(500)  # Check every 500ms
+        self.refresh_timer.start(10)  # Update every 10ms (0.01s) for smooth speed display
 
         self.init_ui()
 
@@ -241,11 +259,14 @@ class TaskInterface(ScrollArea):
         for download in current_downloads:
             download_id = id(download)
             if download_id not in self.download_cards:
-                # Create new card
-                card = DownloadCard(download, self)
+                # Create new card with optional icon
+                icon = self.task_manager._icons.get(download_id)
+                card = DownloadCard(download, icon=icon, parent=self)
+                card.cancel_signal.connect(self._on_cancel_download)
+                card.pause_signal.connect(self._on_pause_download)
+                card.resume_signal.connect(self._on_resume_download)
                 card.open_file_signal.connect(self._on_open_file)
                 card.open_folder_signal.connect(self._on_open_folder)
-                card.remove_signal.connect(self._on_remove_download)
 
                 self.download_cards[download_id] = card
 
@@ -305,6 +326,29 @@ class TaskInterface(ScrollArea):
                 parent=self
             )
 
+    def _on_cancel_download(self, download: DownloadObject):
+        """Handle cancel download action"""
+        self.task_manager.cancel_download(download)
+
+        InfoBar.warning(
+            "Download Cancelled",
+            f"{download.filename} has been cancelled.",
+            duration=3000,
+            position=InfoBarPosition.TOP_RIGHT,
+            parent=self,
+        )
+
+        # Auto-delete card after cancel
+        QTimer.singleShot(500, lambda: self._on_remove_download(download))
+
+    def _on_pause_download(self, download: DownloadObject):
+        """Handle pause download action"""
+        self.task_manager.pause_download(download)
+
+    def _on_resume_download(self, download: DownloadObject):
+        """Handle resume download action"""
+        self.task_manager.resume_download(download)
+
     def _on_remove_download(self, download: DownloadObject):
         """Handle remove download action"""
         # Cancel if still running
@@ -348,13 +392,12 @@ class TaskInterface(ScrollArea):
 
     def _add_history_card(self, download: DownloadObject):
         """Add a history card"""
-        card = DownloadCard(download, self)
+        card = DownloadCard(download, parent=self)
         card.open_file_signal.connect(self._on_open_file)
         card.open_folder_signal.connect(self._on_open_folder)
-        card.remove_signal.connect(self._on_remove_history)
 
         # Hide more button for history
-        card.more_button.hide()
+        card.moreButton.hide()
 
         self.history_layout.addWidget(card)
 

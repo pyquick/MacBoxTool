@@ -121,8 +121,21 @@ class InstallWorker(QThread):
 
             if not mount_point:
                 self.log_signal.emit(f"[ERROR] Failed to mount {ident}")
-                self.finished_signal.emit(False, f"Failed to mount {ident}")
-                return
+                self.log_signal.emit(f"[ERROR] The EFI partition may be corrupted or unformatted.")
+                self.log_signal.emit(f"[ERROR] Attempting to reformat the EFI partition...")
+
+                # Try to format the EFI partition
+                if efi_mount.format_efi("EFI"):
+                    self.log_signal.emit(f"EFI partition formatted successfully. Retrying mount...")
+                    mount_point = efi_mount.mount()
+                    if not mount_point:
+                        self.log_signal.emit(f"[ERROR] Still failed to mount after format")
+                        self.finished_signal.emit(False, f"Failed to mount after formatting")
+                        return
+                else:
+                    self.log_signal.emit(f"[ERROR] Failed to format EFI partition")
+                    self.finished_signal.emit(False, f"Failed to format {ident}")
+                    return
 
             self.log_signal.emit(f"Mounted {ident} successfully.")
             self.log_signal.emit(f"Mount point: {mount_point}")

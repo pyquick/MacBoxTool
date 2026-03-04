@@ -167,19 +167,67 @@ class EFIPartitionMount:
         self.identifier = identifier
         self.mount_point = None
 
+    def _try_mount(self, as_root: bool = False) -> subprocess.CompletedProcess:
+        """
+        Try to mount the partition.
+        """
+        if as_root:
+            return subprocess_wrapper.run_as_root(
+                ["/usr/sbin/diskutil", "mount", self.identifier],
+                capture_output=True, text=True,
+            )
+        else:
+            return subprocess.run(
+                ["/usr/sbin/diskutil", "mount", self.identifier],
+                capture_output=True, text=True,
+            )
+
     def mount(self) -> str | None:
         """
         Mount the partition.
 
         Returns the mount point path, or None on failure.
         """
-        mount_res = subprocess_wrapper.run_as_root(
-            ["/usr/sbin/diskutil", "mount", self.identifier],
-            capture_output=True, text=True,
-        )
-        if mount_res.returncode != 0:
-            logging.error(f"Failed to mount {self.identifier}: {mount_res.stderr}")
-            return None
+        # Try non-root first (EFI partitions often mount without root)
+        mount_res = self._try_mount(as_root=False)
+
+        # If non-root succeeded, continue
+        if mount_res.returncode == 0:
+            pass  # Proceed to get mount point
+        else:
+            # Non-root failed, check if it's a permission issue
+            # Error message patterns for permission denied
+            permission_errors = [
+                "permission denied",
+                "not permitted",
+                "Operation not permitted",
+            ]
+            is_permission_error = any(
+                err.lower() in mount_res.stderr.lower()
+                for err in permission_errors
+            )
+
+            if is_permission_error:
+                # Try with root
+                mount_res = self._try_mount(as_root=True)
+                if mount_res.returncode != 0:
+                    # Check for helper tool errors first
+                    if mount_res.returncode >= 160:
+                        logging.error(f"Privileged helper error (code {mount_res.returncode}): helper tool not properly installed or signed")
+                        return None
+
+                    logging.error(f"Failed to mount {self.identifier} (as root): {mount_res.stderr}")
+                    return None
+            else:
+                # Check for specific known errors
+                stderr_lower = mount_res.stderr.lower()
+                if "failed to mount" in stderr_lower and "readonly" in stderr_lower:
+                    logging.error(f"Failed to mount {self.identifier}: volume appears damaged or unformatted. Try reformatting the partition first.")
+                    return None
+
+                # Other error, log and return None
+                logging.error(f"Failed to mount {self.identifier}: {mount_res.stderr}")
+                return None
 
         # Query mount point via diskutil info
         info_res = subprocess.run(
@@ -190,7 +238,12 @@ class EFIPartitionMount:
             logging.error(f"diskutil info failed for {self.identifier}")
             return None
 
-        info_data = plistlib.loads(info_res.stdout.encode("utf-8"))
+        try:
+            info_data = plistlib.loads(info_res.stdout.encode("utf-8"))
+        except Exception as e:
+            logging.error(f"Failed to parse diskutil info: {e}")
+            return None
+
         mount_point = info_data.get("MountPoint")
 
         if not mount_point:
@@ -209,17 +262,56 @@ class EFIPartitionMount:
         if self.mount_point is None:
             return True
 
-        result = subprocess_wrapper.run_as_root(
+        # Try non-root first
+        result = subprocess.run(
             ["/usr/sbin/diskutil", "unmount", self.identifier],
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            capture_output=True, text=True,
         )
         if result.returncode != 0:
-            if not ignore_errors:
-                logging.error(f"Failed to unmount {self.identifier}")
-                subprocess_wrapper.log(result)
-            return False
+            # Try with root if permission error
+            permission_errors = [
+                "permission denied",
+                "not permitted",
+                "Operation not permitted",
+            ]
+            is_permission_error = any(
+                err.lower() in result.stderr.lower()
+                for err in permission_errors
+            )
+
+            if is_permission_error:
+                result = subprocess_wrapper.run_as_root(
+                    ["/usr/sbin/diskutil", "unmount", self.identifier],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                )
+                if result.returncode != 0:
+                    if not ignore_errors:
+                        logging.error(f"Failed to unmount {self.identifier}")
+                        subprocess_wrapper.log(result)
+                    return False
+            else:
+                if not ignore_errors:
+                    logging.error(f"Failed to unmount {self.identifier}: {result.stderr}")
+                return False
 
         self.mount_point = None
+        return True
+
+    def format_efi(self, volume_name: str = "EFI") -> bool:
+        """
+        Format/erase the EFI partition as FAT32.
+
+        This is useful when the EFI partition is corrupted or unformatted.
+
+        Returns True if successful, False otherwise.
+        """
+        result = subprocess_wrapper.run_as_root(
+            ["/usr/sbin/diskutil", "eraseVolume", "FAT32", volume_name, self.identifier],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            logging.error(f"Failed to format {self.identifier}: {result.stderr}")
+            return False
         return True
 
     def get_disk_info(self) -> dict | None:

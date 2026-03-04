@@ -7,179 +7,159 @@ from ..support.network_handler import DownloadObject, DownloadStatus
 from ..UIkit.components.widgets.card_widget import CardWidget
 from ..UIkit.components.widgets.label import BodyLabel, CaptionLabel
 from ..UIkit.components.widgets.button import TransparentToolButton
-from ..UIkit.common.icon import FluentIcon
+from ..UIkit.components.widgets.icon_widget import IconWidget
+from ..UIkit.components.widgets.menu import RoundMenu
+from ..UIkit.common.icon import FluentIcon, Action
 
 
 class DownloadCard(CardWidget):
-    """Download card with progress bar and file operations"""
+    """Download card following UIkit AppCard pattern, with progress bar"""
 
-    open_file_signal = Signal(object)  # DownloadObject
-    open_folder_signal = Signal(object)  # DownloadObject
-    remove_signal = Signal(object)  # DownloadObject
+    open_file_signal = Signal(object)
+    open_folder_signal = Signal(object)
+    cancel_signal = Signal(object)
+    pause_signal = Signal(object)
+    resume_signal = Signal(object)
 
-    def __init__(self, download_object: DownloadObject, parent=None):
+    def __init__(self, download_object: DownloadObject, icon=None, parent=None):
         super().__init__(parent)
         self.download = download_object
 
-        # Icon widget
-        self.icon_widget = IconWidget(FluentIcon.ZIP_FOLDER)
-        self.icon_widget.setFixedSize(48, 48)
-
-        # Title and status labels
-        self.title_label = BodyLabel(self.download.filename)
-        self.status_label = CaptionLabel(self._get_status_text())
-        self.status_label.setTextColor("#606060", "#d2d2d2")
-
-        # Progress bar
-        self.progress_bar = ProgressBar()
-        self.progress_bar.setFixedHeight(4)
-        self.progress_bar.setMinimum(0)
-        self.progress_bar.setMaximum(100)
-        self.progress_bar.setValue(self.download.get_progress_percentage())
-
-        # Size label and percentage
-        self.size_label = CaptionLabel(self.download.get_size_display())
-        self.size_label.setTextColor("#606060", "#d2d2d2")
-
-        self.percent_label = CaptionLabel(f"{self.download.get_progress_percentage()}%")
-        self.percent_label.setTextColor("#0078D4", "#0078D4")
-
-        # More button with menu
-        self.more_button = TransparentToolButton(FluentIcon.MORE)
-        self.more_button.setFixedSize(32, 32)
+        self.setFixedHeight(73)
+        self._init_widgets(icon)
+        self._init_layout()
         self._create_context_menu()
-
-        # Layouts
-        self.h_box_layout = QHBoxLayout(self)
-        self.v_box_layout = QVBoxLayout()
-        self.text_layout = QVBoxLayout()
-        self.progress_layout = QHBoxLayout()
-
-        self._init_ui()
-
-    def _init_ui(self):
-        self.setFixedHeight(88)
-        self.setBorderRadius(8)
-
-        # Main horizontal layout
-        self.h_box_layout.setContentsMargins(20, 11, 11, 11)
-        self.h_box_layout.setSpacing(15)
-        self.h_box_layout.addWidget(self.icon_widget)
-
-        # Text vertical layout (title + status)
-        self.text_layout.setContentsMargins(0, 0, 0, 0)
-        self.text_layout.setSpacing(4)
-        self.text_layout.addWidget(self.title_label, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.text_layout.addWidget(self.status_label, 0, Qt.AlignmentFlag.AlignVCenter)
-
-        # Progress layout
-        self.progress_layout.setContentsMargins(0, 4, 0, 0)
-        self.progress_layout.setSpacing(8)
-        self.progress_layout.addWidget(self.progress_bar, 1)
-
-        # Combine text + progress layout
-        self.v_box_layout.setContentsMargins(0, 0, 0, 0)
-        self.v_box_layout.setSpacing(2)
-        self.v_box_layout.addLayout(self.text_layout)
-        self.v_box_layout.addLayout(self.progress_layout)
-        self.v_box_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-
-        self.h_box_layout.addLayout(self.v_box_layout)
-
-        # Size and percentage labels
-        self.h_box_layout.addWidget(self.size_label, 0, Qt.AlignmentFlag.AlignRight)
-        self.h_box_layout.addWidget(self.percent_label, 0, Qt.AlignmentFlag.AlignRight)
-
-        # Spacer
-        self.h_box_layout.addStretch(1)
-
-        # More button
-        self.h_box_layout.addWidget(self.more_button, 0, Qt.AlignmentFlag.AlignRight)
-
         self._update_button_state()
 
+    # ── Widget Initialization ──
+
+    def _init_widgets(self, icon):
+        """Initialize all widgets"""
+        resolved_icon = icon if icon is not None else self._icon_for_filename(self.download.filename)
+        self.iconWidget = IconWidget(resolved_icon, self)
+        self.iconWidget.setFixedSize(48, 48)
+
+        self.titleLabel = BodyLabel(self.download.filename, self)
+        self.contentLabel = CaptionLabel(self._get_status_text(), self)
+        self.contentLabel.setTextColor("#606060", "#d2d2d2")
+
+        self.progressBar = ProgressBar(self)
+        self.progressBar.setFixedWidth(120)
+        self.progressBar.setFixedHeight(4)
+        self.progressBar.setRange(0, 100)
+        self.progressBar.setValue(self.download.get_progress_percentage())
+
+        self.speedLabel = CaptionLabel(self.download.get_speed_display(), self)
+        self.speedLabel.setTextColor("#606060", "#d2d2d2")
+
+        self.sizeLabel = CaptionLabel(self.download.get_size_display(), self)
+        self.sizeLabel.setTextColor("#606060", "#d2d2d2")
+
+        self.percentLabel = CaptionLabel(f"{self.download.get_progress_percentage()}%", self)
+        self.percentLabel.setTextColor("#0078D4", "#0078D4")
+
+        self.moreButton = TransparentToolButton(FluentIcon.MORE, self)
+        self.moreButton.setFixedSize(32, 32)
+
+    def _init_layout(self):
+        """Setup layout structure"""
+        self.hBoxLayout = QHBoxLayout(self)
+        self.vBoxLayout = QVBoxLayout()
+
+        self.hBoxLayout.setContentsMargins(20, 11, 11, 11)
+        self.hBoxLayout.setSpacing(15)
+        self.hBoxLayout.addWidget(self.iconWidget)
+
+        self.vBoxLayout.setContentsMargins(0, 0, 0, 0)
+        self.vBoxLayout.setSpacing(0)
+        self.vBoxLayout.addWidget(self.titleLabel, 0, Qt.AlignVCenter)
+        self.vBoxLayout.addWidget(self.contentLabel, 0, Qt.AlignVCenter)
+        self.vBoxLayout.setAlignment(Qt.AlignVCenter)
+        self.hBoxLayout.addLayout(self.vBoxLayout)
+
+        self.hBoxLayout.addStretch(1)
+        self.hBoxLayout.addWidget(self.progressBar, 0, Qt.AlignVCenter)
+        self.hBoxLayout.addWidget(self.speedLabel, 0, Qt.AlignRight)
+        self.hBoxLayout.addWidget(self.sizeLabel, 0, Qt.AlignRight)
+        self.hBoxLayout.addWidget(self.percentLabel, 0, Qt.AlignRight)
+        self.hBoxLayout.addWidget(self.moreButton, 0, Qt.AlignRight)
+
+    # ── Context Menu ──
+
     def _create_context_menu(self):
-        """Create context menu for more button"""
-        self.menu = QMenu(self)
+        """Create RoundMenu with actions"""
+        self.menu = RoundMenu(parent=self)
 
-        self.open_file_action = QAction("Open File", self)
-        self.open_folder_action = QAction("Open Folder", self)
-        self.remove_action = QAction("Remove from List", self)
+        self.cancel_action = Action(FluentIcon.CLOSE, "Cancel Download", self)
+        self.pause_action = Action(FluentIcon.PAUSE, "Pause Download", self)
+        self.resume_action = Action(FluentIcon.PLAY, "Resume Download", self)
+        self.open_file_action = Action(FluentIcon.DOCUMENT, "Open File", self)
+        self.open_folder_action = Action(FluentIcon.FOLDER, "Open Folder", self)
 
+        self.cancel_action.triggered.connect(lambda: self.cancel_signal.emit(self.download))
+        self.pause_action.triggered.connect(lambda: self.pause_signal.emit(self.download))
+        self.resume_action.triggered.connect(lambda: self.resume_signal.emit(self.download))
         self.open_file_action.triggered.connect(lambda: self.open_file_signal.emit(self.download))
         self.open_folder_action.triggered.connect(lambda: self.open_folder_signal.emit(self.download))
-        self.remove_action.triggered.connect(lambda: self.remove_signal.emit(self.download))
 
+        self.menu.addAction(self.cancel_action)
+        self.menu.addAction(self.pause_action)
+        self.menu.addAction(self.resume_action)
+        self.menu.addSeparator()
         self.menu.addAction(self.open_file_action)
         self.menu.addAction(self.open_folder_action)
-        self.menu.addSeparator()
-        self.menu.addAction(self.remove_action)
 
-        self.more_button.setMenu(self.menu)
+        self.moreButton.clicked.connect(self._show_menu)
 
-    def _update_button_state(self):
-        """Update button state based on download status"""
-        is_completed = self.download.is_completed()
+    def _show_menu(self):
+        pos = self.moreButton.mapToGlobal(QPoint(self.moreButton.width(), self.moreButton.height()))
+        self.menu.exec(pos)
 
-        # Open File: disabled during download
-        self.open_file_action.setEnabled(is_completed)
+    # ── Helpers ──
 
-        # Open Folder: always enabled if completed
-        self.open_folder_action.setEnabled(is_completed)
+    @staticmethod
+    def _icon_for_filename(filename: str):
+        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+        return {
+            'pkg': FluentIcon.LIBRARY,
+            'dmg': FluentIcon.HARD_DRIVE,
+            'zip': FluentIcon.ZIP_FOLDER,
+            'app': FluentIcon.APPLICATION,
+        }.get(ext, FluentIcon.DOWNLOAD)
 
     def _get_status_text(self) -> str:
-        """Get status text based on download status"""
-        status_map = {
+        return {
             DownloadStatus.PENDING: "Waiting...",
             DownloadStatus.DOWNLOADING: "Downloading...",
+            DownloadStatus.PAUSED: "Paused",
             DownloadStatus.COMPLETED: "Completed",
             DownloadStatus.FAILED: f"Failed: {self.download.error_message}",
-            DownloadStatus.CANCELLED: "Cancelled"
-        }
-        return status_map.get(self.download.status, "Unknown")
+            DownloadStatus.CANCELLED: "Cancelled",
+        }.get(self.download.status, "Unknown")
+
+    def _update_button_state(self):
+        is_downloading = self.download.status == DownloadStatus.DOWNLOADING
+        is_paused = self.download.status == DownloadStatus.PAUSED
+        is_active = is_downloading or is_paused or self.download.status == DownloadStatus.PENDING
+        is_completed = self.download.is_completed()
+
+        self.cancel_action.setEnabled(is_active)
+        self.pause_action.setEnabled(is_downloading)
+        self.resume_action.setEnabled(is_paused)
+        self.open_file_action.setEnabled(is_completed)
+        self.open_folder_action.setEnabled(is_completed)
+
+    # ── Public Methods ──
 
     def update_progress(self):
-        """Update progress bar and labels"""
-        self.progress_bar.setValue(self.download.get_progress_percentage())
-        self.size_label.setText(self.download.get_size_display())
-        self.percent_label.setText(f"{self.download.get_progress_percentage()}%")
-        self.status_label.setText(self._get_status_text())
+        self.progressBar.setValue(self.download.get_progress_percentage())
+        self.speedLabel.setText(self.download.get_speed_display())
+        self.sizeLabel.setText(self.download.get_size_display())
+        self.percentLabel.setText(f"{self.download.get_progress_percentage()}%")
+        self.contentLabel.setText(self._get_status_text())
         self._update_button_state()
 
     def set_status(self, status: DownloadStatus):
-        """Update download status"""
         self.download.status = status
-        self.status_label.setText(self._get_status_text())
+        self.contentLabel.setText(self._get_status_text())
         self._update_button_state()
-
-
-class IconWidget(QWidget):
-    """Icon widget wrapper"""
-
-    def __init__(self, icon, parent=None):
-        super().__init__(parent)
-        self.icon = icon
-        self._icon_size = QSize(24, 24)
-        self.setFixedSize(48, 48)
-
-    def setIcon(self, icon):
-        self.icon = icon
-        self.update()
-
-    def setFixedSize(self, w, h):
-        super().setFixedSize(w, h)
-        self._icon_size = QSize(w - 24, h - 24)
-
-    def paintEvent(self, _event=None):
-        painter = QPainter(self)
-        painter.setRenderHints(QPainter.RenderHint.Antialiasing)
-
-        if hasattr(self.icon, 'icon'):
-            pixmap = self.icon.icon.pixmap(self._icon_size)
-        else:
-            pixmap = QPixmap(self._icon)
-
-        if not pixmap.isNull():
-            x = (self.width() - pixmap.width()) // 2
-            y = (self.height() - pixmap.height()) // 2
-            painter.drawPixmap(x, y, pixmap)
