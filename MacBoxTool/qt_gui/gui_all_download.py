@@ -5,6 +5,8 @@ gui_all_download.py: Download interface with Pivot tabs
 from ..include import *
 from .gui_support import DefGUI
 from .gui_macos_installer import MacOSInstallerList
+from .gui_kdk import KDKList
+from .gui_metallib import MetallibList
 
 
 class DownloadInterface(QWidget):
@@ -43,8 +45,13 @@ class DownloadInterface(QWidget):
             self
         )
 
+        self.tab_kdk = None
+        self.tab_metallib = None
+
         # Add tabs
         self._add_tab("installer", "macOS Installer", self.tab_installer)
+        self._add_tab("kdk", "Kernel Debug Kit", None)
+        self._add_tab("metallib", "Metallib Support", None)
 
         # Set default tab
         self.pivot.setCurrentItem("installer")
@@ -58,12 +65,26 @@ class DownloadInterface(QWidget):
 
     def _add_tab(self, key: str, label: str, widget: QWidget):
         """Add a tab to the pivot"""
-        self.stack.addWidget(widget)
+        if widget:
+            self.stack.addWidget(widget)
         self.pivot.addItem(
             routeKey=key,
             text=label,
-            onClick=lambda checked, w=widget: self.stack.setCurrentWidget(w)
+            onClick=lambda checked, k=key: self._on_tab_clicked(k)
         )
+
+    def _on_tab_clicked(self, key: str):
+        """Handle tab click with lazy loading"""
+        if key == "kdk" and self.tab_kdk is None:
+            self.tab_kdk = KDKList(self.constants, self.ui_support, self.settings, self)
+            self.stack.addWidget(self.tab_kdk)
+        elif key == "metallib" and self.tab_metallib is None:
+            self.tab_metallib = MetallibList(self.constants, self.ui_support, self.settings, self)
+            self.stack.addWidget(self.tab_metallib)
+
+        widget = {"installer": self.tab_installer, "kdk": self.tab_kdk, "metallib": self.tab_metallib}.get(key)
+        if widget:
+            self.stack.setCurrentWidget(widget)
 
     def fetch_installers(self):
         """Fetch available installers from Apple catalog"""

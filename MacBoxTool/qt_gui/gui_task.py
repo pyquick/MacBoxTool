@@ -15,9 +15,22 @@ class NetworkCheckWorker(QThread):
     """Worker thread for checking network connectivity."""
     finished_signal = Signal(bool)
 
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._is_cancelled = False
+
     def run(self):
-        result = NetworkUtilities.check_network()
-        self.finished_signal.emit(result)
+        try:
+            result = NetworkUtilities.check_network()
+            if not self._is_cancelled:
+                self.finished_signal.emit(result)
+        except Exception as e:
+            logging.warning(f"Network check error: {e}")
+            if not self._is_cancelled:
+                self.finished_signal.emit(False)
+
+    def cancel(self):
+        self._is_cancelled = True
 
 
 # Global task manager for registering downloads from other services
@@ -44,6 +57,7 @@ class TaskManager:
         cls.register_download(download)
         if icon is not None:
             cls._icons[id(download)] = icon
+            download.icon_path = icon
 
         worker = DownloadWorker(download)
         cls._workers[id(download)] = worker
@@ -60,6 +74,8 @@ class TaskManager:
         worker = cls._workers.get(id(download))
         if worker and worker.isRunning():
             worker.cancel()
+            # Wait for thread to finish before cleanup
+            worker.wait(3000)  # Wait up to 3 seconds
 
     @classmethod
     def pause_download(cls, download: DownloadObject):
@@ -224,15 +240,32 @@ class TaskInterface(ScrollArea):
         return header
 
     def _create_history_header(self) -> QWidget:
+        container = QWidget()
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(SPACING["medium"])
+
         header = BodyLabel("Download History")
         header.setStyleSheet("font-size: 16px; font-weight: bold;")
-        return header
+        layout.addWidget(header)
+
+        self.clear_all_button = TransparentToolButton(FluentIcon.DELETE, container)
+        self.clear_all_button.setFixedSize(32, 32)
+        self.clear_all_button.setToolTip("Clear All History")
+        self.clear_all_button.clicked.connect(self._on_clear_all_history)
+        layout.addWidget(self.clear_all_button)
+
+        layout.addStretch()
+        return container
 
     def _check_network_status(self):
         """Check network connectivity using a worker thread"""
-        worker = NetworkCheckWorker(self)
-        worker.finished_signal.connect(self._on_network_check_finished)
-        worker.start()
+        self.network_worker = NetworkCheckWorker(self)
+        self.network_worker.finished_signal.connect(self._on_network_check_finished)
+        self.network_worker.start()
+
+        # Set timeout to show "Missing network connection" after 10s
+        QTimer.singleShot(10000, self._on_network_check_timeout)
 
     def _on_network_check_finished(self, connected: bool):
         """Handle network check result"""
@@ -241,6 +274,12 @@ class TaskInterface(ScrollArea):
             self.network_status_card.setContent("Connected")
         else:
             self.network_status_card.setContent("Disconnected - Cannot access network")
+
+    def _on_network_check_timeout(self):
+        """Handle network check timeout after 10s"""
+        if hasattr(self, 'network_worker') and self.network_worker.isRunning():
+            self.network_status_card.setContent("Missing network connection")
+            self.network_worker.cancel()
 
     def _refresh_downloads(self):
         """Refresh the download list from task manager"""
@@ -368,6 +407,9 @@ class TaskInterface(ScrollArea):
         """Move a completed/failed download from active to history"""
         download_id = id(download)
 
+        # Save icon before unregistering
+        icon = self.task_manager._icons.get(download_id)
+
         # Remove from active
         self.task_manager.unregister_download(download)
         if download_id in self.download_cards:
@@ -377,7 +419,7 @@ class TaskInterface(ScrollArea):
 
         # Add to history
         self.download_history.add(download)
-        self._add_history_card(download)
+        self._add_history_card(download, icon)
         self.history_empty_label.hide()
 
     def _load_history(self):
@@ -386,21 +428,35 @@ class TaskInterface(ScrollArea):
         if history:
             # Hide empty label
             self.history_empty_label.hide()
+            self.clear_all_button.show()
             for download in history:
                 self._add_history_card(download)
         else:
             self.history_empty_label.show()
+            self.clear_all_button.hide()
 
-    def _add_history_card(self, download: DownloadObject):
+    def _add_history_card(self, download: DownloadObject, icon=None):
         """Add a history card"""
-        card = DownloadCard(download, parent=self)
+        # Use provided icon, or download's saved icon_path, or None (will use default)
+        icon = icon or download.icon_path
+        card = DownloadCard(download, icon=icon, parent=self)
         card.open_file_signal.connect(self._on_open_file)
         card.open_folder_signal.connect(self._on_open_folder)
 
-        # Hide more button for history
-        card.moreButton.hide()
+        # Add remove action to context menu for history cards
+        card.remove_action = Action(FluentIcon.DELETE, "Remove from History", card)
+        card.remove_action.triggered.connect(lambda: self._on_remove_history(download))
+        card.menu.addSeparator()
+        card.menu.addAction(card.remove_action)
+
+        # Hide unnecessary elements for history
+        card.progressBar.hide()
+        card.speedLabel.hide()
+        card.sizeLabel.hide()
+        card.percentLabel.hide()
 
         self.history_layout.addWidget(card)
+        self.clear_all_button.show()
 
     def _on_remove_history(self, download: DownloadObject):
         """Remove download from history"""
@@ -417,8 +473,25 @@ class TaskInterface(ScrollArea):
         # Show empty label if no history
         if self.download_history.history:
             self.history_empty_label.hide()
+            self.clear_all_button.show()
         else:
             self.history_empty_label.show()
+            self.clear_all_button.hide()
+
+    def _on_clear_all_history(self):
+        """Clear all download history"""
+        self.download_history.clear()
+
+        # Remove all cards from layout
+        while self.history_layout.count():
+            item = self.history_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        # Show empty label and hide clear button
+        self.history_empty_label.show()
+        self.history_layout.addWidget(self.history_empty_label)
+        self.clear_all_button.hide()
 
     def refresh(self):
         """Refresh the page"""
@@ -426,7 +499,13 @@ class TaskInterface(ScrollArea):
         self._refresh_downloads()
 
     def closeEvent(self, event):
-        """Handle close event - cancel all active downloads"""
+        """Handle close event - cancel all active downloads and network check"""
+        # Cancel network check worker
+        if hasattr(self, 'network_worker') and self.network_worker.isRunning():
+            self.network_worker.cancel()
+            self.network_worker.wait(1000)
+
+        # Cancel all active downloads
         for download in self.task_manager.get_downloads():
             if download.status in (DownloadStatus.DOWNLOADING, DownloadStatus.PAUSED):
                 self.task_manager.cancel_download(download)

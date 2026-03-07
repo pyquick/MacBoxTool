@@ -5,4 +5,4 @@ from ..include import *
 
 class ACPIChooser:
     def __init__(self,global_constants:Constants):
-        self.
+        self.cpudata=cpu_data.CPUGen()

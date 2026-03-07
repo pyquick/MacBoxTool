@@ -5,9 +5,8 @@ gui_download.py: Download card widget
 from ..include import *
 from ..support.network_handler import DownloadObject, DownloadStatus
 from ..UIkit.components.widgets.card_widget import CardWidget
-from ..UIkit.components.widgets.label import BodyLabel, CaptionLabel
+from ..UIkit.components.widgets.label import BodyLabel, CaptionLabel, ImageLabel
 from ..UIkit.components.widgets.button import TransparentToolButton
-from ..UIkit.components.widgets.icon_widget import IconWidget
 from ..UIkit.components.widgets.menu import RoundMenu
 from ..UIkit.common.icon import FluentIcon, Action
 
@@ -35,8 +34,13 @@ class DownloadCard(CardWidget):
 
     def _init_widgets(self, icon):
         """Initialize all widgets"""
-        resolved_icon = icon if icon is not None else self._icon_for_filename(self.download.filename)
-        self.iconWidget = IconWidget(resolved_icon, self)
+        # Use provided icon or default to Package.png
+        if icon is None:
+            from pathlib import Path
+            icon = str(Path(__file__).parent.parent / "payloads/Icon/AppIcons/Package.png")
+
+        # Always use ImageLabel for better performance
+        self.iconWidget = ImageLabel(icon, self)
         self.iconWidget.setFixedSize(48, 48)
 
         self.titleLabel = BodyLabel(self.download.filename, self)
@@ -84,11 +88,11 @@ class DownloadCard(CardWidget):
         self.vBoxLayout.addWidget(self.contentLabel)
         self.hBoxLayout.addLayout(self.vBoxLayout, 1)
 
-        self.hBoxLayout.addWidget(self.progressBar, 0, Qt.AlignVCenter)
-        self.hBoxLayout.addWidget(self.speedLabel, 0, Qt.AlignVCenter)
-        self.hBoxLayout.addWidget(self.sizeLabel, 0, Qt.AlignVCenter)
-        self.hBoxLayout.addWidget(self.percentLabel, 0, Qt.AlignVCenter)
-        self.hBoxLayout.addWidget(self.moreButton, 0, Qt.AlignVCenter)
+        self.hBoxLayout.addWidget(self.progressBar, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.hBoxLayout.addWidget(self.speedLabel, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.hBoxLayout.addWidget(self.sizeLabel, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.hBoxLayout.addWidget(self.percentLabel, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.hBoxLayout.addWidget(self.moreButton, 0, Qt.AlignmentFlag.AlignVCenter)
 
     # ── Context Menu ──
 
@@ -122,16 +126,6 @@ class DownloadCard(CardWidget):
         self.menu.exec(pos)
 
     # ── Helpers ──
-
-    @staticmethod
-    def _icon_for_filename(filename: str):
-        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
-        return {
-            'pkg': FluentIcon.LIBRARY,
-            'dmg': FluentIcon.HARD_DRIVE,
-            'zip': FluentIcon.ZIP_FOLDER,
-            'app': FluentIcon.APPLICATION,
-        }.get(ext, FluentIcon.DOWNLOAD)
 
     def _get_status_text(self) -> str:
         return {

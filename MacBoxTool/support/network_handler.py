@@ -37,6 +37,7 @@ class DownloadObject:
         self.last_update_time = QDateTime.currentDateTime()
         self.last_downloaded_size = 0
         self.download_speed = 0
+        self.icon_path = None
 
     def update_progress(self, downloaded: int, total: int):
         """Update download progress and calculate speed"""
@@ -98,23 +99,22 @@ class DownloadObject:
 class NetworkUtilities:
     """Network utility methods"""
 
-    _session = None
     _thread_local = threading.local()
 
     @classmethod
     def _get_session(cls) -> requests.Session:
-        """Get or create a requests session with retry strategy"""
-        if cls._session is None:
-            cls._session = requests.Session()
+        """Get or create a thread-local requests session with retry strategy"""
+        if not hasattr(cls._thread_local, 'session'):
+            cls._thread_local.session = requests.Session()
             retry_strategy = Retry(
                 total=3,
                 backoff_factor=1,
                 status_forcelist=[429, 500, 502, 503, 504],
             )
-            adapter = HTTPAdapter(max_retries=retry_strategy)
-            cls._session.mount("http://", adapter)
-            cls._session.mount("https://", adapter)
-        return cls._session
+            adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=20, pool_maxsize=20)
+            cls._thread_local.session.mount("http://", adapter)
+            cls._thread_local.session.mount("https://", adapter)
+        return cls._thread_local.session
 
     @classmethod
     def check_network(cls) -> bool:
@@ -268,9 +268,11 @@ class DownloadWorker(QThread):
             with open(part_file, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if self._is_cancelled:
+                        response.close()
                         return
                     while self._is_paused:
                         if self._is_cancelled:
+                            response.close()
                             return
                         threading.Event().wait(0.1)
                     f.write(chunk)
@@ -278,12 +280,13 @@ class DownloadWorker(QThread):
                         self.download.downloaded_size += len(chunk)
                         self.progress_signal.emit(self.download.downloaded_size, self.download.total_size)
                         self.download.update_progress(self.download.downloaded_size, self.download.total_size)
-
+            response.close()
         except Exception as e:
             logging.error(f"Thread {thread_id} download failed: {e}")
 
     def _download_single_thread(self, total_size: int):
         """Fallback single-thread download"""
+        response = None
         try:
             final_path = os.path.join(self.download.save_path, self.download.filename)
             response = NetworkUtilities.custom_get(self.download.url, stream=True)
@@ -313,7 +316,6 @@ class DownloadWorker(QThread):
                     self.download.update_progress(self.download.downloaded_size, total_size)
 
             # Correct total_size to match actual downloaded bytes
-            # (content-length header can be unreliable with chunked encoding)
             self.download.total_size = self.download.downloaded_size
 
             self.download.status = DownloadStatus.COMPLETED
@@ -326,6 +328,9 @@ class DownloadWorker(QThread):
             self.download.error_message = str(e)
             self.status_changed_signal.emit(DownloadStatus.FAILED)
             self.finished_signal.emit(False, str(e))
+        finally:
+            if response:
+                response.close()
 
     def _combine_parts(self, parts: list, final_path: str):
         """Combine downloaded parts into final file"""

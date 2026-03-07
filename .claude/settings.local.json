@@ -20,7 +20,9 @@
       "Bash(codesign:*)",
       "Bash(diskutil mount:*)",
       "Bash(diskutil eraseVolume:*)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "WebFetch(domain:dortania.github.io)",
+      "Bash(ls:*)"
     ]
   }
 }
