@@ -189,22 +189,12 @@ class MiscKextManager(KextManager):
             # Copy Info.plist
             shutil.copy(pp_map_path, pp_contents / "Info.plist")
 
-            # Add/ensure entry in config.plist if not already present
+            # Enable entry in config.plist
             kernel_add = self.config.get("Kernel", {}).get("Add", [])
-            found = False
             for entry in kernel_add:
                 if entry.get("BundlePath") == "CPUFriendDataProvider.kext":
                     entry["Enabled"] = True
-                    found = True
                     break
-
-            # If not found in config, add it
-            if not found:
-                self.config.setdefault("Kernel", {}).setdefault("Add", []).append({
-                    "BundlePath": "CPUFriendDataProvider.kext",
-                    "Enabled": True,
-                    "MaxKernel": ""
-                })
 
             self._log(f"  CPUFriend + DataProvider ({self.model})")
         else:

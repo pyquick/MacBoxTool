@@ -440,14 +440,17 @@ class TaskInterface(ScrollArea):
         # Use provided icon, or download's saved icon_path, or None (will use default)
         icon = icon or download.icon_path
         card = DownloadCard(download, icon=icon, parent=self)
-        card.open_file_signal.connect(self._on_open_file)
-        card.open_folder_signal.connect(self._on_open_folder)
 
-        # Add remove action to context menu for history cards
-        card.remove_action = Action(FluentIcon.DELETE, "Remove from History", card)
-        card.remove_action.triggered.connect(lambda: self._on_remove_history(download))
-        card.menu.addSeparator()
-        card.menu.addAction(card.remove_action)
+        # Clear default menu and add simplified history menu
+        card.menu.clear()
+
+        redownload_action = Action(FluentIcon.DOWNLOAD, "Re-download", card)
+        redownload_action.triggered.connect(lambda: self._on_redownload(download, icon))
+        card.menu.addAction(redownload_action)
+
+        remove_action = Action(FluentIcon.DELETE, "Remove from list", card)
+        remove_action.triggered.connect(lambda: self._on_remove_history(download))
+        card.menu.addAction(remove_action)
 
         # Hide unnecessary elements for history
         card.progressBar.hide()
@@ -477,6 +480,19 @@ class TaskInterface(ScrollArea):
         else:
             self.history_empty_label.show()
             self.clear_all_button.hide()
+
+    def _on_redownload(self, download: DownloadObject, icon=None):
+        """Re-download a file from history"""
+        new_download = DownloadObject(download.url, download.save_path, download.filename)
+        TaskManager.start_download(new_download, icon=icon)
+
+        InfoBar.success(
+            "Download Started",
+            f"{download.filename} is downloading again.",
+            duration=3000,
+            position=InfoBarPosition.TOP_RIGHT,
+            parent=self,
+        )
 
     def _on_clear_all_history(self):
         """Clear all download history"""

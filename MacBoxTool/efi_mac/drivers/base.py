@@ -101,9 +101,4 @@ class DriverManager:
         if self.constants.nvidia_kepler_gop_injection:
             self._copy_and_enable(self.constants.nvidia_kepler_gop_driver_path, "NVGOP_GK.efi")
 
-        # Remove OpenLegacyBoot.efi if present (disabled for compatibility)
-        legacy_boot = self.paths["drivers_path"] / "OpenLegacyBoot.efi"
-        if legacy_boot.exists():
-            legacy_boot.unlink()
-
         return self.log_lines

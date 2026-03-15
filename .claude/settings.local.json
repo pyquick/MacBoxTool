@@ -22,7 +22,11 @@
       "Bash(diskutil eraseVolume:*)",
       "mcp__ide__getDiagnostics",
       "WebFetch(domain:dortania.github.io)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(python3.14:*)",
+      "Bash(grep:*)",
+      "Bash(unzip:*)",
+      "Bash(chmod:*)"
     ]
   }
 }

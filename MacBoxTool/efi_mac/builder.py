@@ -22,6 +22,9 @@ class BuildOpenCore:
     """Build OpenCore EFI for a given Mac model using modular architecture."""
 
     def __init__(self, model: str, global_constants):  # Constants instance passed at runtime
+        from .security import SecurityValidator
+        if not SecurityValidator.validate_model(model):
+            raise ValueError(f"Invalid model format: {model}")
         self.model = model
         self.constants = global_constants
         self.config: dict = None
@@ -47,10 +50,10 @@ class BuildOpenCore:
         self._log(f"OpenCore version: {self.constants.opencore_version}")
         self._log("")
 
-        # Import model_array here to avoid circular import
-        from ..datasets import model_array
-        if self.model not in model_array.SupportedSMBIOS:
-            self._log(f"[ERROR] Model {self.model} is not in SupportedSMBIOS list!")
+        # Validate model exists in smbios_dictionary
+        from ..datasets.smbios_data import smbios_dictionary
+        if self.model not in smbios_dictionary:
+            self._log(f"[ERROR] Model {self.model} is not a known SMBIOS model!")
             return self.log_lines
 
         # Step 1: Generate base structure
@@ -95,7 +98,10 @@ class BuildOpenCore:
         logs = nvram_mgr.apply()
         self.log_lines.extend(logs)
 
-        # Step 7.5: Apply SMBIOS spoofing
+        # Step 7.5: 5K iMac / iMac Pro dual DisplayPort handling
+        self._dual_dp_handling()
+
+        # Step 7.6: Apply SMBIOS spoofing
         from .smbios.smbios_spoof import SMBIOSSpoofManager
         spoof_mgr = SMBIOSSpoofManager(self.config, self.constants, self.model, self.paths)
         logs = spoof_mgr.apply()
@@ -117,6 +123,38 @@ class BuildOpenCore:
         self._log(f"[DONE] EFI built at: {self.paths['oc_build']}")
 
         return self.log_lines
+
+    def _dual_dp_handling(self):
+        """5K iMac / iMac Pro dual DisplayPort boot chain handling."""
+        from ..datasets import smbios_data
+        model_info = smbios_data.smbios_dictionary.get(self.model, {})
+        if not model_info.get("Dual DisplayPort"):
+            return
+
+        self._log("[STEP] Dual DisplayPort handling (5K iMac)")
+        import shutil
+
+        oc_folder = self.paths["oc_folder"]
+        oc_build = self.paths["oc_build"]
+
+        # Set LauncherPath
+        self.config.setdefault("Misc", {}).setdefault("Boot", {})["LauncherPath"] = "\\boot.efi"
+
+        # Create diagnostics directory structure
+        diags_dir = oc_build / ".diagnostics" / "Drivers" / "HardwareDrivers"
+        diags_dir.mkdir(parents=True, exist_ok=True)
+
+        # Move OpenCore to Product.efi under diagnostics
+        boot_efi = oc_build / "EFI" / "BOOT" / "BOOTx64.efi"
+        if boot_efi.exists():
+            shutil.move(str(boot_efi), str(diags_dir / "Product.efi"))
+
+        # Copy diags launcher to boot.efi
+        if self.constants.diags_launcher_path.exists():
+            shutil.copy(str(self.constants.diags_launcher_path), str(oc_build / "boot.efi"))
+            self._log("  Dual DP: boot chain configured")
+        else:
+            self._log("  [WARN] diags launcher not found")
 
     def _validate(self):
         """

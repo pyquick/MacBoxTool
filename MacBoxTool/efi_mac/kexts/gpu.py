@@ -6,6 +6,9 @@ Logic from MacBoxTool: graphics_audio.py
 
 import binascii
 import logging
+import plistlib
+import shutil
+from pathlib import Path
 from .base import KextManager
 from ...datasets import model_array, smbios_data, os_data, cpu_data
 from ...detections import device_probe
@@ -55,6 +58,9 @@ class GPUKextManager(KextManager):
         # Software demux for MacBookPro8,2/8,3
         if self.constants.software_demux is True and self.model in ("MacBookPro8,2", "MacBookPro8,3"):
             self._software_demux_handling()
+
+        # GPU spoof handling (AGPM/AGDP/AMC Override, DRM)
+        self._spoof_handling(computer, model_info)
 
         # KDKlessWorkaround
         self._kdkless_handling(computer, model_info, cpu_gen)
@@ -127,9 +133,20 @@ class GPUKextManager(KextManager):
                 self._nvidia_mxm_patch(gfx0_path)
 
     def _detect_gfx0_path(self, computer) -> str:
-        """Detect GFX0 device path for iMac MXM."""
+        """Detect GFX0 device path for iMac MXM.
+
+        For Navi MXM cards behind a PCIe bridge, iterate all GPUs to find the
+        one whose pci_path differs from the primary dgpu path.
+        """
         if computer and computer.dgpu and computer.dgpu.pci_path:
-            return computer.dgpu.pci_path
+            gfx0_path = computer.dgpu.pci_path
+            # Check for alternative GPU path (PCIe bridge, e.g. Navi MXM)
+            if hasattr(computer, 'gpus') and computer.gpus:
+                for gpu in computer.gpus:
+                    if gpu.pci_path and gpu.pci_path != gfx0_path:
+                        gfx0_path = gpu.pci_path
+                        break
+            return gfx0_path
         # Prebuilt fallback
         if self.model in ("iMac11,1", "iMac11,3"):
             return "PciRoot(0x0)/Pci(0x3,0x0)/Pci(0x0,0x0)"
@@ -147,7 +164,7 @@ class GPUKextManager(KextManager):
                 "@0,built-in": binascii.unhexlify("01000000"),
                 "shikigva": 256, "agdpmod": "vit9696",
             }
-            if self.model == "iMac11,2":
+            if self.constants.custom_model and self.model == "iMac11,2":
                 self.config["DeviceProperties"]["Add"]["PciRoot(0x0)/Pci(0x3,0x0)/Pci(0x0,0x0)"] = self.config["DeviceProperties"]["Add"][backlight_path].copy()
         elif self.model in ("iMac12,1", "iMac12,2"):
             self.config["DeviceProperties"]["Add"][backlight_path] = {
@@ -171,11 +188,11 @@ class GPUKextManager(KextManager):
         props = {"shikigva": 128, "unfairgva": 1, "agdpmod": "pikera", "rebuild-device-tree": 1, "enable-gva-support": 1}
 
         if self.model == "iMac9,1":
-            self.enable_kext("BacklightInjector.kext", self.constants.backlight_injector_version)
+            self.enable_kext("BacklightInjector.kext", self.constants.backlight_injectorA_version)
 
         self.config["DeviceProperties"]["Add"][backlight_path] = props.copy()
 
-        if self.model == "iMac11,2":
+        if self.constants.custom_model and self.model == "iMac11,2":
             self.config["DeviceProperties"]["Add"]["PciRoot(0x0)/Pci(0x3,0x0)/Pci(0x0,0x0)"] = props.copy()
         if self.model in ("iMac12,1", "iMac12,2"):
             self.config["DeviceProperties"]["Add"]["PciRoot(0x0)/Pci(0x2,0x0)"] = {
@@ -247,7 +264,7 @@ class GPUKextManager(KextManager):
             self._log("  DeviceProperties: DualGPU agdpmod")
 
     def _software_demux_handling(self) -> None:
-        """Software demux for MacBookPro8,2/8,3 - disable dGPU via DeviceProperties."""
+        """Software demux for MacBookPro8,2/8,3 - disable dGPU via ACPI + DeviceProperties."""
         self._log("  DeviceProperties: Software demux (disable dGPU)")
         self.config["DeviceProperties"]["Add"]["PciRoot(0x0)/Pci(0x1,0x0)/Pci(0x0,0x0)"] = {
             "class-code": binascii.unhexlify("FFFFFFFF"),
@@ -258,16 +275,104 @@ class GPUKextManager(KextManager):
         self.config["DeviceProperties"]["Delete"]["PciRoot(0x0)/Pci(0x1,0x0)/Pci(0x0,0x0)"] = ["class-code", "device-id", "IOName", "name"]
         self.enable_kext("AMDGPUWakeHandler.kext", self.constants.gpu_wake_version)
 
+        # SSDT-DGPU ACPI table for software demux
+        from ..acpi.base import ACPIManager
+        acpi_mgr = ACPIManager(self.config, self.constants, self.model, self.paths)
+        acpi_mgr.add_acpi("SSDT-DGPU.aml")
+        # Enable _INI to XINI ACPI rename patch
+        for patch in self.config.get("ACPI", {}).get("Patch", []):
+            if patch.get("Comment") == "_INI to XINI":
+                patch["Enabled"] = True
+        self._log("  ACPI: SSDT-DGPU + _INI to XINI patch")
+
+    def _spoof_handling(self, computer, model_info) -> None:
+        """GPU spoof handling: AGPM/AGDP/AMC Override kexts + DRM priority."""
+        spoofed_model = self.constants.override_smbios
+        if spoofed_model == "Default":
+            spoofed_info = smbios_data.smbios_dictionary.get(self.model, {})
+            spoofed_model = spoofed_info.get("Spoofed Model", self.model)
+        spoofed_board = smbios_data.smbios_dictionary.get(spoofed_model, {}).get("Board ID", "")
+        original_board = smbios_data.smbios_dictionary.get(self.model, {}).get("Board ID", "")
+
+        if not spoofed_board or spoofed_board == original_board:
+            return
+
+        # AMC-Override for MacBookPro9,1
+        if self.model == "MacBookPro9,1":
+            self._create_override_kext(
+                "AMC-Override.kext", "AppleMuxControl",
+                original_board, spoofed_board
+            )
+
+        # AGPM-Override for most models
+        if self.model not in getattr(model_array, 'NoAGPMSupport', []):
+            self._create_override_kext(
+                "AGPM-Override.kext", "AGPM",
+                original_board, spoofed_board
+            )
+
+        # AGDP-Override for AGDPSupport models
+        if self.model in getattr(model_array, 'AGDPSupport', []):
+            self._create_override_kext(
+                "AGDP-Override.kext", "AppleGraphicsDevicePolicy",
+                original_board, spoofed_board
+            )
+
+        # IntelNvidiaDRM DRM priority: disable iGPU display
+        if self.model in model_array.DualGPUPatch and self.model in model_array.IntelNvidiaDRM:
+            if self.constants.drm_support is True:
+                self.config["DeviceProperties"]["Add"]["PciRoot(0x0)/Pci(0x2,0x0)"] = {
+                    "name": binascii.unhexlify("23646973706C6179"),
+                    "IOName": "#display",
+                    "class-code": binascii.unhexlify("FFFFFFFF"),
+                }
+                self._log("  DRM: iGPU display disabled for Nvidia DRM")
+
+    def _create_override_kext(self, kext_name: str, plist_type: str,
+                               original_board: str, spoofed_board: str) -> None:
+        """Create an Override kext by copying plist and re-keying Board ID."""
+        src_plist = self.constants.plist_folder_path / plist_type / "Info.plist"
+        if not src_plist.exists():
+            self._log(f"  [WARN] {plist_type} plist not found: {src_plist}")
+            return
+
+        kext_dir = self.kexts_path / kext_name / "Contents"
+        kext_dir.mkdir(parents=True, exist_ok=True)
+        dest_plist = kext_dir / "Info.plist"
+        shutil.copy(src_plist, dest_plist)
+
+        # Re-key Board ID in plist
+        try:
+            with open(dest_plist, "rb") as f:
+                data = plistlib.load(f)
+            iokit = data.get("IOKitPersonalities", {})
+            # Replace original board key with spoofed board
+            if original_board in iokit:
+                iokit[spoofed_board] = iokit.pop(original_board)
+            # Strip non-matching board entries
+            keys_to_remove = [k for k in iokit if k != spoofed_board]
+            for k in keys_to_remove:
+                del iokit[k]
+            with open(dest_plist, "wb") as f:
+                plistlib.dump(data, f)
+        except Exception as e:
+            self._log(f"  [WARN] Failed to re-key {kext_name}: {e}")
+
+        # Enable in config
+        for entry in self.config.get("Kernel", {}).get("Add", []):
+            if entry.get("BundlePath") == kext_name:
+                entry["Enabled"] = True
+        self._log(f"  {kext_name} (Board ID: {original_board} → {spoofed_board})")
+
     def _kdkless_handling(self, computer, model_info, cpu_gen) -> None:
         """KDKlessWorkaround for KDKless GPUs."""
         gpu_archs = []
-        if not self.constants.custom_model:
+        if not self.constants.custom_model and self.constants.computer and hasattr(self.constants.computer, 'gpus') and self.constants.computer.gpus:
             gpu_archs = [gpu.arch for gpu in self.constants.computer.gpus]
         else:
             if self.model not in smbios_data.smbios_dictionary:
                 return
-        gpu_archs = smbios_data.smbios_dictionary[self.model]["Stock GPUs"]
-        print(gpu_archs)
+            gpu_archs = smbios_data.smbios_dictionary[self.model].get("Stock GPUs", [])
         has_kdkless_gpu = False
         has_kdk_gpu = False
         

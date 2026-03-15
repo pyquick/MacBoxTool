@@ -26,9 +26,10 @@ class SecurityKextManager(KextManager):
             self.enable_kext("AMFIPass.kext", self.constants.amfipass_version)
             self._log("  AMFIPass (pre-Sonoma AMFI patching)")
 
-        # RSRHelper: KC UUID mismatch after RSR (legacy security.py:74)
-        self.enable_kext("RSRHelper.kext", self.constants.rsrhelper_version)
-        self._log("  RSRHelper (RSR KC UUID mismatch)")
+        # RSRHelper: KC UUID mismatch after RSR (only when SIP lowered)
+        if not self.constants.sip_status or self.constants.custom_sip_value:
+            self.enable_kext("RSRHelper.kext", self.constants.rsrhelper_version)
+            self._log("  RSRHelper (RSR KC UUID mismatch, SIP lowered)")
 
         # CSLVFixup: Library Validation bypass (legacy security.py:89)
         if getattr(self.constants, 'disable_cs_lv', False):
@@ -63,32 +64,33 @@ class SecurityKextManager(KextManager):
         # MacBoxTool firmware.py: ASPP-Override for Sandy Bridge and older
         if cpu_gen <= cpu_data.CPUGen.sandy_bridge.value:
             self.enable_kext("ASPP-Override.kext", self.constants.aspp_override_version)
+            # Clear MinKernel when firmware throttling disable is active
+            if self.constants.disable_fw_throttle:
+                for entry in self.config.get("Kernel", {}).get("Add", []):
+                    if entry.get("BundlePath") == "ASPP-Override.kext":
+                        entry["MinKernel"] = ""
             self._log("  ASPP-Override (pre-Ivy Bridge power management)")
 
-        # MacBoxTool firmware.py: NoAVXFSCompressionTypeZlib for pre-Sandy Bridge
-        if cpu_gen < cpu_data.CPUGen.sandy_bridge.value:
-            self.enable_kext("NoAVXFSCompressionTypeZlib.kext", self.constants.apfs_zlib_version)
-            self.enable_kext("NoAVXFSCompressionTypeZlib-AVXpel.kext", self.constants.apfs_zlib_v2_version)
-            self._log("  NoAVXFSCompressionTypeZlib (pre-Sandy Bridge)")
-
-        # SimpleMSR: firmware throttling disable (legacy firmware.py:119)
-        if self.constants.disable_fw_throttle:
+        # SimpleMSR: firmware throttling disable (only Nehalem+)
+        if self.constants.disable_fw_throttle and cpu_gen >= cpu_data.CPUGen.nehalem.value:
             self.enable_kext("SimpleMSR.kext", self.constants.simplemsr_version)
             self._log("  SimpleMSR (firmware throttling disable)")
 
-        # AutoPkgInstaller: automatic OCLP installation (legacy security.py:54)
-        if max_os < os_data.os_data.sonoma:
+        # AutoPkgInstaller: automatic OCLP installation (only in GUI mode)
+        if max_os < os_data.os_data.sonoma and getattr(self.constants, 'wxpython_variant', False):
             self.enable_kext("AutoPkgInstaller.kext", self.constants.autopkg_version)
             self._log("  AutoPkgInstaller (auto OCLP install)")
 
-        # AppleMCEReporterDisabler: for multi-socket SMBIOS spoofing (legacy firmware.py:335)
+        # AppleMCEReporterDisabler: for multi-socket SMBIOS spoofing
+        affected_smbios = ["MacPro6,1", "MacPro7,1", "iMacPro1,1"]
         if self.constants.serial_settings in ("Moderate", "Advanced"):
             override_model = self.constants.override_smbios
-            if override_model != "Default":
-                ov_info = smbios_data.smbios_dictionary.get(override_model, {})
-                if ov_info.get("CPU Count", 1) > 1:
-                    self.enable_kext("AppleMCEReporterDisabler.kext", self.constants.mce_version)
-                    self._log("  AppleMCEReporterDisabler (multi-socket SMBIOS)")
+            if override_model == "Default":
+                spoofed_info = smbios_data.smbios_dictionary.get(self.model, {})
+                override_model = spoofed_info.get("Spoofed Model", self.model)
+            if override_model in affected_smbios and self.model not in affected_smbios:
+                self.enable_kext("AppleMCEReporterDisabler.kext", self.constants.mce_version)
+                self._log("  AppleMCEReporterDisabler (multi-socket SMBIOS)")
 
         # DebugEnhancer: kext debug mode (legacy misc.py:355)
         if self.constants.kext_debug:
@@ -137,15 +139,16 @@ class SecurityKextManager(KextManager):
         block_str = ",".join(block_args)
         patch_str = ",".join(patch_args)
 
-        if block_str:
+        if block_str or patch_str:
             self.enable_kext("RestrictEvents.kext", self.constants.restrictevents_version)
-            mbt_guid["revblock"] = block_str
-            self._log(f"  RestrictEvents revblock: {block_str}")
-
-        if patch_str:
-            self.enable_kext("RestrictEvents.kext", self.constants.restrictevents_version)
-            mbt_guid["revpatch"] = patch_str
-            self._log(f"  RestrictEvents revpatch: {patch_str}")
+            reasons = []
+            if block_str:
+                mbt_guid["revblock"] = block_str
+                reasons.append(f"revblock: {block_str}")
+            if patch_str:
+                mbt_guid["revpatch"] = patch_str
+                reasons.append(f"revpatch: {patch_str}")
+            self._log(f"  RestrictEvents ({', '.join(reasons)})")
 
         # EFICheckDisabler only if RestrictEvents is NOT enabled (they conflict)
         if not self._is_kext_enabled("RestrictEvents.kext"):

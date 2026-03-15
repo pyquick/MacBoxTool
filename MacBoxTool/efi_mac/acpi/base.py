@@ -47,14 +47,22 @@ class ACPIManager:
             self._log(f"  [WARN] ACPI file not found: {acpi_name}")
             return False
 
-        dest = self.acpi_path / source.name
-        shutil.copy(source, dest)
+        try:
+            from ..security import SecurityValidator
+            dest = SecurityValidator.safe_path(self.acpi_path, source.name)
+            if source.is_symlink():
+                raise ValueError(f"Symlink not allowed: {source}")
+            shutil.copy(source, dest, follow_symlinks=False)
+        except (ValueError, OSError) as e:
+            self._log(f"  [ERROR] Failed to copy {acpi_name}: {e}")
+            return False
         self._log(f"  + {source.name}")
 
-        # Enable in config if entry exists
-        if self.config_mgr.enable_acpi(source.name):
-            return True
-        return False
+        # Enable in config if entry exists, otherwise add new entry
+        if not self.config_mgr.enable_acpi(source.name):
+            acpi_add = self.config.setdefault("ACPI", {}).setdefault("Add", [])
+            acpi_add.append({"Comment": source.name, "Enabled": True, "Path": source.name})
+        return True
 
     def enable_base_acpi(self) -> list[str]:
         """

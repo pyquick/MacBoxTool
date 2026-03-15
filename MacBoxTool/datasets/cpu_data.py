@@ -28,3 +28,10 @@ class CPUGen(enum.IntEnum):
     rocket_lake   = 14   # 11000
     alder_lake    = 15   # 12000
     raptor_lake   = 16   # 13000
+
+    #AMD
+    zen          = 17
+    zen2         = 18
+    zen3         = 19
+    zen4         = 20
+    

@@ -10,6 +10,7 @@ from ..UIkit.components.widgets.label import BodyLabel, CaptionLabel
 from ..UIkit.components.widgets.button import PrimaryPushButton, TransparentToolButton
 from ..UIkit.components.widgets.label import ImageLabel
 from ..UIkit.components.widgets.progress_ring import IndeterminateProgressRing
+from ..UIkit.components.widgets.switch_button import SwitchButton
 from ..support.network_handler import DownloadObject
 from .gui_task import TaskManager
 
@@ -169,6 +170,7 @@ class MacOSInstallerList(ScrollArea):
         # Data
         self.available_installers = []
         self.available_installers_latest = []
+        self.show_latest_only = False
 
         self._init_scroll_area()
         self.init_ui()
@@ -192,6 +194,7 @@ class MacOSInstallerList(ScrollArea):
         )
         self.expandLayout.setSpacing(SPACING["large"])
         self._init_layout()
+        self._init_header()
         self._init_progress_ring()
         self._init_loading_label()
         self._init_loading_container()
@@ -203,6 +206,26 @@ class MacOSInstallerList(ScrollArea):
             SPACING["xxlarge"], SPACING["xlarge"]
         )
         self.expandLayout.setSpacing(SPACING["medium"])
+
+    def _init_header(self):
+        """Initialize header with latest-only toggle"""
+        self.header_container = QWidget()
+        header_layout = QHBoxLayout(self.header_container)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(SPACING["medium"])
+
+        header_layout.addStretch()
+
+        latest_label = BodyLabel("Show Latest Only")
+        header_layout.addWidget(latest_label)
+
+        self.latest_switch = SwitchButton()
+        self.latest_switch.setChecked(self.show_latest_only)
+        self.latest_switch.checkedChanged.connect(self._on_latest_toggle)
+        header_layout.addWidget(self.latest_switch)
+
+        self.expandLayout.addWidget(self.header_container)
+        self.header_container.setVisible(False)
 
     def _init_progress_ring(self):
         """Initialize indeterminate progress ring"""
@@ -319,13 +342,23 @@ class MacOSInstallerList(ScrollArea):
 
     # ── Display ──
 
+    def _on_latest_toggle(self, checked: bool):
+        """Handle latest-only toggle"""
+        self.show_latest_only = checked
+        if self.available_installers:
+            self._display_installers()
+
     def _display_installers(self):
         """Display installer cards"""
         logging.info("#####_display_installers:Start#####")
 
         self._clear_layout()
+        self._init_header()
+        self.header_container.setVisible(True)
 
-        if not self.available_installers:
+        installers = self.available_installers_latest if self.show_latest_only else self.available_installers
+
+        if not installers:
             logging.warning("No installers available to display")
             no_data_label = BodyLabel("No installers available")
             no_data_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -333,16 +366,16 @@ class MacOSInstallerList(ScrollArea):
             logging.info("#####_display_installers:NoData#####")
             return
 
-        logging.info(f"Creating {len(self.available_installers)} installer cards...")
+        logging.info(f"Creating {len(installers)} installer cards...")
 
-        for installer in self.available_installers:
+        for installer in installers:
             card = InstallerCard(installer, self.constants, self)
             card.download_clicked.connect(self._on_download_clicked)
             self.expandLayout.addWidget(card)
 
         self.expandLayout.addStretch(1)
 
-        logging.info(f"#####_display_installers:Success ({len(self.available_installers)} cards)#####")
+        logging.info(f"#####_display_installers:Success ({len(installers)} cards)#####")
 
     # ── Actions ──
 

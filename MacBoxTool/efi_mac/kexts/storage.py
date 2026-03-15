@@ -25,6 +25,12 @@ class StorageKextManager(KextManager):
         if not self.constants.custom_model:
             nvme_devices = [i for i in computer.storage if isinstance(i, device_probe.NVMeController)] if computer else []
 
+            # S1X/S3X NVMe: Apple SSD (vendor 0x106b, device 0x2001/0x2003)
+            # Must be checked OUTSIDE the 3rd-party loop since Apple devices are skipped there
+            if any(c.vendor_id == 0x106b and c.device_id in (0x2001, 0x2003) for c in nvme_devices):
+                self.enable_kext("IOS3XeFamily.kext", self.constants.s3x_nvme_version)
+                self._log("  IOS3XeFamily (S1X/S3X Apple NVMe)")
+
             # NVMeFix with ASPM handling for 3rd party NVMe
             if self.constants.allow_nvme_fixing is True:
                 for i, controller in enumerate(nvme_devices):
@@ -48,13 +54,14 @@ class StorageKextManager(KextManager):
                     if controller.vendor_id != 0x144D and controller.device_id != 0xA804:
                         self.enable_kext("NVMeFix.kext", self.constants.nvmefix_version)
 
-                    # S1X/S3X NVMe: Apple SSD AP0128H/0256H/0128J/0256J (vendor 0x106b, device 0x2001/0x2003)
-                    if any((controller.vendor_id == 0x106b and controller.device_id in [0x2001, 0x2003]) for controller in nvme_devices):
-                        self.enable_kext("IOS3XeFamily.kext", self.constants.s3x_nvme_version)
-                        self._log("  IOS3XeFamily (S1X/S3X Apple NVMe)")
+        # S1X/S3X prebuilt fallback: Haswell-Kaby Lake or MacPro6,1
+        if self.constants.custom_model:
+            if (cpu_data.CPUGen.haswell.value <= cpu_gen <= cpu_data.CPUGen.kaby_lake.value) or self.model == "MacPro6,1":
+                self.enable_kext("IOS3XeFamily.kext", self.constants.s3x_nvme_version)
+                self._log("  IOS3XeFamily (S1X/S3X prebuilt fallback)")
 
         # PCIe Storage built-in DeviceProperties (Mac Pro / allow_oc_everywhere)
-        if computer and (self.constants.allow_oc_everywhere is True or self.model in model_array.MacPro):
+        if computer and not self.constants.custom_model and (self.constants.allow_oc_everywhere is True or self.model in model_array.MacPro):
             for i, controller in enumerate(computer.storage):
                 if controller.pci_path:
                     self.config["DeviceProperties"]["Add"].setdefault(controller.pci_path, {})["built-in"] = 1
@@ -93,7 +100,12 @@ class StorageKextManager(KextManager):
 
         # SDXC for pre-Sandy Bridge models with SDXC
         if cpu_gen <= cpu_data.CPUGen.sandy_bridge.value:
-            if self.model.startswith("MacBookPro8") or self.model.startswith("Macmini5"):
+            has_sdxc = False
+            if computer and hasattr(computer, 'sdxc_controller') and computer.sdxc_controller:
+                has_sdxc = True
+            elif self.model.startswith("MacBookPro8") or self.model.startswith("Macmini5"):
+                has_sdxc = True
+            if has_sdxc:
                 self.enable_kext("BigSurSDXC.kext", self.constants.bigsursdxc_version)
                 self._log("  BigSurSDXC (pre-VT-d SDXC)")
 

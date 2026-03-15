@@ -36,14 +36,22 @@ class Constants:
         self.nvmefix_version:            str = "1.1.3"  #      NVMeFix
         self.applealc_version:           str = "1.6.3"  #      AppleALC
         self.restrictevents_version:     str = "1.1.7"  #      RestrictEvents
+        self.eficheckdisabler_version:   str = "1.0"    #      EFICheckDisabler
         self.featureunlock_version:      str = "1.1.8"  #      FeatureUnlock
         self.debugenhancer_version:      str = "1.1.1"  #      DebugEnhancer
         self.cpufriend_version:          str = "1.3.0"  #      CPUFriend
         self.bluetool_version:           str = "2.7.1"  #      BlueToolFixup (BrcmPatchRAM)
         self.cslvfixup_version:          str = "2.6.1"  #      CSLVFixup
         self.autopkg_version:            str = "1.0.4"  #      AutoPkgInstaller
+        self.realek8111_version:         str = "3.0.0"
+        self.simplertk_version:          str = "1.0.1"  #      SimpleRTK5
         self.cryptexfixup_version:       str = "1.0.5"  #      CryptexFixup
-        
+        self.usbinjectall_version:       str = "0.7.1"  #      USBInjectAll
+        self.amfipass_version:           str = "1.4.0"  #      AMFIPass
+        self.intelmausi_version:         str = "1.0.7"  #      IntelMausiEthernet
+        self.appleigb_version:           str = "1.0.0"  #      AppleIGB
+        self.appleigc_version:           str = "1.1.0"  #      AppleIGC
+
 
         ## Apple
         ## https://www.apple.com
@@ -334,6 +342,102 @@ class Constants:
     def demux_ssdt_path(self):
         return self.payload_path / Path("ACPI/SSDT-DGPU.aml")
 
+    @property
+    def ssdt_plug_path(self):
+        return self.payload_path / Path("ACPI/SSDT-PLUG.aml")
+
+    @property
+    def ssdt_plug_alt_path(self):
+        return self.payload_path / Path("ACPI/SSDT-PLUG-ALT.aml")
+
+    @property
+    def ssdt_ec_path(self):
+        return self.payload_path / Path("ACPI/SSDT-EC.aml")
+
+    @property
+    def ssdt_ec_usbx_path(self):
+        return self.payload_path / Path("ACPI/SSDT-EC-USBX.aml")
+
+    @property
+    def ssdt_ec_usbx_desktop_path(self):
+        return self.payload_path / Path("ACPI/SSDT-EC_USBX_Desktop.aml")
+
+    @property
+    def ssdt_ec_usbx_laptop_path(self):
+        return self.payload_path / Path("ACPI/SSDT-EC-USBX_Laptop.aml")
+
+    @property
+    def ssdt_ec_usbx_amd_path(self):
+        return self.payload_path / Path("ACPI/SSDT-EC-USBX-AMD.aml")
+
+    @property
+    def ssdt_awac_path(self):
+        return self.payload_path / Path("ACPI/SSDT-AWAC.aml")
+
+    @property
+    def ssdt_awac_disable_path(self):
+        return self.payload_path / Path("ACPI/SSDT-AWAC-DISABLE.aml")
+
+    @property
+    def ssdt_pmc_path(self):
+        return self.payload_path / Path("ACPI/SSDT-PMC.aml")
+
+    @property
+    def ssdt_pmcr_path(self):
+        return self.payload_path / Path("ACPI/SSDT-PMCR.aml")
+
+    @property
+    def ssdt_rhub_path(self):
+        return self.payload_path / Path("ACPI/SSDT-RHUB.aml")
+
+    @property
+    def ssdt_pnlf_path(self):
+        return self.payload_path / Path("ACPI/SSDT-PNLF.aml")
+
+    @property
+    def ssdt_gpi0_path(self):
+        return self.payload_path / Path("ACPI/SSDT-GPI0.aml")
+
+    @property
+    def ssdt_imei_path(self):
+        return self.payload_path / Path("ACPI/SSDT-IMEI.aml")
+
+    @property
+    def ssdt_unc_path(self):
+        return self.payload_path / Path("ACPI/SSDT-UNC.aml")
+
+    @property
+    def ssdt_rtc0_range_path(self):
+        return self.payload_path / Path("ACPI/SSDT-RTC0-RANGE.aml")
+
+    @property
+    def ssdt_rtc0_path(self):
+        return self.payload_path / Path("ACPI/SSDT-RTC0.aml")
+
+    @property
+    def ssdt_cpur_path(self):
+        return self.payload_path / Path("ACPI/SSDT-CPUR.aml")
+
+    @property
+    def ssdt_sbus_mchc_path(self):
+        return self.payload_path / Path("ACPI/SSDT-SBUS-MCHC.aml")
+
+    @property
+    def ssdt_hpet_disable_path(self):
+        return self.payload_path / Path("ACPI/SSDT-HPET_Disable.aml")
+
+    @property
+    def ssdt_xosi_path(self):
+        return self.payload_path / Path("ACPI/SSDT-XOSI.aml")
+
+    @property
+    def ssdt_gprw_path(self):
+        return self.payload_path / Path("ACPI/SSDT-GPRW.aml")
+
+    @property
+    def ssdt_usbw_path(self):
+        return self.payload_path / Path("ACPI/SSDT-USBW.aml")
+
     # Drivers
     @property
     def sequoia_apfs_driver_path(self):
@@ -433,8 +537,36 @@ class Constants:
         return self.payload_kexts_path / Path(f"Ethernet/AppleIntel8254XEthernet-v{self.intel_8254x_version}.zip")
 
     @property
+    def intelmausi_path(self):
+        return self.payload_kexts_path / Path(f"Ethernet/IntelMausiEthernet-v{self.intelmausi_version}.zip")
+
+    @property
+    def appleigb_path(self):
+        return self.payload_kexts_path / Path(f"Ethernet/AppleIGB-v{self.appleigb_version}.zip")
+
+    @property
+    def appleigc_path(self):
+        return self.payload_kexts_path / Path(f"Ethernet/AppleIGC-v{self.appleigc_version}.zip")
+
+    @property
+    def simplertk_path(self):
+        return self.payload_kexts_path / Path(f"Ethernet/SimpleRTK5-v{self.simplertk_version}-RELEASE.zip")
+
+    @property
+    def realtek8111_path(self):
+        return self.payload_kexts_path / Path(f"Ethernet/RealtekRTL8111-v{self.realek8111_version}.zip")
+
+    @property
     def apple_usb_11_injector_path(self):
         return self.payload_kexts_path / Path(f"USB/USB1.1-Injector-v{self.apple_usb_11_injector}.zip")
+
+    @property
+    def usbinjectall_path(self):
+        return self.payload_kexts_path / Path(f"USB/USBInjectAll-v{self.usbinjectall_version}.zip")
+
+    @property
+    def amfipass_path(self):
+        return self.payload_kexts_path / Path(f"Acidanthera/AMFIPass-v{self.amfipass_version}-{self.kext_variant}.zip")
 
     @property
     def aicpupm_path(self):
@@ -587,6 +719,15 @@ class Constants:
     @property
     def autopkg_path(self):
         return self.payload_kexts_path / Path(f"Acidanthera/AutoPkgInstaller-v{self.autopkg_version}-{self.kext_variant}.zip")
+    
+    @property
+    def simplertk_path(self):
+        return self.payload_kexts_path / Path(f"Ethernet/SimpleRTK5-v{self.simplertk_version}-{self.kext_variant}.zip")
+    
+    @property
+    def realtek8111_path(self):
+        return self.payload_kexts_path / Path(f"Ethernet/RealtekRTL8111-v{self.realek8111_version}.zip")
+
 
     @property
     def cryptexfixup_path(self):

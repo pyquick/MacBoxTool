@@ -71,9 +71,9 @@ class NVRAMManager:
                 self._log("  Added boot-arg: -nokcmismatchpanic")
 
         # AMFI handling (legacy security.py:76-86)
-        # amfi=0x80 only when explicitly requested - it breaks TCC (Camera, Mic prompts)
+        # amfi=0x80 only when both disable_cs_lv and disable_amfi are True
         # AMFIPass.kext is the preferred approach (enabled in security kext manager)
-        if getattr(self.constants, 'disable_amfi', False):
+        if getattr(self.constants, 'disable_cs_lv', False) and getattr(self.constants, 'disable_amfi', False):
             if "amfi=" not in boot_args:
                 boot_args += " amfi=0x80"
                 self._log("  Added boot-arg: amfi=0x80 (AMFI disable - explicit)")

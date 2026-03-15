@@ -29,7 +29,13 @@ class NetworkKextManager(KextManager):
         return self.log_lines
 
     def _wifi_handling(self, model_info, cpu_gen):
-        """WiFi kext handler (legacy wireless.py)."""
+        """WiFi kext handler: on-model detection first, fallback to prebuilt."""
+        # On-model detection
+        if not self.constants.custom_model and self.constants.computer and hasattr(self.constants.computer, 'wifi') and self.constants.computer.wifi:
+            self._wifi_on_model()
+            return
+
+        # Prebuilt fallback
         wireless = model_info.get("Wireless Model")
         if not wireless:
             return
@@ -66,9 +72,7 @@ class NetworkKextManager(KextManager):
                 if entry.get("BundlePath") == bp:
                     entry["Enabled"] = False
             self._log("  WiFi: BrcmNIC - BrcmFixup + IOSkywalk + IO80211Legacy + AirPortBrcmNIC")
-        elif hasattr(_dp, 'Atheros') and wireless == getattr(
-            getattr(_dp, 'Atheros', None), 'Chipsets', object()
-        ).get('AirPortAtheros40', None):
+        elif hasattr(_dp, 'Atheros') and hasattr(_dp.Atheros, 'Chipsets') and wireless == getattr(_dp.Atheros.Chipsets, 'AirPortAtheros40', None):
             self.enable_kext("corecaptureElCap.kext", self.constants.corecaptureelcap_version)
             self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version)
             self._log("  WiFi: Atheros - IO80211ElCap")
@@ -82,6 +86,90 @@ class NetworkKextManager(KextManager):
             if "-brcmfxwowl" not in boot_args:
                 boot_guid["boot-args"] = (boot_args + " -brcmfxwowl").strip()
                 self._log("  WiFi: Wake on WLAN enabled")
+
+    def _wifi_on_model(self):
+        """WiFi handler using live hardware detection."""
+        wifi = self.constants.computer.wifi
+        chipset = wifi.chipset if hasattr(wifi, 'chipset') else None
+        country_code = wifi.country_code if hasattr(wifi, 'country_code') else None
+        pci_path = wifi.pci_path if hasattr(wifi, 'pci_path') else None
+
+        if chipset in (_dp.Broadcom.Chipsets.AirportBrcmNIC, _dp.Broadcom.Chipsets.AirPortBrcmNICThirdParty):
+            for entry in self.config.get("Kernel", {}).get("Block", []):
+                if entry.get("Identifier") == "com.apple.iokit.IOSkywalkFamily":
+                    entry["Enabled"] = True
+            self.enable_kext("IOSkywalkFamily.kext", self.constants.ioskywalk_version)
+            self.enable_kext("AirportBrcmFixup.kext", self.constants.airportbcrmfixup_version)
+            self.enable_kext("IO80211FamilyLegacy.kext", self.constants.io80211legacy_version)
+            self.config_mgr.enable_kext("IO80211FamilyLegacy.kext/Contents/PlugIns/AirPortBrcmNIC.kext")
+            bp = "AirportBrcmFixup.kext/Contents/PlugIns/AirPortBrcmNIC_Injector.kext"
+            for entry in self.config.get("Kernel", {}).get("Add", []):
+                if entry.get("BundlePath") == bp:
+                    entry["Enabled"] = False
+            self._log("  WiFi: BrcmNIC (on-model) - BrcmFixup + IOSkywalk + IO80211Legacy")
+        elif chipset == _dp.Broadcom.Chipsets.AirPortBrcm4360:
+            self.enable_kext("AirportBrcmFixup.kext", self.constants.airportbcrmfixup_version)
+            self._log("  WiFi: AirPortBrcm4360 (on-model) - AirportBrcmFixup")
+        elif chipset == _dp.Broadcom.Chipsets.AirPortBrcm4331:
+            self.enable_kext("corecaptureElCap.kext", self.constants.corecaptureelcap_version)
+            self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version)
+            self._wifi_fake_id(pci_path, country_code)
+            self._log("  WiFi: AirPortBrcm4331 (on-model) - IO80211ElCap + FakeID")
+        elif chipset == _dp.Broadcom.Chipsets.AirPortBrcm43224:
+            self.enable_kext("corecaptureElCap.kext", self.constants.corecaptureelcap_version)
+            self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version)
+            self._wifi_fake_id(pci_path, country_code)
+            self._log("  WiFi: AirPortBrcm43224 (on-model) - IO80211ElCap + FakeID")
+        elif hasattr(_dp, 'Atheros') and isinstance(wifi, _dp.Atheros):
+            self.enable_kext("corecaptureElCap.kext", self.constants.corecaptureelcap_version)
+            self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version)
+            self._log("  WiFi: Atheros (on-model) - IO80211ElCap")
+
+        # Apply country code via DeviceProperties for BrcmFixup models
+        if country_code and pci_path and chipset in (
+            _dp.Broadcom.Chipsets.AirPortBrcm4360,
+            _dp.Broadcom.Chipsets.AirportBrcmNIC,
+            _dp.Broadcom.Chipsets.AirPortBrcmNICThirdParty,
+        ):
+            self.config["DeviceProperties"]["Add"].setdefault(pci_path, {})["brcmfx-country"] = country_code
+            self._log(f"  WiFi: country code {country_code} at {pci_path}")
+
+    def _wifi_fake_id(self, pci_path=None, country_code=None):
+        """WiFi Fake ID for BCM943224/BCM94331 chipsets.
+
+        Spoofs device-id via DeviceProperties and enables AirPortBrcmNIC_Injector.
+        """
+        model_info = smbios_data.smbios_dictionary.get(self.model, {})
+
+        # Determine PCI path
+        if not pci_path:
+            if model_info.get("nForce Chipset", False):
+                pci_path = "PciRoot(0x0)/Pci(0x15,0x0)/Pci(0x0,0x0)"
+            elif self.model in ("iMac7,1", "iMac8,1", "MacPro3,1", "MacBookPro4,1"):
+                pci_path = "PciRoot(0x0)/Pci(0x1C,0x4)/Pci(0x0,0x0)"
+            elif self.model in ("iMac13,1", "iMac13,2"):
+                pci_path = "PciRoot(0x0)/Pci(0x1C,0x3)/Pci(0x0,0x0)"
+            elif self.model in ("MacPro4,1", "MacPro5,1"):
+                pci_path = "PciRoot(0x0)/Pci(0x1C,0x5)/Pci(0x0,0x0)"
+            else:
+                pci_path = "PciRoot(0x0)/Pci(0x1C,0x1)/Pci(0x0,0x0)"
+
+        # Inject fake compatible and device-id for BCM94331/BCM943224
+        import binascii
+        self.config["DeviceProperties"]["Add"].setdefault(pci_path, {}).update({
+            "compatible": "pci14e4,4331",
+            "device-id": binascii.unhexlify("31430000"),
+        })
+        if country_code:
+            self.config["DeviceProperties"]["Add"][pci_path]["brcmfx-country"] = country_code
+
+        # Enable BrcmNIC_Injector plugin for fake ID
+        self.enable_kext("AirportBrcmFixup.kext", self.constants.airportbcrmfixup_version)
+        bp = "AirportBrcmFixup.kext/Contents/PlugIns/AirPortBrcmNIC_Injector.kext"
+        for entry in self.config.get("Kernel", {}).get("Add", []):
+            if entry.get("BundlePath") == bp:
+                entry["Enabled"] = True
+        self._log(f"  WiFi: Fake ID at {pci_path}")
 
     # ── Ethernet ──
 

@@ -407,7 +407,8 @@ class DownloadHistory:
                     "total_size": d.total_size,
                     "downloaded_size": d.downloaded_size,
                     "status": d.status,
-                    "completed_at": d.completed_at.toSecsSinceEpoch() if d.completed_at else None
+                    "completed_at": d.completed_at.toSecsSinceEpoch() if d.completed_at else None,
+                    "icon_path": d.icon_path
                 })
 
             with open(history_path, 'w') as f:
@@ -431,6 +432,7 @@ class DownloadHistory:
                 download.total_size = item.get("total_size", 0)
                 download.downloaded_size = item.get("downloaded_size", 0)
                 download.status = item.get("status", DownloadStatus.COMPLETED)
+                download.icon_path = item.get("icon_path")
                 if item.get("completed_at"):
                     download.completed_at = QDateTime.fromSecsSinceEpoch(item["completed_at"])
                 self.history.append(download)

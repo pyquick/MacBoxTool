@@ -89,8 +89,13 @@ class QuirksManager:
             self._enable_kernel_patch("Fix PCI bus enumeration (Sonoma)")
             self._log("  Kernel patch: PCI bus enumeration fix")
 
-        # MacBoxTool firmware.py: SurPlus patches for pre-Sandy Bridge (no RDRAND)
-        if cpu_gen <= cpu_data.CPUGen.sandy_bridge.value:
+        # MacBoxTool firmware.py: SurPlus patches for no RDRAND
+        # Check on-model: some Ivy Bridge i3 CPUs lack RDRAND
+        needs_surplus = cpu_gen <= cpu_data.CPUGen.sandy_bridge.value
+        if not needs_surplus and self.constants.computer and hasattr(self.constants.computer, 'cpu') and hasattr(self.constants.computer.cpu, 'flags'):
+            if "RDRAND" not in self.constants.computer.cpu.flags:
+                needs_surplus = True
+        if needs_surplus:
             self._enable_kernel_patch("SurPlus v1 - PART 1 of 2 - Patch read_erandom (inlined in _early_random)")
             self._enable_kernel_patch("SurPlus v1 - PART 2 of 2 - Patch register_and_init_prng")
             self._log("  Kernel patch: SurPlus (no RDRAND)")
@@ -107,9 +112,11 @@ class QuirksManager:
             self._enable_kernel_patch_by_id("com.apple.iokit.IOHIDFamily")
             self._log("  Kernel patch: IOHIDFamily (Penryn)")
 
-        # MacBoxTool security.py: Force FileVault on broken seal + KC UUID mismatch
-        self._enable_kernel_patch_by_comment("Force FileVault on Broken Seal")
-        self._log("  Kernel patch: Force FileVault on Broken Seal")
+        # MacBoxTool security.py: Force FileVault on broken seal (only when SIP disabled)
+        sip_enabled = self.constants.secure_status
+        if not sip_enabled:
+            self._enable_kernel_patch_by_comment("Force FileVault on Broken Seal")
+            self._log("  Kernel patch: Force FileVault on Broken Seal")
 
         # MacBoxTool misc.py: CoreGraphics fix for Ivy Bridge (f16c)
         if cpu_gen == cpu_data.CPUGen.ivy_bridge.value:
@@ -124,8 +131,8 @@ class QuirksManager:
 
         # APFS Trim timeout (legacy storage.py:198)
         if self.constants.apfs_trim_timeout:
-            config_mgr.set_quirk("SetApfsTrimTimeout", -1)
-            self._log("  Kernel quirk: SetApfsTrimTimeout=-1")
+            config_mgr.set_quirk("SetApfsTrimTimeout", 0)
+            self._log("  Kernel quirk: SetApfsTrimTimeout=0")
 
         # ConnectDrivers disable for hibernation (legacy firmware.py:321)
         if self.constants.disable_connectdrivers:

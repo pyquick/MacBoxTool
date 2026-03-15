@@ -65,8 +65,13 @@ class BaseGenerator:
             raise FileNotFoundError(f"OpenCore zip not found: {self.oc_zip}")
 
         self._log(f"  Extracting: {self.oc_zip.name}")
-        with zipfile.ZipFile(self.oc_zip) as z:
-            z.extractall(self.build_path)
+        try:
+            from .security import SecurityValidator
+            with zipfile.ZipFile(self.oc_zip) as z:
+                SecurityValidator.safe_extract(z, self.build_path)
+        except (zipfile.BadZipFile, ValueError) as e:
+            self._log(f"  [ERROR] Extraction failed: {e}")
+            raise
         self._log(f"  Extracted to: {self.oc_build}")
 
         # Copy config.plist template

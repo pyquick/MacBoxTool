@@ -444,7 +444,7 @@ class BuildOCPage(ScrollArea):
         self.expandLayout.addWidget(self._create_log_card(), 1)
 
     def _create_title(self):
-        lbl = SubtitleLabel("Build OC for Old Macs")
+        lbl = SubtitleLabel("Build OpenCore for Macs")
         lbl.setStyleSheet("font-size: 24px; font-weight: bold;")
         return lbl
 
@@ -464,8 +464,14 @@ class BuildOCPage(ScrollArea):
                                   SPACING["large"], SPACING["large"])
         layout.setSpacing(SPACING["medium"])
 
+        # Wizard button - guided build with validation
+        self.wizard_btn = PrimaryPushButton(FluentIcon.ROBOT, "Wizard Mode (Recommended)")
+        self.wizard_btn.setFixedHeight(40)
+        self.wizard_btn.clicked.connect(self._on_wizard_build)
+        layout.addWidget(self.wizard_btn)
+
         # Build button - always enabled regardless of physical model
-        self.build_btn = PrimaryPushButton(FluentIcon.DEVELOPER_TOOLS, "Build OpenCore EFI")
+        self.build_btn = PushButton(FluentIcon.DEVELOPER_TOOLS, "Advanced: Build OpenCore EFI")
         self.build_btn.setFixedHeight(40)
         self.build_btn.clicked.connect(self._on_build)
         layout.addWidget(self.build_btn)
@@ -527,6 +533,33 @@ class BuildOCPage(ScrollArea):
         layout.addWidget(self.log_text)
         return card
 
+    def _on_wizard_build(self):
+        """Launch wizard mode with hardware validation"""
+        from .gui_build_wizard import BuildWizard
+
+        wizard = BuildWizard(self.constants, self)
+        success, smbios_model = wizard.run()
+
+        if success and smbios_model:
+            # Update target model and build
+            self.target_model = smbios_model
+            self.settings.set_key("MODEL", smbios_model)
+            self._model_label.setText(f"Physical: {self.physical_model} → Target: {smbios_model}")
+
+            # Start build
+            self.log_text.clear()
+            self.wizard_btn.setEnabled(False)
+            self.build_btn.setEnabled(False)
+            self.open_folder_btn.setVisible(False)
+            self.install_btn.setVisible(False)
+            self.progress_helper.update("loading", f"Building EFI for {smbios_model}...")
+
+            self.worker = BuildWorker(smbios_model, self.constants)
+            self.worker.log_signal.connect(self._append_log)
+            self.worker.progress_signal.connect(self._on_progress)
+            self.worker.finished_signal.connect(self._on_build_done)
+            self.worker.start()
+
     def _on_build(self):
         model = self.settings.find_key("MODEL")
         if not model or model == "N/A":
@@ -559,6 +592,7 @@ class BuildOCPage(ScrollArea):
         self.progress_bar.setValue(pct)
 
     def _on_build_done(self, success: bool, info: str):
+        self.wizard_btn.setEnabled(True)
         self.build_btn.setEnabled(True)
         if success:
             self.last_output_path = info

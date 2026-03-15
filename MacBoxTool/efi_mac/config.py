@@ -49,12 +49,16 @@ class ConfigManager:
         # Remove disabled driver entries
         drivers = self.config.get("UEFI", {}).get("Drivers", [])
         enabled_drv = [d for d in drivers if d.get("Enabled", True)]
+        removed_drv = len(drivers) - len(enabled_drv)
         self.config["UEFI"]["Drivers"] = enabled_drv
+        self._log(f"  Removed {removed_drv} disabled driver entries")
 
         # Remove disabled tool entries
         tools = self.config.get("Misc", {}).get("Tools", [])
         enabled_tools = [t for t in tools if t.get("Enabled", True)]
+        removed_tools = len(tools) - len(enabled_tools)
         self.config["Misc"]["Tools"] = enabled_tools
+        self._log(f"  Removed {removed_tools} disabled tool entries")
 
         return self.log_lines[start:]
 
@@ -67,7 +71,11 @@ class ConfigManager:
         """
         start = len(self.log_lines)
         self._log("[STEP] Saving config.plist")
-        plistlib.dump(self.config, self.plist_path.open("wb"), sort_keys=True)
+        try:
+            plistlib.dump(self.config, self.plist_path.open("wb"), sort_keys=True)
+        except (OSError, plistlib.InvalidFileException) as e:
+            self._log(f"  [ERROR] Failed to save config.plist: {e}")
+            raise
         self._log(f"  Saved: {self.plist_path}")
         return self.log_lines[start:]
 

@@ -4,18 +4,88 @@ gui_kdk.py: Kernel Debug Kit download interface
 
 from ..include import *
 from .gui_support import DefGUI
-from ..UIkit.components.widgets.card_widget import CardWidget
 from ..UIkit.components.widgets.label import BodyLabel, CaptionLabel
 from ..UIkit.components.widgets.button import PrimaryPushButton, TransparentToolButton
 from ..UIkit.components.widgets.label import ImageLabel
 from ..UIkit.components.widgets.progress_ring import IndeterminateProgressRing
+from ..UIkit.components.widgets.switch_button import SwitchButton
+from ..UIkit.common.style_sheet import isDarkTheme
 from ..support.network_handler import DownloadObject
 from .gui_task import TaskManager
+from PySide6.QtWidgets import QFrame
+from PySide6.QtGui import QPainter, QColor, QPainterPath
 import requests
 import threading
 
 
-class KDKCard(CardWidget):
+class NoAnimCardWidget(QFrame):
+    """Simple card widget without hover animation"""
+
+    clicked = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self._borderRadius = 5
+
+    def mouseReleaseEvent(self, e):
+        super().mouseReleaseEvent(e)
+        self.clicked.emit()
+
+    def getBorderRadius(self):
+        return self._borderRadius
+
+    def setBorderRadius(self, radius: int):
+        self._borderRadius = radius
+        self.update()
+
+    def paintEvent(self, e):
+        painter = QPainter(self)
+        painter.setRenderHints(QPainter.Antialiasing)
+
+        w, h = self.width(), self.height()
+        r = self.borderRadius
+        d = 2 * r
+
+        isDark = isDarkTheme()
+
+        # draw top border
+        path = QPainterPath()
+        path.arcMoveTo(1, h - d - 1, d, d, 240)
+        path.arcTo(1, h - d - 1, d, d, 225, -60)
+        path.lineTo(1, r)
+        path.arcTo(1, 1, d, d, -180, -90)
+        path.lineTo(w - r, 1)
+        path.arcTo(w - d - 1, 1, d, d, 90, -90)
+        path.lineTo(w - 1, h - r)
+        path.arcTo(w - d - 1, h - d - 1, d, d, 0, -60)
+
+        topBorderColor = QColor(0, 0, 0, 20)
+        if isDark:
+            topBorderColor = QColor(255, 255, 255, 13)
+        else:
+            topBorderColor = QColor(0, 0, 0, 15)
+
+        painter.strokePath(path, topBorderColor)
+
+        # draw bottom border
+        path = QPainterPath()
+        path.arcMoveTo(1, h - d - 1, d, d, 240)
+        path.arcTo(1, h - d - 1, d, d, 240, 30)
+        path.lineTo(w - r - 1, h - 1)
+        path.arcTo(w - d - 1, h - d - 1, d, d, 270, 30)
+
+        painter.strokePath(path, topBorderColor)
+
+        # draw background
+        painter.setPen(Qt.NoPen)
+        bgColor = QColor(255, 255, 255, 13 if isDark else 170)
+        painter.setBrush(bgColor)
+        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), r, r)
+
+    borderRadius = Property(int, getBorderRadius, setBorderRadius)
+
+
+class KDKCard(NoAnimCardWidget):
     """KDK card widget"""
 
     download_clicked = Signal(dict)
@@ -87,6 +157,8 @@ class KDKList(ScrollArea):
         self.constants = global_constants
         self.settings = global_settings
         self.available_kdks = []
+        self.available_kdks_latest = []
+        self.show_latest_only = False
 
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
@@ -98,6 +170,34 @@ class KDKList(ScrollArea):
         self.expandLayout.setContentsMargins(SPACING["xxlarge"], SPACING["xlarge"], SPACING["xxlarge"], SPACING["xlarge"])
         self.expandLayout.setSpacing(SPACING["large"])
 
+        self._init_header()
+        self._init_loading()
+
+        logging.info("KDKList initialized")
+        self.load_kdks()
+
+    def _init_header(self):
+        """Initialize header with latest-only toggle"""
+        self.header_container = QWidget()
+        header_layout = QHBoxLayout(self.header_container)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(SPACING["medium"])
+
+        header_layout.addStretch()
+
+        latest_label = BodyLabel("Show Latest Only")
+        header_layout.addWidget(latest_label)
+
+        self.latest_switch = SwitchButton()
+        self.latest_switch.setChecked(self.show_latest_only)
+        self.latest_switch.checkedChanged.connect(self._on_latest_toggle)
+        header_layout.addWidget(self.latest_switch)
+
+        self.expandLayout.addWidget(self.header_container)
+        self.header_container.setVisible(False)
+
+    def _init_loading(self):
+        """Initialize loading indicator"""
         self.loading_container = QWidget()
         loading_layout = QVBoxLayout(self.loading_container)
         loading_layout.setContentsMargins(0, 0, 0, 0)
@@ -112,9 +212,6 @@ class KDKList(ScrollArea):
         self.expandLayout.addWidget(self.loading_container)
         self.loading_container.setVisible(False)
 
-        logging.info("KDKList initialized")
-        self.load_kdks()
-
     def load_kdks(self):
         self._show_loading(True)
 
@@ -124,6 +221,8 @@ class KDKList(ScrollArea):
                 if response.status_code == 200:
                     self.available_kdks = response.json()
                     self.available_kdks.sort(key=lambda x: (x.get("build", ""), x.get("version", "")), reverse=True)
+                    # Extract latest (top 4)
+                    self.available_kdks_latest = self.available_kdks[:4]
             except Exception as e:
                 logging.error(f"Failed to fetch KDK data: {e}")
 
@@ -139,6 +238,12 @@ class KDKList(ScrollArea):
 
         QTimer.singleShot(100, _check)
 
+    def _on_latest_toggle(self, checked: bool):
+        """Handle latest-only toggle"""
+        self.show_latest_only = checked
+        if self.available_kdks:
+            self._display_kdks()
+
     def _show_loading(self, show: bool):
         if show:
             self.loading_container.setVisible(True)
@@ -150,31 +255,39 @@ class KDKList(ScrollArea):
             self.loading_container.setVisible(False)
 
     def _display_kdks(self):
-        while self.expandLayout.count() > 1:
-            item = self.expandLayout.takeAt(1)
+        # Clear all widgets from layout
+        while self.expandLayout.count():
+            item = self.expandLayout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
-        if not self.available_kdks:
+        # Re-add header and loading container
+        self._init_header()
+        self.header_container.setVisible(True)
+        self._init_loading()
+
+        kdks = self.available_kdks_latest if self.show_latest_only else self.available_kdks
+
+        if not kdks:
             label = BodyLabel("No KDK packages available")
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.expandLayout.addWidget(label)
             return
 
-        self._render_batch(0)
+        self._render_batch(0, kdks)
 
-    def _render_batch(self, start_index: int, batch_size: int = 20):
+    def _render_batch(self, start_index: int, kdks: list, batch_size: int = 20):
         """Batch render cards to avoid UI freeze"""
-        end_index = min(start_index + batch_size, len(self.available_kdks))
+        end_index = min(start_index + batch_size, len(kdks))
 
         for i in range(start_index, end_index):
-            kdk = self.available_kdks[i]
+            kdk = kdks[i]
             card = KDKCard(kdk, self.constants, self)
             card.download_clicked.connect(self._on_download)
             self.expandLayout.addWidget(card)
 
-        if end_index < len(self.available_kdks):
-            QTimer.singleShot(10, lambda: self._render_batch(end_index, batch_size))
+        if end_index < len(kdks):
+            QTimer.singleShot(10, lambda: self._render_batch(end_index, kdks, batch_size))
         else:
             self.expandLayout.addStretch()
 

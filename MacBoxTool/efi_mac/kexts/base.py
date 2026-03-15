@@ -50,8 +50,13 @@ class KextManager:
             return False
 
         self._log(f"  + {kext_name} v{version} ({zip_path.name})")
-        with zipfile.ZipFile(zip_path) as z:
-            z.extractall(self.kexts_path)
+        try:
+            from ..security import SecurityValidator
+            with zipfile.ZipFile(zip_path) as z:
+                SecurityValidator.safe_extract(z, self.kexts_path)
+        except (zipfile.BadZipFile, ValueError) as e:
+            self._log(f"  [ERROR] Failed to extract {kext_name}: {e}")
+            return False
 
         # Enable in config if entry exists
         if self.config_mgr.enable_kext(kext_name):
