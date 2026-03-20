@@ -137,6 +137,8 @@ Where `{ver}` is `constants.airportitlwm_version` (currently "2.3.0"). This repl
 
 Data flow: GUI multi-select → `HackintoshBuilder.build(airportitlwm_versions=[...])` → `HackKexts._select_wifi(target_macos_versions=[...])` → only selected kexts added with precise kernel ranges.
 
+**`_select_wifi()` signature change:** Add `target_macos_versions: list[str] | None = None` parameter. The existing 4-version hardcoded dict is replaced with the new 5-version `AIRPORTITLWM_MAP` constant. Fallback behavior: when `target_macos_versions` is None (non-GUI / legacy call), all 5 versions are added (preserving current "add everything" behavior). When it's an empty list, no AirportItlwm kexts are added (user explicitly deselected all).
+
 ---
 
 ## 5. SSDTTime Integration
@@ -257,6 +259,6 @@ Each card uses UIkit `HeaderCardWidget` or similar component with icon, title, a
 | MODIFY | `MacBoxTool/qt_gui/gui_build_hackintosh.py` — add AirportItlwm multi-select dropdown |
 | MODIFY | `MacBoxTool/qt_gui/gui_build_wizard.py` — add import source selection step |
 | MODIFY | `MacBoxTool/qt_gui/gui_introduction.py` — add 4 Quick Start Guide cards |
-| MODIFY | `MacBoxTool/detections/__init__.py` — export `hardware_info` |
-| MODIFY | `MacBoxTool/datasets/__init__.py` — export `compatibility_data` |
+| NEW | `MacBoxTool/detections/__init__.py` — create and export `hardware_info` |
+| NEW | `MacBoxTool/datasets/__init__.py` — create and export `compatibility_data` |
 | MODIFY | `MacBoxTool/UIkit/components/widgets/__init__.py` — export `CheckableComboBox` |
