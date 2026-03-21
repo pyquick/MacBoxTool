@@ -488,7 +488,7 @@ class CompatibilityChecker:
         "nvidia_fermi": ["gtx 580", "gtx 570", "gtx 560", "gtx 480"],
         "nvidia_tesla": ["gtx 280", "gtx 260", "8800 gtx", "9800 gtx"],
         # Intel
-        "intel_arc": ["arc a770", "arc a750", "arc a380", "intel arc"],
+        "intel_arc": ["arc a770", "arc a750", "arc a380", "intel arc", "arc b580", "arc b570", "battlemage", "intel arc b"],
         "intel_iris_xe": ["iris xe", "xe graphics", "intel uhd graphics (12th"],
         "intel_iris_plus": ["iris plus", "iris 645", "iris 655"],
         "intel_uhd": ["uhd graphics 620", "uhd graphics 630", "intel uhd"],
@@ -603,7 +603,7 @@ class CompatibilityChecker:
             if "uhd" in gpu_lower:
                 return "intel_uhd"
             if "hd graphics" in gpu_lower:
-                if any(x in gpu_lower for x in ["5000", "6000", "5200", "530", "630"]):
+                if any(x in gpu_lower for x in ["530", "630"]):
                     return "intel_hd_6000"
                 if any(x in gpu_lower for x in ["4000", "5000", "5500"]):
                     return "intel_hd_5000"
@@ -718,7 +718,7 @@ class CompatibilityChecker:
             hw_info: HardwareInfo object with cpu and gpu (list) attributes
 
         Returns:
-            Dictionary with cpu and gpu compatibility results
+            Dictionary with cpu and list of gpu compatibility results
         """
         results = {}
 
@@ -730,9 +730,12 @@ class CompatibilityChecker:
         if hasattr(hw_info, "gpu") and hw_info.gpu:
             gpu_list = hw_info.gpu
             if gpu_list and len(gpu_list) > 0:
-                # Check the first GPU in the list
-                gpu = gpu_list[0]
-                if hasattr(gpu, "name") and gpu.name:
-                    results["gpu"] = cls.check_gpu(gpu)
+                # Check all GPUs in the list and return as a list
+                gpu_results = []
+                for gpu in gpu_list:
+                    if hasattr(gpu, "name") and gpu.name:
+                        gpu_results.append(cls.check_gpu(gpu))
+                if gpu_results:
+                    results["gpu"] = gpu_results
 
         return results
