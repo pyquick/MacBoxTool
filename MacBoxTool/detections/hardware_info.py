@@ -97,9 +97,8 @@ class HardwareInfo:
             elif "amd" in cpu_name_lower or "ryzen" in cpu_name_lower or "athlon" in cpu_name_lower:
                 info.cpu.vendor = "amd"
 
-            # Detect generation from cpu_gen if available
-            if hasattr(constants, 'cpu_gen') and constants.cpu_gen:
-                info.cpu.generation = constants.cpu_gen
+            # Detect generation from cpu name (fallback - best effort)
+            # Note: cpu_gen and chipset are computed in builder.py, not stored on constants
 
         # GPU info
         for gpu in computer.gpus:
@@ -158,10 +157,10 @@ class HardwareInfo:
             # Detect type from class code
             if hasattr(stor, 'class_code'):
                 # 0x010400 = RAID controller, 0x010600 = SATA, 0x010800 = SCSI
-                # NVMe typically has class code 0x010802 or similar
+                # NVMe typically has class code 0x010802, AHCI is 0x010601
                 if stor.class_code == 0x010802:
                     stor_info.type = "nvme"
-                elif stor.class_code in [0x010601, 0x010601]:
+                elif stor.class_code in [0x010601, 0x010600]:
                     stor_info.type = "sata"
             info.storage.append(stor_info)
 
@@ -169,10 +168,9 @@ class HardwareInfo:
         if computer.reported_model:
             info.motherboard.model = computer.reported_model
         if computer.reported_board_id:
-            info.motherboard.vendor = computer.reported_board_id.split(",")[-1].strip() if "," in computer.reported_board_id else ""
-            # Chipset detection from board_id
-            if hasattr(constants, 'chipset') and constants.chipset:
-                info.motherboard.chipset = constants.chipset
+            # board_id format may vary - use full string as vendor identifier
+            info.motherboard.vendor = computer.reported_board_id
+            # Note: chipset is computed in builder.py, not stored on constants
 
         return info
 
