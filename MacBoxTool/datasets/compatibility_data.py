@@ -488,7 +488,8 @@ class CompatibilityChecker:
         "nvidia_fermi": ["gtx 580", "gtx 570", "gtx 560", "gtx 480"],
         "nvidia_tesla": ["gtx 280", "gtx 260", "8800 gtx", "9800 gtx"],
         # Intel
-        "intel_arc": ["arc a770", "arc a750", "arc a380", "intel arc", "arc b580", "arc b570", "battlemage", "intel arc b"],
+        "intel_arc": ["arc a770", "arc a750", "arc a380", "intel arc", "arc b580", "arc b570", "battlemage", "intel arc b",
+                      "a770", "a750", "a380", "b580", "b570"],
         "intel_iris_xe": ["iris xe", "xe graphics", "intel uhd graphics (12th"],
         "intel_iris_plus": ["iris plus", "iris 645", "iris 655"],
         "intel_uhd": ["uhd graphics 620", "uhd graphics 630", "intel uhd"],
@@ -559,6 +560,10 @@ class CompatibilityChecker:
 
         gpu_lower = gpu_name.lower()
 
+        # Intel Arc standalone model numbers (B580, B570, A770, A750, A380) - before vendor checks
+        if any(x in gpu_lower for x in ["a770", "a750", "a380", "b580", "b570"]):
+            return "intel_arc"
+
         for family, patterns in cls.GPU_PATTERNS.items():
             if any(p in gpu_lower for p in patterns):
                 return family
@@ -594,7 +599,7 @@ class CompatibilityChecker:
                 return "nvidia_fermi"
 
         if "intel" in gpu_lower:
-            if "arc" in gpu_lower:
+            if "arc" in gpu_lower or any(x in gpu_lower for x in ["a770", "a750", "a380", "b580", "b570"]):
                 return "intel_arc"
             if "xe" in gpu_lower or "iris xe" in gpu_lower:
                 return "intel_iris_xe"
