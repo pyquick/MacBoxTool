@@ -11,6 +11,15 @@ from ..efi_mac.config import ConfigManager
 
 logger = logging.getLogger(__name__)
 
+# AirportItlwm version map: maps macOS version codes to kext names and kernel version ranges
+AIRPORTITLWM_MAP = {
+    "11": {"display": "macOS 11 Big Sur", "kext": "AirportItlwm_BigSur.kext", "min": "20.0.0", "max": "20.99.99"},
+    "12": {"display": "macOS 12 Monterey", "kext": "AirportItlwm_Monterey.kext", "min": "21.0.0", "max": "21.99.99"},
+    "13": {"display": "macOS 13 Ventura", "kext": "AirportItlwm_Ventura.kext", "min": "22.0.0", "max": "22.99.99"},
+    "14.0": {"display": "macOS 14.0-14.3", "kext": "AirportItlwm_Sonoma14.0.kext", "min": "23.0.0", "max": "23.3.99"},
+    "14.4": {"display": "macOS 14.4+", "kext": "AirportItlwm_Sonoma14.4.kext", "min": "23.4.0", "max": "23.99.99"},
+}
+
 # Non-native USB controller chipsets that need XHCI-unsupported.kext
 # (H370/B360/H310/Z390 desktop, X79/X99 HEDT)
 _XHCI_UNSUPPORTED_CHIPSETS = {
@@ -51,7 +60,8 @@ class HackKexts:
 
     def __init__(self, config: dict, constants, paths: dict,
                  cpu_gen: str, is_laptop: bool,
-                 chipset: str = "", target_macos: str = ""):
+                 chipset: str = "", target_macos: str = "",
+                 target_macos_versions: list = None):
         self.config = config
         self.constants = constants
         self.paths = paths
@@ -59,6 +69,7 @@ class HackKexts:
         self.is_laptop = is_laptop
         self.chipset = chipset.upper() if chipset else ""
         self.target_macos = target_macos.lower().replace(" ", "_")
+        self.target_macos_versions = target_macos_versions or []
         self.log_lines: list[str] = []
 
         self.kext_mgr = KextManager(config, constants, "", paths)
@@ -217,20 +228,19 @@ class HackKexts:
         wifi_str = str(wifi).upper()
 
         if "INTEL" in wifi_str:
-            # AirportItlwm: add all versions, user selects which to enable
-            # Each version has kernel range for specific macOS
-            versions = {
-                "BigSur": {"min": "20.0.0", "max": "20.99.99"},
-                "Monterey": {"min": "21.0.0", "max": "21.99.99"},
-                "Ventura": {"min": "22.0.0", "max": "22.99.99"},
-                "Sonoma": {"min": "23.0.0", "max": "23.99.99"},
-            }
-            for ver, kernel_range in versions.items():
-                kext_name = f"AirportItlwm_{ver}.kext"
+            # AirportItlwm: select versions based on user selection or default to all
+            # Default versions if none specified: Monterey, Ventura, Sonoma
+            target_versions = self.target_macos_versions or ["12", "13", "14.0", "14.4"]
+
+            for ver_code in target_versions:
+                if ver_code not in AIRPORTITLWM_MAP:
+                    continue
+                info = AIRPORTITLWM_MAP[ver_code]
+                kext_name = info["kext"]
                 self.kext_mgr.enable_kext(kext_name, self._ver("airportitlwm_version", "2.3.0"))
                 # Set kernel version range in config
-                self._set_kext_kernel_range(kext_name, kernel_range["min"], kernel_range["max"])
-                self._log(f"  + {kext_name} (Intel WiFi, kernel {kernel_range['min']}-{kernel_range['max']})")
+                self._set_kext_kernel_range(kext_name, info["min"], info["max"])
+                self._log(f"  + {kext_name} (Intel WiFi, kernel {info['min']}-{info['max']})")
 
         elif "BROADCOM" in wifi_str or "BCM" in wifi_str:
             self.kext_mgr.enable_kext(

@@ -45,10 +45,11 @@ class HackBuildWorker(QThread):
 
     TOTAL_STEPS = 10  # base + acpi + kexts + drivers + quirks + nvram + pi + cleanup + save + validate
 
-    def __init__(self, smbios_model: str, constants):
+    def __init__(self, smbios_model: str, constants, target_macos_versions: list = None):
         super().__init__()
         self.smbios_model = smbios_model
         self.constants = constants
+        self.target_macos_versions = target_macos_versions or []
 
     def run(self):
         handler = _SignalHandler(self.log_signal, self.progress_signal, self.TOTAL_STEPS)
@@ -59,7 +60,8 @@ class HackBuildWorker(QThread):
 
         try:
             from ..efi_hack.builder import HackintoshBuilder
-            builder = HackintoshBuilder(self.smbios_model, self.constants)
+            builder = HackintoshBuilder(self.smbios_model, self.constants,
+                                         target_macos_versions=self.target_macos_versions)
             builder.build()
             self.progress_signal.emit(100)
             self.finished_signal.emit(True, str(builder.paths["oc_build"]))
@@ -113,7 +115,9 @@ class BuildHackintosh(ScrollArea):
         self.expandLayout.setSpacing(SPACING["large"])
 
         self.expandLayout.addWidget(self._create_title())
-        self.expandLayout.addWidget(self._create_hardware_label())
+        hw_label = self._create_hardware_label()
+        self.expandLayout.addWidget(hw_label)
+        self.expandLayout.addWidget(self._create_airport_itlwm_card())
         self.expandLayout.addWidget(self._create_build_card())
         self.expandLayout.addWidget(self._create_log_card(), 1)
 
@@ -121,6 +125,45 @@ class BuildHackintosh(ScrollArea):
         lbl = SubtitleLabel("Build OpenCore for Hackintosh")
         lbl.setStyleSheet("font-size: 24px; font-weight: bold;")
         return lbl
+
+    def _create_airport_itlwm_card(self):
+        """Create AirportItlwm version selection card."""
+        from ..efi_hack.kexts import AIRPORTITLWM_MAP
+
+        # Track selected AirportItlwm versions (default: Monterey, Ventura, Sonoma)
+        self._selected_airport_versions = set(["12", "13", "14.0", "14.4"])
+
+        # Use ExpandGroupSettingCard for AirportItlwm version selection
+        card = ExpandGroupSettingCard(
+            FluentIcon.WIFI,
+            "AirportItlwm",
+            "Select macOS versions for Intel WiFi (AirportItlwm)",
+            parent=None
+        )
+
+        # Adjust internal layout
+        card.viewLayout.setContentsMargins(0, 0, 0, 0)
+        card.viewLayout.setSpacing(10)
+
+        # Add groups for each macOS version with CheckBox
+        for ver_code, info in AIRPORTITLWM_MAP.items():
+            checkbox = CheckBox(info["display"], card)
+            checkbox.setChecked(ver_code in self._selected_airport_versions)
+            checkbox.toggled.connect(lambda checked, v=ver_code: self._on_airport_checkbox_toggled(v, checked))
+            card.addGroup(FluentIcon.INFO, info["display"], f"{info['kext']}", checkbox)
+
+        return card
+
+    def _on_airport_checkbox_toggled(self, ver_code: str, checked: bool):
+        """Handle AirportItlwm version checkbox toggle."""
+        if checked:
+            self._selected_airport_versions.add(ver_code)
+        else:
+            self._selected_airport_versions.discard(ver_code)
+
+    def _get_selected_airport_versions(self) -> list:
+        """Return list of selected AirportItlwm version codes."""
+        return list(self._selected_airport_versions)
 
     def _create_hardware_label(self):
         """Hardware info label matching gui_build.py pattern"""
@@ -137,6 +180,7 @@ class BuildHackintosh(ScrollArea):
 
     def _create_build_card(self):
         """Build card matching gui_build.py (BuildOCPage) pattern"""
+        # Card container
         card = CardWidget()
         layout = QVBoxLayout(card)
         layout.setContentsMargins(SPACING["large"], SPACING["large"],
@@ -191,6 +235,17 @@ class BuildHackintosh(ScrollArea):
         )
         return card
 
+    def _on_airport_checkbox_toggled(self, ver_code: str, checked: bool):
+        """Handle AirportItlwm version checkbox toggle."""
+        if checked:
+            self._selected_airport_versions.add(ver_code)
+        else:
+            self._selected_airport_versions.discard(ver_code)
+
+    def _get_selected_airport_versions(self) -> list:
+        """Return list of selected AirportItlwm version codes."""
+        return list(self._selected_airport_versions)
+
     def _create_log_card(self):
         """Build log display matching gui_build.py pattern"""
         card = CardWidget()
@@ -232,7 +287,10 @@ class BuildHackintosh(ScrollArea):
             self.install_btn.setVisible(False)
             self.progress_helper.update("loading", f"Building EFI for {smbios_model}...")
 
-            self.worker = HackBuildWorker(smbios_model, self.constants)
+            # Get selected AirportItlwm versions
+            airport_itlwm_versions = self._get_selected_airport_versions()
+
+            self.worker = HackBuildWorker(smbios_model, self.constants, airport_itlwm_versions)
             self.worker.log_signal.connect(self._append_log)
             self.worker.progress_signal.connect(self._on_progress)
             self.worker.finished_signal.connect(self._on_build_done)
