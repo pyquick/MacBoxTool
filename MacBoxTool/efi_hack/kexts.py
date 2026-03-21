@@ -70,6 +70,7 @@ class HackKexts:
         self.chipset = chipset.upper() if chipset else ""
         self.target_macos = target_macos.lower().replace(" ", "_")
         self.target_macos_versions = target_macos_versions or []
+        self._target_macos_major = self._parse_macos_version(target_macos)
         self.log_lines: list[str] = []
 
         self.kext_mgr = KextManager(config, constants, "", paths)
@@ -82,6 +83,54 @@ class HackKexts:
     def _ver(self, attr: str, fallback: str) -> str:
         """Get version string from constants with a fallback."""
         return getattr(self.constants, attr, fallback)
+
+    def _parse_macos_version(self, version_str: str) -> int:
+        """Parse macOS version string to get major version number."""
+        if not version_str:
+            # Fallback: default to 13 (Ventura) if no version provided
+            # This will be handled gracefully - IO80211 injection only runs for macOS 14+
+            return 13
+        # Parse "14.4 Sonoma" or "13 Ventura" -> 14 or 13
+        try:
+            return int(version_str.split()[0].split(".")[0])
+        except (IndexError, ValueError):
+            return 13  # Default to Ventura
+
+    def _inject_io80211_kexts(self):
+        """Inject IO80211 series kexts for macOS 14.0+.
+
+        - IO80211ElCap for macOS 14.0-14.3
+        - IO80211FamilyLegacy for macOS 14.4+
+        """
+        if self._target_macos_major < 14:
+            return
+
+        if 14 <= self._target_macos_major < 15:  # 14.0 - 14.3 (Sonoma)
+            self.kext_mgr.enable_kext(
+                "IO80211ElCap.kext",
+                self._ver("io80211elcap_version", "2.0.1")
+            )
+            self._log("  WiFi: IO80211ElCap injected (macOS 14.0-14.3)")
+        elif self._target_macos_major >= 15:  # macOS 15+ (Sequoia)
+            # Check if it's 14.4+ by looking at minor version
+            minor_version = 0
+            if self.target_macos:
+                try:
+                    minor_version = int(self.target_macos.split()[0].split(".")[1])
+                except (IndexError, ValueError):
+                    pass
+            if minor_version >= 4:
+                self.kext_mgr.enable_kext(
+                    "IO80211FamilyLegacy.kext",
+                    self._ver("io80211legacy_version", "1.0.0")
+                )
+                self._log("  WiFi: IO80211FamilyLegacy injected (macOS 14.4+)")
+            else:
+                self.kext_mgr.enable_kext(
+                    "IO80211ElCap.kext",
+                    self._ver("io80211elcap_version", "2.0.1")
+                )
+                self._log("  WiFi: IO80211ElCap injected (macOS 14.0-14.3)")
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -97,6 +146,7 @@ class HackKexts:
         self._add_audio_kexts()
         self._add_storage_kexts()
         self._add_network_kexts()
+        self._inject_io80211_kexts()
         self._add_usb_kexts()
         self._add_amd_extras()
         self._add_smc_plugins()
