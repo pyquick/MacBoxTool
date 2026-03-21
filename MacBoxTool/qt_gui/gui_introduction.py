@@ -379,10 +379,23 @@ class Introduction(ScrollArea):
         desc.setStyleSheet("font-size: 14px; color: #888;")
         layout.addWidget(desc)
 
+        # New feature cards (added 2026-03-21)
+        # Card 1: Check Compatibility
+        layout.addWidget(self._create_compat_card())
+
+        # Card 2: ACPI Patching
+        layout.addWidget(self._create_acpi_card())
+
+        # Card 3: WiFi Setup
+        layout.addWidget(self._create_wifi_card())
+
+        # Card 4: Export/Import Hardware
+        layout.addWidget(self._create_hardware_export_card())
+
         # Guide items with buttons
         layout.addWidget(self._create_guide_item(
             icon=FluentIcon.DEVELOPER_TOOLS,
-            title="1. Build OpenCore EFI",
+            title="5. Build OpenCore EFI",
             description="Generate OpenCore EFI for your Mac or Hackintosh. Select your target model and click Build.",
             button_text="Go to Build",
             navigate_target=self.NAV_BUILD
@@ -390,7 +403,7 @@ class Introduction(ScrollArea):
 
         layout.addWidget(self._create_guide_item(
             icon=FluentIcon.SETTING,
-            title="2. Configure Settings",
+            title="6. Configure Settings",
             description="Adjust build settings like SMBIOS spoofing level, GPU options, and more.",
             button_text="Go to Settings",
             navigate_target=self.NAV_SETTINGS
@@ -398,13 +411,175 @@ class Introduction(ScrollArea):
 
         layout.addWidget(self._create_guide_item(
             icon=FluentIcon.INFO,
-            title="3. Learn More",
+            title="7. Learn More",
             description="Read about this tool, check for updates, and view credits.",
             button_text="Go to About",
             navigate_target=self.NAV_ABOUT
         ))
 
         return card
+
+    def _create_compat_card(self):
+        """Create Check Compatibility card."""
+        item_widget = QWidget()
+        item_layout = QHBoxLayout(item_widget)
+        item_layout.setContentsMargins(0, SPACING["small"], 0, SPACING["small"])
+        item_layout.setSpacing(SPACING["medium"])
+
+        icon_label = self.ui_support.build_icon_label(FluentIcon.INFO, COLORS["primary"], size=32)
+        item_layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(4)
+
+        title_label = BodyLabel("1. Check Compatibility")
+        title_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+
+        desc_label = BodyLabel("Detect hardware & check macOS support")
+        desc_label.setStyleSheet("font-size: 12px; color: #888;")
+        desc_label.setWordWrap(True)
+
+        text_layout.addWidget(title_label)
+        text_layout.addWidget(desc_label)
+        item_layout.addLayout(text_layout, 1)
+
+        nav_btn = PrimaryPushButton("Check Now")
+        nav_btn.setFixedHeight(32)
+        nav_btn.clicked.connect(self._on_check_compat)
+
+        item_layout.addWidget(nav_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        return item_widget
+
+    def _create_acpi_card(self):
+        """Create ACPI Patching placeholder card."""
+        item_widget = QWidget()
+        item_layout = QHBoxLayout(item_widget)
+        item_layout.setContentsMargins(0, SPACING["small"], 0, SPACING["small"])
+        item_layout.setSpacing(SPACING["medium"])
+
+        icon_label = self.ui_support.build_icon_label(FluentIcon.SEARCH, COLORS["primary"], size=32)
+        item_layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(4)
+
+        title_label = BodyLabel("2. ACPI Patching")
+        title_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+
+        desc_label = BodyLabel("View and manage ACPI patches (SSDT/SSDT)")
+        desc_label.setStyleSheet("font-size: 12px; color: #888;")
+        desc_label.setWordWrap(True)
+
+        text_layout.addWidget(title_label)
+        text_layout.addWidget(desc_label)
+        item_layout.addLayout(text_layout, 1)
+
+        nav_btn = PrimaryPushButton("Coming Soon")
+        nav_btn.setFixedHeight(32)
+        nav_btn.setEnabled(False)
+
+        item_layout.addWidget(nav_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        return item_widget
+
+    def _create_wifi_card(self):
+        """Create WiFi Setup placeholder card."""
+        item_widget = QWidget()
+        item_layout = QHBoxLayout(item_widget)
+        item_layout.setContentsMargins(0, SPACING["small"], 0, SPACING["small"])
+        item_layout.setSpacing(SPACING["medium"])
+
+        icon_label = self.ui_support.build_icon_label(FluentIcon.WIFI, COLORS["primary"], size=32)
+        item_layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(4)
+
+        title_label = BodyLabel("3. WiFi Setup")
+        title_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+
+        desc_label = BodyLabel("Configure WiFi adapters and AirPort support")
+        desc_label.setStyleSheet("font-size: 12px; color: #888;")
+        desc_label.setWordWrap(True)
+
+        text_layout.addWidget(title_label)
+        text_layout.addWidget(desc_label)
+        item_layout.addLayout(text_layout, 1)
+
+        nav_btn = PrimaryPushButton("Coming Soon")
+        nav_btn.setFixedHeight(32)
+        nav_btn.setEnabled(False)
+
+        item_layout.addWidget(nav_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        return item_widget
+
+    def _create_hardware_export_card(self):
+        """Create Export/Import Hardware placeholder card."""
+        item_widget = QWidget()
+        item_layout = QHBoxLayout(item_widget)
+        item_layout.setContentsMargins(0, SPACING["small"], 0, SPACING["small"])
+        item_layout.setSpacing(SPACING["medium"])
+
+        icon_label = self.ui_support.build_icon_label(FluentIcon.SAVE, COLORS["primary"], size=32)
+        item_layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(4)
+
+        title_label = BodyLabel("4. Export/Import Hardware")
+        title_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+
+        desc_label = BodyLabel("Export hardware profile or import from file")
+        desc_label.setStyleSheet("font-size: 12px; color: #888;")
+        desc_label.setWordWrap(True)
+
+        text_layout.addWidget(title_label)
+        text_layout.addWidget(desc_label)
+        item_layout.addLayout(text_layout, 1)
+
+        nav_btn = PrimaryPushButton("Coming Soon")
+        nav_btn.setFixedHeight(32)
+        nav_btn.setEnabled(False)
+
+        item_layout.addWidget(nav_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        return item_widget
+
+    def _on_check_compat(self):
+        """Open Check Compatibility dialog."""
+        # TODO: Create HardwareCompatDialog in gui_compat.py
+        MessageBox.info(
+            "Check Compatibility",
+            "Hardware detection and macOS compatibility check.\n\n"
+            "This will detect your hardware and check which macOS versions are supported.",
+            parent=self
+        )
+
+    def _on_acpi_clicked(self):
+        """Open ACPI Patching dialog (placeholder)."""
+        MessageBox.info(
+            "ACPI Patching",
+            "ACPI Patching feature is coming soon.\n\nThis will allow you to view and manage ACPI patches (SSDT/SSDT).",
+            parent=self
+        )
+
+    def _on_wifi_clicked(self):
+        """Open WiFi Setup dialog (placeholder)."""
+        MessageBox.info(
+            "WiFi Setup",
+            "WiFi Setup feature is coming soon.\n\nThis will allow you to configure WiFi adapters and AirPort support.",
+            parent=self
+        )
+
+    def _on_hardware_export_clicked(self):
+        """Open Export/Import Hardware dialog (placeholder)."""
+        MessageBox.info(
+            "Export/Import Hardware",
+            "Export/Import Hardware feature is coming soon.\n\nThis will allow you to export hardware profile or import from file.",
+            parent=self
+        )
 
     def _create_guide_item(self, icon, title, description, button_text, navigate_target):
         """Create a single guide item with navigation button."""

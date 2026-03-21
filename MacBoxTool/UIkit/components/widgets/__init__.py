@@ -7,6 +7,7 @@ from .button import (DropDownPushButton, DropDownToolButton, PrimaryPushButton, 
                      PillPushButton, PillToolButton)
 from .card_widget import CardWidget, ElevatedCardWidget, SimpleCardWidget, HeaderCardWidget, CardGroupWidget, GroupHeaderCardWidget
 from .check_box import CheckBox
+from .checkable_combo_box import CheckableComboBox
 from .combo_box import ComboBox, EditableComboBox
 from .model_combo_box import ModelComboBox, EditableModelComboBox
 from .command_bar import CommandBar, CommandButton, CommandBarView

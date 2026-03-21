@@ -123,13 +123,14 @@ class HackintoshBuilder:
                      if m.startswith(("iMac", "Macmini", "MacPro", "iMacPro"))]
             return {"type": "desktop", "models": sorted(models)}
 
-    def __init__(self, smbios_model: str, global_constants):
+    def __init__(self, smbios_model: str, global_constants, target_macos_versions: list = None):
         from ..efi_mac.security import SecurityValidator
         if not SecurityValidator.validate_model(smbios_model):
             raise ValueError(f"Invalid SMBIOS model: {smbios_model}")
 
         self.smbios_model = smbios_model
         self.constants = global_constants
+        self.target_macos_versions = target_macos_versions or []
         self.log_lines: list[str] = []
 
         # Derived hardware info
@@ -200,6 +201,7 @@ class HackintoshBuilder:
             self.config, self.constants, self.paths,
             self.cpu_gen, self.is_laptop,
             chipset=self.chipset,
+            target_macos_versions=self.target_macos_versions,
         )
         self.log_lines.extend(kexts.apply())
 
