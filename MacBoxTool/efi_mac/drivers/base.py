@@ -62,7 +62,7 @@ class DriverManager:
         cpu_gen = model_info.get("CPU Generation", 999)
 
         # Base drivers (always required)
-        for drv in ("OpenRuntime.efi", "OpenCanopy.efi", "ResetNvramEntry.efi", "OpenLinuxBoot.efi"):
+        for drv in ("OpenRuntime.efi", "OpenCanopy.efi", "ResetNvramEntry.efi"):
             self.enable_driver(drv)
             self._log(f"  + {drv}")
 

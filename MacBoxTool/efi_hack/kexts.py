@@ -68,7 +68,7 @@ class HackKexts:
         self.cpu_gen = cpu_gen
         self.is_laptop = is_laptop
         self.chipset = chipset.upper() if chipset else ""
-        self.target_macos = target_macos.lower().replace(" ", "_")
+        self.target_macos = str(target_macos).lower().replace(" ", "_") if target_macos else ""
         self.target_macos_versions = target_macos_versions or []
         self.log_lines: list[str] = []
 
@@ -82,6 +82,64 @@ class HackKexts:
     def _ver(self, attr: str, fallback: str) -> str:
         """Get version string from constants with a fallback."""
         return getattr(self.constants, attr, fallback)
+
+    def _inject_io80211_kexts(self):
+        """Inject IO80211 series kexts for macOS 14.0+ (forced,不受设置约束).
+
+        - IO80211ElCap for macOS 14.0-14.3
+        - IO80211FamilyLegacy for macOS 14.4+
+        """
+        # Parse macOS version
+        target = self.target_macos.lower().replace(" ", "_") if self.target_macos else ""
+        macos_ver = 0
+        minor_ver = 0
+
+        # Check for 14.4+ first (more specific)
+        if "14.4" in target:
+            macos_ver = 14
+            minor_ver = 4
+        elif "14.3" in target:
+            macos_ver = 14
+            minor_ver = 3
+        elif "14.2" in target:
+            macos_ver = 14
+            minor_ver = 2
+        elif "14.1" in target:
+            macos_ver = 14
+            minor_ver = 1
+        elif "14.0" in target:
+            macos_ver = 14
+            minor_ver = 0
+        elif "sonoma" in target:
+            # "sonoma" without version -> assume 14.4+ (latest)
+            macos_ver = 14
+            minor_ver = 4
+        elif "14" in target:
+            macos_ver = 14
+            minor_ver = 3  # Default to 14.0-14.3 range
+        elif "13" in target or "ventura" in target:
+            macos_ver = 13
+        elif "12" in target or "monterey" in target:
+            macos_ver = 12
+        elif "11" in target or "big_sur" in target:
+            macos_ver = 11
+
+        # Only inject for macOS 14.0+ (forced, no setting control)
+        if macos_ver >= 14:
+            if minor_ver >= 4:
+                # macOS 14.4+ uses IO80211FamilyLegacy
+                self.kext_mgr.enable_kext(
+                    "IO80211FamilyLegacy.kext",
+                    self._ver("io80211legacy_version", "1.0.0")
+                )
+                self._log("  WiFi: IO80211FamilyLegacy injected (macOS 14.4+)")
+            else:
+                # macOS 14.0-14.3 uses IO80211ElCap
+                self.kext_mgr.enable_kext(
+                    "IO80211ElCap.kext",
+                    self._ver("io80211elcap_version", "2.0.1")
+                )
+                self._log("  WiFi: IO80211ElCap injected (macOS 14.0-14.3)")
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -97,6 +155,7 @@ class HackKexts:
         self._add_audio_kexts()
         self._add_storage_kexts()
         self._add_network_kexts()
+        self._inject_io80211_kexts()
         self._add_usb_kexts()
         self._add_amd_extras()
         self._add_smc_plugins()

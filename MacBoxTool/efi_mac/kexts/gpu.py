@@ -35,7 +35,7 @@ class GPUKextManager(KextManager):
             self.model in model_array.DualGPUPatch
         )
         if needs_weg:
-            self.enable_kext("WhateverGreen.kext", self.constants.whatevergreen_version)
+            self.enable_kext("WhateverGreen.kext", self.constants.whatevergreen_version,self.constants.whatevergreen_path)
             self._log("  WhateverGreen (GPU patching)")
 
         # Mac Pro / Xserve dGPU DeviceProperties
@@ -178,7 +178,7 @@ class GPUKextManager(KextManager):
                 "name": binascii.unhexlify("23646973706C6179"),
                 "class-code": binascii.unhexlify("FFFFFFFF"),
             }
-        self.enable_kext("BacklightInjector.kext", self.constants.backlight_injector_version)
+        self.enable_kext("BacklightInjector.kext", self.constants.backlight_injector_version,self.constants.backlight_injector_path)
         self.config["UEFI"]["Quirks"]["ForgeUefiSupport"] = True
         self.config["UEFI"]["Quirks"]["ReloadOptionRoms"] = True
 
@@ -188,7 +188,7 @@ class GPUKextManager(KextManager):
         props = {"shikigva": 128, "unfairgva": 1, "agdpmod": "pikera", "rebuild-device-tree": 1, "enable-gva-support": 1}
 
         if self.model == "iMac9,1":
-            self.enable_kext("BacklightInjector.kext", self.constants.backlight_injectorA_version)
+            self.enable_kext("BacklightInjector.kext", self.constants.backlight_injectorA_version,self.constants.backlight_injectorA_path)
 
         self.config["DeviceProperties"]["Add"][backlight_path] = props.copy()
 
@@ -273,7 +273,7 @@ class GPUKextManager(KextManager):
             "name": "Pyquick Disabled Card",
         }
         self.config["DeviceProperties"]["Delete"]["PciRoot(0x0)/Pci(0x1,0x0)/Pci(0x0,0x0)"] = ["class-code", "device-id", "IOName", "name"]
-        self.enable_kext("AMDGPUWakeHandler.kext", self.constants.gpu_wake_version)
+        self.enable_kext("AMDGPUWakeHandler.kext", self.constants.gpu_wake_version,self.constants.gpu_wake_path)
 
         # SSDT-DGPU ACPI table for software demux
         from ..acpi.base import ACPIManager
@@ -420,7 +420,7 @@ class GPUKextManager(KextManager):
 
         if has_kdkless_gpu and not has_kdk_gpu:
             # KDKlessWorkaround is required for KDKless GPUs
-            self.enable_kext("KDKlessWorkaround.kext", self.constants.kdkless_version)
+            self.enable_kext("KDKlessWorkaround.kext", self.constants.kdkless_version,self.constants.kdkless_path)
             self._log("  KDKlessWorkaround (KDKless GPU)")
             return
 
@@ -435,6 +435,6 @@ class GPUKextManager(KextManager):
                 device_probe.AMD.Archs.Vega,
                 device_probe.AMD.Archs.Navi,
             ]:
-                self.enable_kext("KDKlessWorkaround.kext", self.constants.kdkless_version)
+                self.enable_kext("KDKlessWorkaround.kext", self.constants.kdkless_version,self.constants.kdkless_path)
                 self._log("  KDKlessWorkaround (pre-AVX2 AMD)")
                 return

@@ -43,18 +43,18 @@ class BluetoothKextManager(KextManager):
 
         if hasattr(bt, 'is_3rd_party') and bt.is_3rd_party:
             # 3rd party Bluetooth 4.0
-            self.enable_kext("BlueToolFixup.kext", self.constants.bluetool_version)
+            self.enable_kext("BlueToolFixup.kext", self.constants.bluetool_version,self.constants.bluetool_path)
             self.config.setdefault("Kernel", {}).setdefault("Quirks", {})["ExtendBTFeatureFlags"] = True
             self._log("  BT: 3rd Party BT 4.0 - BlueToolFixup + ExtendBTFeatureFlags")
             return
 
         bt_name = str(bt_type)
         if "BRCM2070" in bt_name or "BRCM2046" in bt_name:
-            self.enable_kext("BlueToolFixup.kext", self.constants.bluetool_version)
-            self.enable_kext("Bluetooth-Spoof.kext", self.constants.btspoof_version)
+            self.enable_kext("BlueToolFixup.kext", self.constants.bluetool_version,self.constants.bluetool_path)
+            self.enable_kext("Bluetooth-Spoof.kext", self.constants.btspoof_version,self.constants.bluetool_path)
             self._log(f"  BT: legacy ({bt_name}) - BlueToolFixup + Bluetooth-Spoof")
         elif "BRCM20702" in bt_name:
-            self.enable_kext("BlueToolFixup.kext", self.constants.bluetool_version)
+            self.enable_kext("BlueToolFixup.kext", self.constants.bluetool_version,self.constants.bluetool_path)
             # Cross-reference WiFi chipset
             wifi = self.constants.computer.wifi if hasattr(self.constants.computer, 'wifi') else None
             if wifi and hasattr(wifi, 'chipset'):
@@ -68,18 +68,18 @@ class BluetoothKextManager(KextManager):
                 self._log(f"  BT: BRCM20702 - BlueToolFixup")
         else:
             # Modern BT (BRCM20703, etc.)
-            self.enable_kext("BlueToolFixup.kext", self.constants.bluetool_version)
+            self.enable_kext("BlueToolFixup.kext", self.constants.bluetool_version,self.constants.bluetool_path)
             self._log(f"  BT: modern ({bt_name}) - BlueToolFixup")
 
     def _prebuilt(self, bt_model, model_info):
         """Prebuilt Bluetooth kext handling from smbios_data."""
         # All legacy BT (<= BRCM20702_v1) need BlueToolFixup for Monterey+
         if bt_model <= BT.BRCM20702_v1:
-            self.enable_kext("BlueToolFixup.kext", self.constants.bluetool_version)
+            self.enable_kext("BlueToolFixup.kext", self.constants.bluetool_version,self.constants.bluetool_path)
 
             # BRCM2046/2070: additionally need Bluetooth-Spoof + -btlfxallowanyaddr
             if bt_model <= BT.BRCM2070:
-                self.enable_kext("Bluetooth-Spoof.kext", self.constants.btspoof_version)
+                self.enable_kext("Bluetooth-Spoof.kext", self.constants.btspoof_version,self.constants.btspoof_path)
                 self._log(f"  BT: legacy ({bt_model.name}) - BlueToolFixup + Bluetooth-Spoof")
             else:
                 self._log(f"  BT: BRCM20702_v1 ({bt_model.name}) - BlueToolFixup")
@@ -91,5 +91,5 @@ class BluetoothKextManager(KextManager):
 
         # BRCM20702_v2 / BRCM20703 / BRCM20703_UART: modern BT 4.0+
         elif bt_model in (BT.BRCM20702_v2, BT.BRCM20703, BT.BRCM20703_UART):
-            self.enable_kext("BlueToolFixup.kext", self.constants.bluetool_version)
+            self.enable_kext("BlueToolFixup.kext", self.constants.bluetool_version,self.constants.bluetool_path)
             self._log(f"  BT: modern ({bt_model.name}) - BlueToolFixup")

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class BuildOpenCore:
     """Build OpenCore EFI for a given Mac model using modular architecture."""
 
-    def __init__(self, model: str, global_constants):  # Constants instance passed at runtime
+    def __init__(self, model: str, global_constants:constants.Constants):  # Constants instance passed at runtime
         from .security import SecurityValidator
         if not SecurityValidator.validate_model(model):
             raise ValueError(f"Invalid model format: {model}")
@@ -76,6 +76,7 @@ class BuildOpenCore:
         from .kexts.base import KextManager
         kext_mgr = KextManager(self.config, self.constants, self.model, self.paths)
         logs = kext_mgr.enable_base_kexts()
+        
         self.log_lines.extend(logs)
         enabled_kexts = sum(1 for k in self.config.get("Kernel", {}).get("Add", []) if k.get("Enabled"))
         self._log(f"  Total enabled kexts: {enabled_kexts}")
@@ -115,6 +116,7 @@ class BuildOpenCore:
         # Step 9: Save config
         logs = config_mgr.save()
         self.log_lines.extend(logs)
+        kext_mgr.cleanup()
 
         # Step 10: Validate
         self._validate()

@@ -38,10 +38,10 @@ class AudioKextManager(KextManager):
 
         # AppleALC for legacy audio or Mac Pro models
         if (self.model in model_array.LegacyAudio or self.model in model_array.MacPro):
-            self.enable_kext("AppleALC.kext", self.constants.applealc_version)
+            self.enable_kext("AppleALC.kext", self.constants.applealc_version,self.constants.applealc_path)
         elif max_os <= os_data.os_data.high_sierra:
-            self.enable_kext("AppleALC.kext", self.constants.applealc_version)
+            self.enable_kext("AppleALC.kext", self.constants.applealc_version,self.constants.applealc_path)
         elif (self.model.startswith("MacPro") and self.model != "MacPro6,1") or self.model.startswith("Xserve"):
-            self.enable_kext("AppleALC.kext", self.constants.applealc_version)
+            self.enable_kext("AppleALC.kext", self.constants.applealc_version,self.constants.applealc_path)
 
         return self.log_lines

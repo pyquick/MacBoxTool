@@ -45,11 +45,12 @@ class HackBuildWorker(QThread):
 
     TOTAL_STEPS = 10  # base + acpi + kexts + drivers + quirks + nvram + pi + cleanup + save + validate
 
-    def __init__(self, smbios_model: str, constants, target_macos_versions: list = None):
+    def __init__(self, smbios_model: str, constants, target_macos_versions: list = None, target_macos: str = ""):
         super().__init__()
         self.smbios_model = smbios_model
         self.constants = constants
         self.target_macos_versions = target_macos_versions or []
+        self.target_macos = target_macos
 
     def run(self):
         handler = _SignalHandler(self.log_signal, self.progress_signal, self.TOTAL_STEPS)
@@ -61,6 +62,7 @@ class HackBuildWorker(QThread):
         try:
             from ..efi_hack.builder import HackintoshBuilder
             builder = HackintoshBuilder(self.smbios_model, self.constants,
+                                         target_macos=self.target_macos,
                                          target_macos_versions=self.target_macos_versions)
             builder.build()
             self.progress_signal.emit(100)
@@ -269,7 +271,13 @@ class BuildHackintosh(ScrollArea):
         from .gui_build_wizard import BuildWizard
 
         wizard = BuildWizard(self.constants, self)
-        success, smbios_model = wizard.run()
+        result = wizard.run()
+        if not isinstance(result, tuple) or len(result) < 3:
+            # Legacy support: assume (success, smbios_model)
+            success, smbios_model = result if isinstance(result, tuple) else (result, None)
+            target_macos = ""  # Default
+        else:
+            success, smbios_model, target_macos = result[:3]
 
         if success and smbios_model:
             self.last_smbios = smbios_model
@@ -290,7 +298,9 @@ class BuildHackintosh(ScrollArea):
             # Get selected AirportItlwm versions
             airport_itlwm_versions = self._get_selected_airport_versions()
 
-            self.worker = HackBuildWorker(smbios_model, self.constants, airport_itlwm_versions)
+            self.worker = HackBuildWorker(smbios_model, self.constants,
+                                          target_macos_versions=airport_itlwm_versions,
+                                          target_macos=target_macos)
             self.worker.log_signal.connect(self._append_log)
             self.worker.progress_signal.connect(self._on_progress)
             self.worker.finished_signal.connect(self._on_build_done)

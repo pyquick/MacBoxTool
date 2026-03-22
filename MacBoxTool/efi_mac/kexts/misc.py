@@ -44,9 +44,9 @@ class MiscKextManager(KextManager):
         if self.model.startswith("MacBookAir6") or (
             cpu_data.CPUGen.broadwell <= cpu_gen <= cpu_data.CPUGen.kaby_lake
         ):
-            self.enable_kext("AppleHSSPISupport.kext", self.constants.apple_spi_version)
-            self.enable_kext("AppleHSSPIHIDDriver.kext", self.constants.apple_spi_hid_version)
-            self.enable_kext("AppleTopCaseInjector.kext", self.constants.topcase_inj_version)
+            self.enable_kext("AppleHSSPISupport.kext", self.constants.apple_spi_version,self.constants.apple_spi_path)
+            self.enable_kext("AppleHSSPIHIDDriver.kext", self.constants.apple_spi_hid_version,self.constants.apple_spi_hid_path)
+            self.enable_kext("AppleTopCaseInjector.kext", self.constants.topcase_inj_version,self.constants.top_case_inj_path)
             self._log("  TopCase: SPI support (Broadwell-KabyLake)")
 
         # USB TopCase for pre-Skylake MacBooks
@@ -58,56 +58,56 @@ class MiscKextManager(KextManager):
 
     def _enable_usb_topcase(self, computer):
         """Enable USB TopCase from on-device probing."""
-        self.enable_kext("AppleUSBTopCase.kext", self.constants.topcase_version)
+        self.enable_kext("AppleUSBTopCase.kext", self.constants.topcase_version,self.constants.top_case_path)
         for plugin in ("AppleUSBTCButtons.kext", "AppleUSBTCKeyboard.kext", "AppleUSBTCKeyEventDriver.kext"):
             bp = f"AppleUSBTopCase.kext/Contents/PlugIns/{plugin}"
             for entry in self.config.get("Kernel", {}).get("Add", []):
                 if entry.get("BundlePath") == bp:
                     entry["Enabled"] = True
         if computer.internal_keyboard_type == "Legacy":
-            self.enable_kext("LegacyKeyboardInjector.kext", self.constants.legacy_keyboard)
+            self.enable_kext("LegacyKeyboardInjector.kext", self.constants.legacy_keyboard, self.constants.legacy_keyboard_path)
         if computer.trackpad_type == "Legacy":
-            self.enable_kext("AppleUSBTrackpad.kext", self.constants.apple_trackpad)
+            self.enable_kext("AppleUSBTrackpad.kext", self.constants.apple_trackpad, self.constants.apple_trackpad_path)
         elif computer.trackpad_type == "Modern":
-            self.enable_kext("AppleUSBMultitouch.kext", self.constants.multitouch_version)
+            self.enable_kext("AppleUSBMultitouch.kext", self.constants.multitouch_version,self.constants.multitouch_path)
         self._log("  TopCase: USB (on-device probe)")
 
     def _enable_usb_topcase_prebuilt(self, computer):
         """Enable USB TopCase for prebuilt (fallback)."""
-        self.enable_kext("AppleUSBTopCase.kext", self.constants.topcase_version)
+        self.enable_kext("AppleUSBTopCase.kext", self.constants.topcase_version,self.constants.top_case_path)
         for plugin in ("AppleUSBTCButtons.kext", "AppleUSBTCKeyboard.kext", "AppleUSBTCKeyEventDriver.kext"):
             bp = f"AppleUSBTopCase.kext/Contents/PlugIns/{plugin}"
             for entry in self.config.get("Kernel", {}).get("Add", []):
                 if entry.get("BundlePath") == bp:
                     entry["Enabled"] = True
-        self.enable_kext("AppleUSBMultitouch.kext", self.constants.multitouch_version)
+        self.enable_kext("AppleUSBMultitouch.kext", self.constants.multitouch_version,self.constants.multitouch_path)
         if self.model == "MacBook5,2":
-            self.enable_kext("AppleUSBTrackpad.kext", self.constants.apple_trackpad)
-            self.enable_kext("LegacyKeyboardInjector.kext", self.constants.legacy_keyboard)
+            self.enable_kext("AppleUSBTrackpad.kext", self.constants.apple_trackpad,self.constants.apple_trackpad_path)
+            self.enable_kext("LegacyKeyboardInjector.kext", self.constants.legacy_keyboard,self.constants.legacy_keyboard_path)
         self._log("  TopCase: USB (prebuilt fallback)")
 
     def _webcam_handling(self, model_info, cpu_gen, computer):
         """iSight/Camera handler (legacy misc.py:265-280)."""
         if model_info.get("Legacy iSight"):
-            self.enable_kext("LegacyUSBVideoSupport.kext", self.constants.apple_isight_version)
+            self.enable_kext("LegacyUSBVideoSupport.kext", self.constants.apple_isight_version,self.constants.apple_isight_path)
             self._log("  Webcam: Legacy iSight")
 
         if computer and computer.pcie_webcam:
-            self.enable_kext("AppleCameraInterface.kext", self.constants.apple_camera_version)
+            self.enable_kext("AppleCameraInterface.kext", self.constants.apple_camera_version,self.constants.apple_camera_path)
             self._log("  Webcam: PCIe camera interface")
         elif self.model.startswith("MacBook") and (
             cpu_data.CPUGen.haswell <= cpu_gen <= cpu_data.CPUGen.kaby_lake
         ):
-            self.enable_kext("AppleCameraInterface.kext", self.constants.apple_camera_version)
+            self.enable_kext("AppleCameraInterface.kext", self.constants.apple_camera_version,self.constants.apple_camera_path)
             self._log("  Webcam: PCIe camera (prebuilt Haswell-KabyLake)")
 
     def _firewire_handling(self):
         """FireWire boot handler (legacy misc.py:181-197)."""
         if not self.constants.firewire_boot:
             return
-        self.enable_kext("IOFireWireFamily.kext", self.constants.fw_kext)
-        self.enable_kext("IOFireWireSBP2.kext", self.constants.fw_kext)
-        self.enable_kext("IOFireWireSerialBusProtocolTransport.kext", self.constants.fw_kext)
+        self.enable_kext("IOFireWireFamily.kext", self.constants.fw_kext,self.constants.fw_family_path)
+        self.enable_kext("IOFireWireSBP2.kext", self.constants.fw_kext, self.constants.fw_sbp2_path)
+        self.enable_kext("IOFireWireSerialBusProtocolTransport.kext", self.constants.fw_kext, self.constants.fw_bus_path)
         bp = "IOFireWireFamily.kext/Contents/PlugIns/AppleFWOHCI.kext"
         for entry in self.config.get("Kernel", {}).get("Add", []):
             if entry.get("BundlePath") == bp:
@@ -134,7 +134,7 @@ class MiscKextManager(KextManager):
         """USB Map + UHCI/OHCI handler (legacy misc.py:283-337)."""
         # UHCI/OHCI for Penryn and specific Mac Pro/Xserve models
         if cpu_gen <= cpu_data.CPUGen.penryn.value or self.model in ("MacPro4,1", "MacPro5,1", "Xserve3,1"):
-            self.enable_kext("USB1.1-Injector.kext", self.constants.apple_usb_11_injector)
+            self.enable_kext("USB1.1-Injector.kext", self.constants.apple_usb_11_injector, self.constants.apple_usb_11_injector_path)
             for plugin in ("AppleUSBOHCI.kext", "AppleUSBOHCIPCI.kext", "AppleUSBUHCI.kext", "AppleUSBUHCIPCI.kext"):
                 bp = f"USB1.1-Injector.kext/Contents/PlugIns/{plugin}"
                 for entry in self.config.get("Kernel", {}).get("Add", []):
@@ -152,11 +152,11 @@ class MiscKextManager(KextManager):
                 if entry.get("Identifier") == identifier:
                     entry["Enabled"] = True
         # Inject patched kexts
-        self.enable_kext("corecrypto_T1.kext", self.constants.t1_corecrypto_version)
-        self.enable_kext("AppleSSE.kext", self.constants.t1_sse_version)
-        self.enable_kext("AppleKeyStore.kext", self.constants.t1_key_store_version)
-        self.enable_kext("AppleCredentialManager.kext", self.constants.t1_credential_version)
-        self.enable_kext("KernelRelayHost.kext", self.constants.kernel_relay_version)
+        self.enable_kext("corecrypto_T1.kext", self.constants.t1_corecrypto_version,self.constants.t1_corecrypto_path)
+        self.enable_kext("AppleSSE.kext", self.constants.t1_sse_version,self.constants.t1_sse_path)
+        self.enable_kext("AppleKeyStore.kext", self.constants.t1_key_store_version,self.constants.t1_key_store_path)
+        self.enable_kext("AppleCredentialManager.kext", self.constants.t1_credential_version,self.constants.t1_credential_path)
+        self.enable_kext("KernelRelayHost.kext", self.constants.kernel_relay_version,self.constants.kernel_relay_path)
         self._log("  T1 Security Chip support")
 
     def _cpufriend_handling(self, model_info, cpu_gen):
@@ -173,7 +173,7 @@ class MiscKextManager(KextManager):
             return
 
         # Enable CPUFriend.kext from payload
-        self.enable_kext("CPUFriend.kext", self.constants.cpufriend_version)
+        self.enable_kext("CPUFriend.kext", self.constants.cpufriend_version,self.constants.cpufriend_path)
 
         # Copy and enable CPUFriendDataProvider.kext for the target model
         pp_map_path = self.constants.platform_plugin_plist_path / f"{self.model}/Info.plist"
@@ -207,6 +207,6 @@ class MiscKextManager(KextManager):
         if cpu_gen >= cpu_data.CPUGen.sandy_bridge.value:
             return
 
-        self.enable_kext("NoAVXFSCompressionTypeZlib.kext", self.constants.apfs_zlib_version)
-        self.enable_kext("NoAVXFSCompressionTypeZlib-AVXpel.kext", self.constants.apfs_zlib_v2_version)
+        self.enable_kext("NoAVXFSCompressionTypeZlib.kext", self.constants.apfs_zlib_version,self.constants.apfs_zlib_path)
+        self.enable_kext("NoAVXFSCompressionTypeZlib-AVXpel.kext", self.constants.apfs_zlib_v2_version,self.constants.apfs_zlib_v2_path)
         self._log("  NoAVXFS: AVX1.0 compression workaround (pre-Sandy Bridge)")

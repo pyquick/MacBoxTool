@@ -28,7 +28,7 @@ class StorageKextManager(KextManager):
             # S1X/S3X NVMe: Apple SSD (vendor 0x106b, device 0x2001/0x2003)
             # Must be checked OUTSIDE the 3rd-party loop since Apple devices are skipped there
             if any(c.vendor_id == 0x106b and c.device_id in (0x2001, 0x2003) for c in nvme_devices):
-                self.enable_kext("IOS3XeFamily.kext", self.constants.s3x_nvme_version)
+                self.enable_kext("IOS3XeFamily.kext", self.constants.s3x_nvme_version, self.constants.s3x_nvme_path)
                 self._log("  IOS3XeFamily (S1X/S3X Apple NVMe)")
 
             # NVMeFix with ASPM handling for 3rd party NVMe
@@ -52,12 +52,12 @@ class StorageKextManager(KextManager):
                             self.config["NVRAM"]["Add"]["7C436110-AB2A-4BBB-A880-FE41995C9F82"]["boot-args"] += " -nvmefaspm"
 
                     if controller.vendor_id != 0x144D and controller.device_id != 0xA804:
-                        self.enable_kext("NVMeFix.kext", self.constants.nvmefix_version)
+                        self.enable_kext("NVMeFix.kext", self.constants.nvmefix_version, self.constants.nvmefix_path)
 
         # S1X/S3X prebuilt fallback: Haswell-Kaby Lake or MacPro6,1
         if self.constants.custom_model:
             if (cpu_data.CPUGen.haswell.value <= cpu_gen <= cpu_data.CPUGen.kaby_lake.value) or self.model == "MacPro6,1":
-                self.enable_kext("IOS3XeFamily.kext", self.constants.s3x_nvme_version)
+                self.enable_kext("IOS3XeFamily.kext", self.constants.s3x_nvme_version, self.constants.s3x_nvme_path)
                 self._log("  IOS3XeFamily (S1X/S3X prebuilt fallback)")
 
         # PCIe Storage built-in DeviceProperties (Mac Pro / allow_oc_everywhere)
@@ -67,18 +67,18 @@ class StorageKextManager(KextManager):
                     self.config["DeviceProperties"]["Add"].setdefault(controller.pci_path, {})["built-in"] = 1
                     self._log(f"  DeviceProperties: PCIe Storage ({i+1}) built-in at {controller.pci_path}")
                 else:
-                    self.enable_kext("Innie.kext", self.constants.innie_version)
+                    self.enable_kext("Innie.kext", self.constants.innie_version, self.constants.innie_path)
                     self._log(f"  Innie.kext fallback for PCIe Storage ({i+1})")
 
         # Apple RAID Card (pci106b,8a)
         if computer and computer.storage:
             for controller in computer.storage:
                 if controller.vendor_id == 0x106b and controller.device_id == 0x008A:
-                    self.enable_kext("AppleRAIDCard.kext", self.constants.apple_raid_version)
+                    self.enable_kext("AppleRAIDCard.kext", self.constants.apple_raid_version, self.constants.apple_raid_path)
                     self._log("  AppleRAIDCard (Apple RAID)")
                     break
         elif self.model.startswith("Xserve"):
-            self.enable_kext("AppleRAIDCard.kext", self.constants.apple_raid_version)
+            self.enable_kext("AppleRAIDCard.kext", self.constants.apple_raid_version, self.constants.apple_raid_path)
             self._log("  AppleRAIDCard (Xserve fallback)")
 
         # AHCI hardware detection for MacBookAir6,x
@@ -86,16 +86,16 @@ class StorageKextManager(KextManager):
             sata_devices = [i for i in computer.storage if isinstance(i, device_probe.SATAController)]
             for controller in sata_devices:
                 if controller.vendor_id == 0x1179 and controller.device_id == 0x010b:
-                    self.enable_kext("MonteAHCIPort.kext", self.constants.monterey_ahci_version)
+                    self.enable_kext("MonteAHCIPort.kext", self.constants.monterey_ahci_version, self.constants.monterey_ahci_path)
                     self._log("  MonteAHCIPort (AHCI SSD detected)")
                     break
         elif self.model in ("MacBookAir6,1", "MacBookAir6,2"):
-            self.enable_kext("MonteAHCIPort.kext", self.constants.monterey_ahci_version)
+            self.enable_kext("MonteAHCIPort.kext", self.constants.monterey_ahci_version, self.constants.monterey_ahci_path)
             self._log("  MonteAHCIPort (MacBookAir6 AHCI fallback)")
 
         # PATA support
         if "PATA" in stock_storage:
-            self.enable_kext("AppleIntelPIIXATA.kext", self.constants.piixata_version)
+            self.enable_kext("AppleIntelPIIXATA.kext", self.constants.piixata_version, self.constants.piixata_path)
             self._log("  AppleIntelPIIXATA (PATA)")
 
         # SDXC for pre-Sandy Bridge models with SDXC
@@ -106,7 +106,7 @@ class StorageKextManager(KextManager):
             elif self.model.startswith("MacBookPro8") or self.model.startswith("Macmini5"):
                 has_sdxc = True
             if has_sdxc:
-                self.enable_kext("BigSurSDXC.kext", self.constants.bigsursdxc_version)
+                self.enable_kext("BigSurSDXC.kext", self.constants.bigsursdxc_version, self.constants.bigsursdxc_path)
                 self._log("  BigSurSDXC (pre-VT-d SDXC)")
 
         return self.log_lines

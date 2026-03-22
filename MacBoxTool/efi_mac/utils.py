@@ -67,6 +67,7 @@ def find_kext_zip(payload_kexts_path: Path, kext_name: str) -> Path | None:
 
     release = None
     debug = None
+    is_not_all = None
 
     # Case-insensitive search across all zip files
     for p in payload_kexts_path.rglob("*.zip"):
@@ -81,6 +82,8 @@ def find_kext_zip(payload_kexts_path: Path, kext_name: str) -> Path | None:
         if rest and not rest.startswith("-v"):
             continue
         if "debug" not in fname:
+            release = p
+        elif "release" in fname:
             release = p
         else:
             debug = p

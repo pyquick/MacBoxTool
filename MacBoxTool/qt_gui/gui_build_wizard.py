@@ -192,18 +192,18 @@ class BuildWizard:
         """
         # Step 1: Validate hardware
         if not self._validate_hardware():
-            return False, None
+            return False, None, None
 
         # Step 2: Select SMBIOS
         smbios_model = self._select_smbios()
         if not smbios_model:
-            return False, None
+            return False, None, None
 
         # Step 3: Confirm build
         if not self._confirm_build(smbios_model):
-            return False, None
+            return False, None, None
 
-        return True, smbios_model
+        return True, smbios_model, self.target_macos
 
     def _validate_hardware(self) -> bool:
         """Validate hardware and show results"""

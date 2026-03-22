@@ -23,7 +23,7 @@ class BaseGenerator:
         self.log_lines: list[str] = []
 
         # Build paths
-        self.build_path = Path.home() / ".macboxtool" / "efi_builder"
+        self.build_path = self.constants.build_path
         self.oc_build = self.build_path / "OpenCore-Build"
         self.oc_folder = self.oc_build / "EFI" / "OC"
         self.kexts_path = self.oc_folder / "Kexts"

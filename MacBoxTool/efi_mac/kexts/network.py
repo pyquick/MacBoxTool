@@ -41,15 +41,15 @@ class NetworkKextManager(KextManager):
             return
 
         if wireless == _dp.Broadcom.Chipsets.AirPortBrcm43224:
-            self.enable_kext("corecaptureElCap.kext", self.constants.corecaptureelcap_version)
-            self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version)
+            self.enable_kext("corecaptureElCap.kext", self.constants.corecaptureelcap_version,self.constants.corecaptureelcap_path)
+            self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version,self.constants.io80211elcap_path)
             self._log("  WiFi: AirPortBrcm43224 - IO80211ElCap")
         elif wireless == _dp.Broadcom.Chipsets.AirPortBrcm4331:
-            self.enable_kext("corecaptureElCap.kext", self.constants.corecaptureelcap_version)
-            self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version)
+            self.enable_kext("corecaptureElCap.kext", self.constants.corecaptureelcap_version,self.constants.corecaptureelcap_path)
+            self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version,self.constants.io80211elcap_path)
             self._log("  WiFi: AirPortBrcm4331 - IO80211ElCap")
         elif wireless == _dp.Broadcom.Chipsets.AirPortBrcm4360:
-            self.enable_kext("AirportBrcmFixup.kext", self.constants.airportbcrmfixup_version)
+            self.enable_kext("AirportBrcmFixup.kext", self.constants.airportbcrmfixup_version,self.constants.airportbcrmfixup_path)
             self._log("  WiFi: AirPortBrcm4360 - AirportBrcmFixup")
         elif wireless in (
             _dp.Broadcom.Chipsets.AirportBrcmNIC,
@@ -59,9 +59,9 @@ class NetworkKextManager(KextManager):
             for entry in self.config.get("Kernel", {}).get("Block", []):
                 if entry.get("Identifier") == "com.apple.iokit.IOSkywalkFamily":
                     entry["Enabled"] = True
-            self.enable_kext("IOSkywalkFamily.kext", self.constants.ioskywalk_version)
-            self.enable_kext("AirportBrcmFixup.kext", self.constants.airportbcrmfixup_version)
-            self.enable_kext("IO80211FamilyLegacy.kext", self.constants.io80211legacy_version)
+            self.enable_kext("IOSkywalkFamily.kext", self.constants.ioskywalk_version,self.constants.ioskywalk_path)
+            self.enable_kext("AirportBrcmFixup.kext", self.constants.airportbcrmfixup_version,self.constants.airportbcrmfixup_path)
+            self.enable_kext("IO80211FamilyLegacy.kext", self.constants.io80211legacy_version,self.constants.io80211legacy_path)
             # Enable AirPortBrcmNIC plugin (inside IO80211FamilyLegacy)
             self.config_mgr.enable_kext(
                 "IO80211FamilyLegacy.kext/Contents/PlugIns/AirPortBrcmNIC.kext"
@@ -73,8 +73,8 @@ class NetworkKextManager(KextManager):
                     entry["Enabled"] = False
             self._log("  WiFi: BrcmNIC - BrcmFixup + IOSkywalk + IO80211Legacy + AirPortBrcmNIC")
         elif hasattr(_dp, 'Atheros') and hasattr(_dp.Atheros, 'Chipsets') and wireless == getattr(_dp.Atheros.Chipsets, 'AirPortAtheros40', None):
-            self.enable_kext("corecaptureElCap.kext", self.constants.corecaptureelcap_version)
-            self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version)
+            self.enable_kext("corecaptureElCap.kext", self.constants.corecaptureelcap_version,self.constants.corecaptureelcap_path)
+            self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version,self.constants.io80211elcap_path)
             self._log("  WiFi: Atheros - IO80211ElCap")
 
         # Wake on WLAN (legacy wireless.py:73,141)
@@ -98,9 +98,9 @@ class NetworkKextManager(KextManager):
             for entry in self.config.get("Kernel", {}).get("Block", []):
                 if entry.get("Identifier") == "com.apple.iokit.IOSkywalkFamily":
                     entry["Enabled"] = True
-            self.enable_kext("IOSkywalkFamily.kext", self.constants.ioskywalk_version)
-            self.enable_kext("AirportBrcmFixup.kext", self.constants.airportbcrmfixup_version)
-            self.enable_kext("IO80211FamilyLegacy.kext", self.constants.io80211legacy_version)
+            self.enable_kext("IOSkywalkFamily.kext", self.constants.ioskywalk_version,self.constants.ioskywalk_path)
+            self.enable_kext("AirportBrcmFixup.kext", self.constants.airportbcrmfixup_version,self.constants.airportbcrmfixup_path)
+            self.enable_kext("IO80211FamilyLegacy.kext", self.constants.io80211legacy_version,self.constants.io80211legacy_path)
             self.config_mgr.enable_kext("IO80211FamilyLegacy.kext/Contents/PlugIns/AirPortBrcmNIC.kext")
             bp = "AirportBrcmFixup.kext/Contents/PlugIns/AirPortBrcmNIC_Injector.kext"
             for entry in self.config.get("Kernel", {}).get("Add", []):
@@ -108,21 +108,21 @@ class NetworkKextManager(KextManager):
                     entry["Enabled"] = False
             self._log("  WiFi: BrcmNIC (on-model) - BrcmFixup + IOSkywalk + IO80211Legacy")
         elif chipset == _dp.Broadcom.Chipsets.AirPortBrcm4360:
-            self.enable_kext("AirportBrcmFixup.kext", self.constants.airportbcrmfixup_version)
+            self.enable_kext("AirportBrcmFixup.kext", self.constants.airportbcrmfixup_version,self.constants.airportbcrmfixup_path)
             self._log("  WiFi: AirPortBrcm4360 (on-model) - AirportBrcmFixup")
         elif chipset == _dp.Broadcom.Chipsets.AirPortBrcm4331:
-            self.enable_kext("corecaptureElCap.kext", self.constants.corecaptureelcap_version)
-            self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version)
+            self.enable_kext("corecaptureElCap.kext", self.constants.corecaptureelcap_version,self.constants.corecaptureelcap_path)
+            self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version,self.constants.io80211elcap_path)
             self._wifi_fake_id(pci_path, country_code)
             self._log("  WiFi: AirPortBrcm4331 (on-model) - IO80211ElCap + FakeID")
         elif chipset == _dp.Broadcom.Chipsets.AirPortBrcm43224:
-            self.enable_kext("corecaptureElCap.kext", self.constants.corecaptureelcap_version)
-            self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version)
+            self.enable_kext("corecaptureElCap.kext", self.constants.corecaptureelcap_version,self.constants.corecaptureelcap_path)
+            self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version,self.constants.io80211elcap_path)
             self._wifi_fake_id(pci_path, country_code)
             self._log("  WiFi: AirPortBrcm43224 (on-model) - IO80211ElCap + FakeID")
         elif hasattr(_dp, 'Atheros') and isinstance(wifi, _dp.Atheros):
-            self.enable_kext("corecaptureElCap.kext", self.constants.corecaptureelcap_version)
-            self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version)
+            self.enable_kext("corecaptureElCap.kext", self.constants.corecaptureelcap_version,self.constants.corecaptureelcap_path)
+            self.enable_kext("IO80211ElCap.kext", self.constants.io80211elcap_version,self.constants.io80211elcap_path)
             self._log("  WiFi: Atheros (on-model) - IO80211ElCap")
 
         # Apply country code via DeviceProperties for BrcmFixup models
@@ -164,7 +164,7 @@ class NetworkKextManager(KextManager):
             self.config["DeviceProperties"]["Add"][pci_path]["brcmfx-country"] = country_code
 
         # Enable BrcmNIC_Injector plugin for fake ID
-        self.enable_kext("AirportBrcmFixup.kext", self.constants.airportbcrmfixup_version)
+        self.enable_kext("AirportBrcmFixup.kext", self.constants.airportbcrmfixup_version,self.constants.airportbcrmfixup_path)
         bp = "AirportBrcmFixup.kext/Contents/PlugIns/AirPortBrcmNIC_Injector.kext"
         for entry in self.config.get("Kernel", {}).get("Add", []):
             if entry.get("BundlePath") == bp:
@@ -211,19 +211,19 @@ class NetworkKextManager(KextManager):
         pre_ivy = cpu_gen < cpu_data.CPUGen.ivy_bridge.value
 
         if ethernet == "Broadcom" and pre_ivy:
-            self.enable_kext("CatalinaBCM5701Ethernet.kext", self.constants.bcm570_version)
+            self.enable_kext("CatalinaBCM5701Ethernet.kext", self.constants.bcm570_version,self.constants.bcm570_path)
             self._log("  Ethernet: Broadcom BCM5701 (prebuilt)")
         elif model_info.get("nForce Chipset", False) or ethernet == "Nvidia":
-            self.enable_kext("nForceEthernet.kext", self.constants.nforce_version)
+            self.enable_kext("nForceEthernet.kext", self.constants.nforce_version,self.constants.nforce_path)
             self._log("  Ethernet: nForce (prebuilt)")
         elif ethernet == "Marvell":
-            self.enable_kext("MarvelYukonEthernet.kext", self.constants.marvel_version)
+            self.enable_kext("MarvelYukonEthernet.kext", self.constants.marvel_version,self.constants.marvel_path)
             self._log("  Ethernet: Marvell Yukon (prebuilt)")
         elif ethernet == "Intel 80003ES2LAN":
-            self.enable_kext("AppleIntel8254XEthernet.kext", self.constants.intel_8254x_version)
+            self.enable_kext("AppleIntel8254XEthernet.kext", self.constants.intel_8254x_version,self.constants.intel_8254x_path)
             self._log("  Ethernet: Intel 8254X (prebuilt)")
         elif ethernet == "Intel 82574L":
-            self.enable_kext("Intel82574L.kext", self.constants.intel_82574l_version)
+            self.enable_kext("Intel82574L.kext", self.constants.intel_82574l_version,self.constants.intel_82574l_path)
             self._log("  Ethernet: Intel 82574L (prebuilt)")
 
     # ── Per-vendor handlers ──
@@ -234,7 +234,7 @@ class NetworkKextManager(KextManager):
             return
         if not pre_ivy:
             return
-        self.enable_kext("CatalinaBCM5701Ethernet.kext", self.constants.bcm570_version)
+        self.enable_kext("CatalinaBCM5701Ethernet.kext", self.constants.bcm570_version,self.constants.bcm570_path)
         self._log("  Ethernet: Broadcom BCM5701")
 
     def _handle_intel_ethernet(self, ctrl, pre_ivy: bool):
@@ -242,23 +242,23 @@ class NetworkKextManager(KextManager):
         if not pre_ivy:
             return
         if ctrl.chipset == _dp.IntelEthernet.Chipsets.AppleIntelI210Ethernet:
-            self.enable_kext("CatalinaIntelI210Ethernet.kext", self.constants.i210_version)
+            self.enable_kext("CatalinaIntelI210Ethernet.kext", self.constants.i210_version,self.constants.i210_path)
             self._log("  Ethernet: Intel i210")
         elif ctrl.chipset == _dp.IntelEthernet.Chipsets.AppleIntel8254XEthernet:
-            self.enable_kext("AppleIntel8254XEthernet.kext", self.constants.intel_8254x_version)
+            self.enable_kext("AppleIntel8254XEthernet.kext", self.constants.intel_8254x_version,self.constants.intel_8254x_path)
             self._log("  Ethernet: Intel 8254X")
         elif ctrl.chipset == _dp.IntelEthernet.Chipsets.Intel82574L:
-            self.enable_kext("Intel82574L.kext", self.constants.intel_82574l_version)
+            self.enable_kext("Intel82574L.kext", self.constants.intel_82574l_version,self.constants.intel_82574l_path)
             self._log("  Ethernet: Intel 82574L")
 
     def _handle_nvidia_ethernet(self):
         """NVIDIA nForce — vendor-ID match, all chipsets supported."""
-        self.enable_kext("nForceEthernet.kext", self.constants.nforce_version)
+        self.enable_kext("nForceEthernet.kext", self.constants.nforce_version,self.constants.nforce_path)
         self._log("  Ethernet: nForce")
 
     def _handle_marvell_ethernet(self):
         """Marvell / SysKonnect Yukon."""
-        self.enable_kext("MarvelYukonEthernet.kext", self.constants.marvel_version)
+        self.enable_kext("MarvelYukonEthernet.kext", self.constants.marvel_version,self.constants.marvel_path)
         self._log("  Ethernet: Marvell Yukon")
 
     def _handle_aquantia_ethernet(self, ctrl, pre_ivy: bool):
@@ -267,7 +267,7 @@ class NetworkKextManager(KextManager):
             return
         if not pre_ivy:
             return
-        self.enable_kext("AppleEthernetAbuantiaAqtion.kext", self.constants.aquantia_version)
+        self.enable_kext("AppleEthernetAbuantiaAqtion.kext", self.constants.aquantia_version,self.constants.aquantia_path)
         self._log("  Ethernet: Aquantia")
 
     # ── Global handlers (always run) ──
@@ -282,7 +282,7 @@ class NetworkKextManager(KextManager):
             return
         if smbios_data.smbios_dictionary[self.model]["Max OS Supported"] >= os_data.os_data.sonoma:
             return
-        self.enable_kext("ECM-Override.kext", self.constants.ecm_override_version)
+        self.enable_kext("ECM-Override.kext", self.constants.ecm_override_version,self.constants.ecm_override_path)
         self._log("  Ethernet: ECM-Override (USB dongle)")
 
     def _i210_handling(self, cpu_gen):
@@ -294,7 +294,7 @@ class NetworkKextManager(KextManager):
             return
         if smbios_data.smbios_dictionary[self.model]["Max OS Supported"] >= os_data.os_data.sonoma:
             return
-        self.enable_kext("CatalinaIntelI210Ethernet.kext", self.constants.i210_version)
+        self.enable_kext("CatalinaIntelI210Ethernet.kext", self.constants.i210_version,self.constants.i210_path)
         if cpu_gen >= cpu_data.CPUGen.ivy_bridge.value:
             for entry in self.config.get("Kernel", {}).get("Add", []):
                 if entry.get("BundlePath") == "CatalinaIntelI210Ethernet.kext":
