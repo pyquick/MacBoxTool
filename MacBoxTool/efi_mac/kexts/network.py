@@ -8,6 +8,7 @@ import logging
 from .base import KextManager
 from ...datasets import smbios_data, cpu_data,os_data
 import sys as _sys
+from ...constants import Constants
 if _sys.platform == "darwin":
     from ...detections import device_probe as _dp
 else:
@@ -19,24 +20,49 @@ logger = logging.getLogger(__name__)
 class NetworkKextManager(KextManager):
     """Manages Network-related kexts."""
 
+    def __init__(self, config: dict, constants:Constants, model: str, paths: dict, target_macos: str = ""):
+        super().__init__(config, constants, model, paths)
+        self.target_macos = target_macos
+        self.constants=constants
+        self.computer=self.constants.computer
+        # Parse target macOS version as integer (e.g., "14.4 Sonoma" -> 14)
+        self._target_macos_major = self._parse_macos_version(target_macos)
+
+    def _parse_macos_version(self, version_str: str) -> int:
+        """Parse macOS version string to get major version number."""
+        if not version_str:
+            # Fallback: default to 13 (Ventura) if no version provided
+            # This will be handled gracefully - IO80211 injection only runs for macOS 14+
+            return 13
+        # Parse "14.4 Sonoma" or "13 Ventura" -> 14 or 13
+        try:
+            return int(version_str.split()[0].split(".")[0])
+        except (IndexError, ValueError):
+            return 13  # Default to Ventura
+
     def apply(self) -> list[str]:
         model_info = smbios_data.smbios_dictionary.get(self.model, {})
         cpu_gen = model_info.get("CPU Generation", 999)
-
-        self._wifi_handling(model_info, cpu_gen)
-        self._ethernet_handling(model_info, cpu_gen)
+        if not self.constants.custom_model and self.constants.computer.wifi:
+            self._wifi_on_model()
+            self._on_model_ethernet(cpu_gen)
+        else:
+            self._wifi_handling(model_info, cpu_gen)
+            self._ethernet_handling(model_info, cpu_gen)
 
         return self.log_lines
 
     def _wifi_handling(self, model_info, cpu_gen):
         """WiFi kext handler: on-model detection first, fallback to prebuilt."""
         # On-model detection
+        print(f"- model: {self.constants.custom_model}")
         if not self.constants.custom_model and self.constants.computer and hasattr(self.constants.computer, 'wifi') and self.constants.computer.wifi:
             self._wifi_on_model()
             return
-
+        if not self.model in smbios_data.smbios_dictionary:
+            return
         # Prebuilt fallback
-        wireless = model_info.get("Wireless Model")
+        wireless = smbios_data.smbios_dictionary[self.model]["Wireless Model"]
         if not wireless:
             return
 

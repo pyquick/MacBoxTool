@@ -23,7 +23,7 @@ class GUIBuildHack(ScrollArea):
         self.constants=global_constants
         self.gui_support=ui_support
         self.settings=global_settings
-
+        
         #Add QWidgets
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
