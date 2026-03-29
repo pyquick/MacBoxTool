@@ -24,20 +24,46 @@ from ..support.scan_disk_efi import get_efi_partitions, list_disks, list_partiti
 
 class _SignalHandler(logging.Handler):
     """Logging handler that emits Qt signals for real-time log display."""
+    STAGE_MAP = [
+        ("Building Configuration", 8, "Preparing build"),
+        ("Creating build folder", 18, "Preparing build folder"),
+        ("Build folder already present", 18, "Preparing build folder"),
+        ("Deleting old copy of OpenCore", 22, "Cleaning previous build"),
+        ("- Adding OpenCore v", 32, "Extracting OpenCore"),
+        ("- Adding config.plist for OpenCore", 42, "Preparing config"),
+        ("- Adding Lilu.kext", 50, "Loading base components"),
+        ("- Cleaning up files", 88, "Cleaning build output"),
+        ("- Vaulting EFI", 93, "Signing EFI"),
+        ("- Validating generated config", 96, "Validating EFI"),
+        ("Your OpenCore EFI for", 100, "Build complete"),
+        ("- Adding ", 72, "Configuring components"),
+    ]
+
     def __init__(self, log_signal, progress_signal=None, total_steps=1):
         super().__init__()
         self._log_signal = log_signal
         self._progress_signal = progress_signal
-        self._total_steps = total_steps
-        self._step_count = 0
+        self._last_progress = 0
+        self._last_stage = None
+
+    def _emit_stage_progress(self, msg):
+        for pattern, pct, stage_name in self.STAGE_MAP:
+            if pattern not in msg:
+                continue
+
+            if stage_name != self._last_stage:
+                self._last_stage = stage_name
+                self._log_signal.emit(f"[STEP] {stage_name}")
+
+            if self._progress_signal and pct > self._last_progress:
+                self._last_progress = pct
+                self._progress_signal.emit(pct)
+            return
 
     def emit(self, record):
         msg = self.format(record)
+        self._emit_stage_progress(msg)
         self._log_signal.emit(msg)
-        if self._progress_signal and msg.startswith("[STEP]"):
-            self._step_count += 1
-            pct = min(int(self._step_count / self._total_steps * 100), 99)
-            self._progress_signal.emit(pct)
 
 
 class BuildWorker(QThread):
@@ -56,23 +82,25 @@ class BuildWorker(QThread):
     def run(self):
         handler = _SignalHandler(self.log_signal, self.progress_signal, self.TOTAL_STEPS)
         handler.setFormatter(logging.Formatter("%(message)s"))
-        efi_logger = logging.getLogger("MacBoxTool.efi_mac")
-        efi_logger.setLevel(logging.DEBUG)
-        efi_logger.addHandler(handler)
+        root_logger = logging.getLogger()
+        previous_level = root_logger.level
+        root_logger.setLevel(min(previous_level, logging.INFO) if previous_level else logging.INFO)
+        root_logger.addHandler(handler)
 
         try:
-            from ..efi_mac.build import BuildOpenCore
-            builder = BuildOpenCore(self.model, self.constants)
-            builder.build()
+            from ..efi_builder.build import BuildOpenCore
+
+            BuildOpenCore(self.model, self.constants)
             self.progress_signal.emit(100)
-            self.finished_signal.emit(True, str(builder.oc_build))
+            self.finished_signal.emit(True, str(self.constants.opencore_release_folder))
         except Exception as e:
             import traceback
             self.log_signal.emit(f"[ERROR] {e}")
             self.log_signal.emit(traceback.format_exc())
             self.finished_signal.emit(False, str(e))
         finally:
-            efi_logger.removeHandler(handler)
+            root_logger.removeHandler(handler)
+            root_logger.setLevel(previous_level)
 
 
 class DiskScannerThread(QThread):
@@ -464,11 +492,7 @@ class BuildOCPage(ScrollArea):
                                   SPACING["large"], SPACING["large"])
         layout.setSpacing(SPACING["medium"])
 
-        # Wizard button - guided build with validation
-        self.wizard_btn = PrimaryPushButton(FluentIcon.ROBOT, "Wizard Mode (Recommended)")
-        self.wizard_btn.setFixedHeight(40)
-        self.wizard_btn.clicked.connect(self._on_wizard_build)
-        layout.addWidget(self.wizard_btn)
+        
 
         # Build button - always enabled regardless of physical model
         self.build_btn = PushButton(FluentIcon.DEVELOPER_TOOLS, "Advanced: Build OpenCore EFI")
@@ -533,32 +557,7 @@ class BuildOCPage(ScrollArea):
         layout.addWidget(self.log_text)
         return card
 
-    def _on_wizard_build(self):
-        """Launch wizard mode with hardware validation"""
-        from .gui_build_wizard import BuildWizard
-
-        wizard = BuildWizard(self.constants, self)
-        success, smbios_model = wizard.run()
-
-        if success and smbios_model:
-            # Update target model and build
-            self.target_model = smbios_model
-            self.settings.set_key("MODEL", smbios_model)
-            self._model_label.setText(f"Physical: {self.physical_model} → Target: {smbios_model}")
-
-            # Start build
-            self.log_text.clear()
-            self.wizard_btn.setEnabled(False)
-            self.build_btn.setEnabled(False)
-            self.open_folder_btn.setVisible(False)
-            self.install_btn.setVisible(False)
-            self.progress_helper.update("loading", f"Building EFI for {smbios_model}...")
-
-            self.worker = BuildWorker(smbios_model, self.constants)
-            self.worker.log_signal.connect(self._append_log)
-            self.worker.progress_signal.connect(self._on_progress)
-            self.worker.finished_signal.connect(self._on_build_done)
-            self.worker.start()
+    
 
     def _on_build(self):
         model = self.settings.find_key("MODEL")
@@ -592,7 +591,7 @@ class BuildOCPage(ScrollArea):
         self.progress_bar.setValue(pct)
 
     def _on_build_done(self, success: bool, info: str):
-        self.wizard_btn.setEnabled(True)
+
         self.build_btn.setEnabled(True)
         if success:
             self.last_output_path = info

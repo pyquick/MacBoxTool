@@ -823,6 +823,35 @@ class Constants:
     def efi_build_output_path(self):
         """EFI build complete output path"""
         return self.efi_builder_path / "OpenCore-Build"
+    # OpenCore
+    @property
+    def opencore_zip_source(self):
+        return self.payload_path / Path(f"OpenCore/OpenCore-{'DEBUG' if self.opencore_debug is True else 'RELEASE'}.zip")
+
+    @property
+    def plist_template(self):
+        return self.payload_path / Path("Config/config.plist")
+
+    # Launch Services
+    @property
+    def launch_services_path(self):
+        return self.payload_path / Path("Launch Services")
+
+    @property
+    def auto_patch_launch_agent_path(self):
+        return self.launch_services_path / Path("com.hackdoc.oclp-r.auto-patch.plist")
+
+    @property
+    def rsr_monitor_launch_daemon_path(self):
+        return self.launch_services_path / Path("com.hackdoc.oclp-r.rsr-monitor.plist")
+
+    @property
+    def update_launch_daemon_path(self):
+        return self.launch_services_path / Path("com.hackdoc.oclp-r.macos-update.plist")
+
+    @property
+    def kdk_launch_daemon_path(self):
+        return self.launch_services_path / Path("com.hackdoc.oclp-r.os-caching.plist")
 
     # Build Location (legacy)
     @property

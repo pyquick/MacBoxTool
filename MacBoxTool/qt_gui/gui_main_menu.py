@@ -3,7 +3,7 @@ from .gui_support import DefGUI
 
 from .gui_introduction import Introduction
 from .gui_build import BuildOCPage
-from .gui_build_hackintosh import BuildHackintosh
+
 from .gui_about import AboutInterface
 from .gui_settings import SettingsInterface
 from .gui_task import TaskInterface, TaskManager
@@ -175,13 +175,7 @@ class Window(FluentWindow):
             NavigationItemPosition.SCROLL
         )
 
-        self.build_hack=BuildHackintosh(self.constants,self.gui_support,self.settings,self)
-        self.addSubInterface(
-            self.build_hack,
-            FluentIcon.ROBOT,
-            "Build For Hackintoshes",
-            NavigationItemPosition.SCROLL
-        )
+        
 
         self.task_page=TaskInterface(self.constants,self.gui_support,self.settings,self)
         self.addSubInterface(

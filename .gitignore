@@ -19,6 +19,7 @@ prompt.md
 lib64/
 temp/
 parts/
+EFI_Build/
 sdist/
 CLAUDE.md
 var/

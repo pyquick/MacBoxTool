@@ -26,9 +26,19 @@ from ..datasets import (
     os_data,
     sip_data
 )
+def disable_cls():
+    global clear
+    clear = False
 
-
-
+def cls():
+    global clear
+    if not clear:
+        return
+    
+    if not check_recovery():
+        os.system("cls" if os.name == "nt" else "clear")
+    else:
+        logging.info("\u001Bc")
 
 def hexswap(input_hex: str):
     hex_pairs = [input_hex[i : i + 2] for i in range(0, len(input_hex), 2)]

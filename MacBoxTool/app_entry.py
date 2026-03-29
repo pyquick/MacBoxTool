@@ -78,13 +78,7 @@ def main():
 
     if args.version:
         constants = Constants()
-        print(f"MacBoxTool v{constants.patcher_version}")
-        return
-
-    if args.validate:
-        # Run validation for all models
-        from .validation import validate_all_models
-        validate_all_models()
+        print(f"MacBoxTool v{constants.mactoolbox_version}")
         return
 
     if args.probe_hardware:
@@ -93,13 +87,6 @@ def main():
         print(f"Hardware: {computer}")
         return
 
-    if args.build_efi:
-        # Build EFI for specified model
-        print(f"Building EFI for {args.build_efi}...")
-        # TODO: Implement EFI build logic
-        if args.install_disk:
-            print(f"Installing to disk: {args.install_disk}")
-        return
 
     if args.download_installer:
         print("Download installer mode - launching GUI...")
