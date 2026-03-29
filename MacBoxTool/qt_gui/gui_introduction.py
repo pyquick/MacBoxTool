@@ -343,7 +343,7 @@ class Introduction(ScrollArea):
             card_type="note",
             title="MacBoxTool: - Now Supports macOS Tahoe 26!",
             body=(
-                "The long awaited version 3.0.1 of MacBoxTool is here, bringing <b>initial support for macOS Tahoe 26</b> to the community!<br><br>"
+                "The long awaited version 3.0.4 of OCLP-R is here, bringing <b>initial support for macOS Tahoe 26</b> to the community!<br><br>"
                 "<b>Please Note:</b><br>"
                 "- Only MacBoxTool 3.0.2 from the <a href=\"https://github.com/pyquick/MacBoxTool/releases/download/3.0.2/MacBoxTool.pkg\" style=\"color: #0078D4; text-decoration: none;\">pyquick/MacBoxTool</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
                 "- Official Dortania releases or older patches <b>will NOT work</b> with macOS Tahoe 26."

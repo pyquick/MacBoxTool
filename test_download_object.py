@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QEventLoop, QTimer
-
+/Users/ghltbm/Library/Metadata/CoreSpotlight/PasteboardHistory/2026-03-20_21-41-13.tiff
 from MacBoxTool.support.network_handler import (
     DownloadObject, DownloadWorker, DownloadStatus
 )

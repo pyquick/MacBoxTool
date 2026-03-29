@@ -560,6 +560,10 @@ class CompatibilityChecker:
 
         gpu_lower = gpu_name.lower()
 
+        # Intel Arc standalone model numbers (B580, B570, A770, A750, A380) - before vendor checks
+        if any(x in gpu_lower for x in ["a770", "a750", "a380", "b580", "b570"]):
+            return "intel_arc"
+
         for family, patterns in cls.GPU_PATTERNS.items():
             if any(p in gpu_lower for p in patterns):
                 return family
@@ -716,17 +720,27 @@ class CompatibilityChecker:
         Check all hardware compatibility
 
         Args:
-            hw_info: HardwareInfo object with cpu and gpu attributes
+            hw_info: HardwareInfo object with cpu and gpu (list) attributes
 
         Returns:
-            Dictionary with cpu and gpu compatibility results
+            Dictionary with cpu and list of gpu compatibility results
         """
         results = {}
 
         if hasattr(hw_info, "cpu") and hw_info.cpu:
-            results["cpu"] = cls.check_cpu(hw_info.cpu)
+            cpu = hw_info.cpu
+            if hasattr(cpu, "name") and cpu.name:
+                results["cpu"] = cls.check_cpu(cpu)
 
         if hasattr(hw_info, "gpu") and hw_info.gpu:
-            results["gpu"] = cls.check_gpu(hw_info.gpu)
+            gpu_list = hw_info.gpu
+            if gpu_list and len(gpu_list) > 0:
+                # Check all GPUs in the list and return as a list
+                gpu_results = []
+                for gpu in gpu_list:
+                    if hasattr(gpu, "name") and gpu.name:
+                        gpu_results.append(cls.check_gpu(gpu))
+                if gpu_results:
+                    results["gpu"] = gpu_results
 
         return results

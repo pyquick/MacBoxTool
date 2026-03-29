@@ -6,7 +6,7 @@ from PySide6.QtCore import Qt, Signal, QRectF, QPoint, QObject, QEvent
 from PySide6.QtGui import QPainter, QAction, QCursor, QIcon
 from PySide6.QtWidgets import QPushButton, QApplication
 
-from .menu import RoundMenu, MenuAnimationType, IndicatorMenuItemDelegate
+from .menu import RoundMenu, MenuAnimationType, IndicatorMenuItemDelegate, CheckableMenu
 from .line_edit import LineEdit, LineEditButton
 from ...common.animation import TranslateYAnimation
 from ...common.icon import FluentIconBase, isDarkTheme
@@ -554,3 +554,124 @@ class ComboBoxMenu(RoundMenu):
         self.view.adjustSize(pos, aniType)
         self.adjustSize()
         return super().exec(pos, ani, aniType)
+
+
+class CheckableComboBox(QPushButton):
+    """ Checkable combo box widget """
+
+    checkedChanged = Signal(list)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._items = []  # type: List[ComboItem]
+        self._checkedItems = []  # type: List[str]
+
+        self.setMinimumWidth(120)
+        self._updateDisplayText()
+
+        FluentStyleSheet.COMBO_BOX.apply(self)
+
+        self._menu = CheckableMenu(title="", parent=self)
+        self._menu.setItemHeight(33)
+        self._menu.view.setObjectName('checkableComboListWidget')
+        self._menu.aboutToHide.connect(self._onMenuHidden)
+
+        self.clicked.connect(self._showMenu)
+
+    def addItem(self, text: str, checked: bool = False):
+        """ Add an item to the combo box
+
+        Parameters
+        ----------
+        text: str
+            The text of the item
+
+        checked: bool
+            Whether the item is initially checked
+        """
+        item = ComboItem(text)
+        self._items.append(item)
+
+        action = QAction(text, self._menu)
+        action.setCheckable(True)
+        action.setChecked(checked)
+        action.triggered.connect(lambda checked: self._onItemToggled(text, checked))
+        self._menu.addAction(action)
+
+        if checked:
+            self._checkedItems.append(text)
+            self._updateDisplayText()
+
+    def checkedItems(self) -> List[str]:
+        """ Get the list of checked item texts
+
+        Returns
+        -------
+        List[str]
+            List of checked item texts
+        """
+        return self._checkedItems.copy()
+
+    def setCheckedItems(self, items: List[str]):
+        """ Programmatically set the checked items
+
+        Parameters
+        ----------
+        items: List[str]
+            List of item texts to check
+        """
+        self._checkedItems = items.copy()
+
+        for action in self._menu.actions():
+            action.setChecked(action.text() in items)
+
+        self._updateDisplayText()
+        self.checkedChanged.emit(self._checkedItems)
+
+    def _onItemToggled(self, text: str, checked: bool):
+        """ Handle item toggle
+
+        Parameters
+        ----------
+        text: str
+            The text of the toggled item
+
+        checked: bool
+            Whether the item is now checked
+        """
+        if checked:
+            if text not in self._checkedItems:
+                self._checkedItems.append(text)
+        else:
+            if text in self._checkedItems:
+                self._checkedItems.remove(text)
+
+        self._updateDisplayText()
+        self.checkedChanged.emit(self._checkedItems)
+
+    def _showMenu(self):
+        """ Show the dropdown menu """
+        pos = self.mapToGlobal(QPoint(0, self.height()))
+        self._menu.exec(pos)
+
+    def _onMenuHidden(self):
+        """ Handle menu hide event """
+        pass
+
+    def _updateDisplayText(self):
+        """ Update the button display text """
+        if self._checkedItems:
+            self.setText(", ".join(self._checkedItems))
+        else:
+            self.setText("Select...")
+
+    def clear(self):
+        """ Clear all items and selections """
+        self._items.clear()
+        self._checkedItems.clear()
+        self._menu.clear()
+        self._updateDisplayText()
+
+    def count(self) -> int:
+        """ Get the number of items """
+        return len(self._items)
