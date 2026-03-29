@@ -22,6 +22,6 @@ class GPUACPIManager(ACPIManager):
         """
         # Disable dGPU for dual GPU models
         if self.model in model_array.DualGPUPatch:
-            self.add_acpi("SSDT-DDGPU.aml")
+            self.add_acpi("SSDT-DGPU.aml")
 
         return self.log_lines

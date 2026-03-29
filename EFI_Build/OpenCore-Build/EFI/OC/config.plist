@@ -7,41 +7,16 @@
 		<key>Build-Type</key>
 		<string>OpenCore Built for External Machine</string>
 		<key>Build-Version</key>
-		<string>MacBoxTool 0.0.1 - 2026-03-28</string>
+		<string>MacBoxTool 0.0.1 - 2026-03-29</string>
 		<key>OpenCore-Version</key>
 		<string>1.0.6 - RELEASE</string>
 		<key>Original-Model</key>
-		<string>MacBookPro11,4</string>
+		<string>MacPro7,1</string>
 	</dict>
 	<key>ACPI</key>
 	<dict>
 		<key>Add</key>
-		<array>
-			<dict>
-				<key>Comment</key>
-				<string>SSDT-EC-USBX.aml</string>
-				<key>Enabled</key>
-				<true/>
-				<key>Path</key>
-				<string>SSDT-EC-USBX.aml</string>
-			</dict>
-			<dict>
-				<key>Comment</key>
-				<string>SSDT-EHCx-DISABLE.aml</string>
-				<key>Enabled</key>
-				<true/>
-				<key>Path</key>
-				<string>SSDT-EHCx-DISABLE.aml</string>
-			</dict>
-			<dict>
-				<key>Comment</key>
-				<string>SSDT-AWAC-DISABLE.aml</string>
-				<key>Enabled</key>
-				<true/>
-				<key>Path</key>
-				<string>SSDT-AWAC-DISABLE.aml</string>
-			</dict>
-		</array>
+		<array/>
 		<key>Delete</key>
 		<array/>
 		<key>Patch</key>
@@ -435,35 +410,17 @@
 				<key>Arch</key>
 				<string>x86_64</string>
 				<key>BundlePath</key>
-				<string>WhateverGreen.kext</string>
+				<string>AppleALC.kext</string>
 				<key>Comment</key>
-				<string>GPU Patching</string>
+				<string>AppleHDA Patching</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
-				<string>Contents/MacOS/WhateverGreen</string>
+				<string>Contents/MacOS/AppleALC</string>
 				<key>MaxKernel</key>
 				<string></string>
 				<key>MinKernel</key>
-				<string>10.0.0</string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
-				<string>CatalinaIntelI210Ethernet.kext</string>
-				<key>Comment</key>
-				<string>I210 Ethernet patch</string>
-				<key>Enabled</key>
-				<true/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/CatalinaIntelI210Ethernet</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string>23.0.0</string>
+				<string>18.0.0</string>
 				<key>PlistPath</key>
 				<string>Contents/Info.plist</string>
 			</dict>
@@ -525,96 +482,6 @@
 				<key>Arch</key>
 				<string>x86_64</string>
 				<key>BundlePath</key>
-				<string>FeatureUnlock.kext</string>
-				<key>Comment</key>
-				<string>FeatureUnlock</string>
-				<key>Enabled</key>
-				<true/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/FeatureUnlock</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string>16.0.0</string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
-				<string>IOFireWireFamily.kext</string>
-				<key>Comment</key>
-				<string>Enable FireWire Rooting #1</string>
-				<key>Enabled</key>
-				<true/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/IOFireWireFamily</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string>19.0.0</string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
-				<string>IOFireWireFamily.kext/Contents/PlugIns/AppleFWOHCI.kext</string>
-				<key>Comment</key>
-				<string>Enable FireWire Rooting #2</string>
-				<key>Enabled</key>
-				<true/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/AppleFWOHCI</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string>19.0.0</string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
-				<string>IOFireWireSBP2.kext</string>
-				<key>Comment</key>
-				<string>Enable FireWire Rooting #3</string>
-				<key>Enabled</key>
-				<true/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/IOFireWireSBP2</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string>19.0.0</string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
-				<string>IOFireWireSerialBusProtocolTransport.kext</string>
-				<key>Comment</key>
-				<string>Enable FireWire Rooting #4</string>
-				<key>Enabled</key>
-				<true/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/IOFireWireSerialBusProtocolTransport</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string>19.0.0</string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
 				<string>DebugEnhancer.kext</string>
 				<key>Comment</key>
 				<string>Enhance DEBUG output in system logs</string>
@@ -626,24 +493,6 @@
 				<string></string>
 				<key>MinKernel</key>
 				<string>12.0.0</string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
-				<string>BlueToolFixup.kext</string>
-				<key>Comment</key>
-				<string>Fix Monterey Bluetooth</string>
-				<key>Enabled</key>
-				<true/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/BlueToolFixup</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string>21.0.0</string>
 				<key>PlistPath</key>
 				<string>Contents/Info.plist</string>
 			</dict>
@@ -669,24 +518,6 @@
 				<key>Arch</key>
 				<string>x86_64</string>
 				<key>BundlePath</key>
-				<string>KDKlessWorkaround.kext</string>
-				<key>Comment</key>
-				<string>KDKlessWorkaround</string>
-				<key>Enabled</key>
-				<true/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/KDKlessWorkaround</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string>22.3.0</string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
 				<string>RSRHelper.kext</string>
 				<key>Comment</key>
 				<string>RSRHelper</string>
@@ -701,150 +532,6 @@
 				<key>PlistPath</key>
 				<string>Contents/Info.plist</string>
 			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
-				<string>IOSkywalkFamily.kext</string>
-				<key>Comment</key>
-				<string>IOSkywalkFamily</string>
-				<key>Enabled</key>
-				<true/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/IOSkywalkFamily</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string>23.0.0</string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
-				<string>AirportBrcmFixup.kext</string>
-				<key>Comment</key>
-				<string>Broadcom Wifi Patch</string>
-				<key>Enabled</key>
-				<true/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/AirportBrcmFixup</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string>12.0.0</string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
-				<string>IO80211FamilyLegacy.kext</string>
-				<key>Comment</key>
-				<string>IO80211FamilyLegacy</string>
-				<key>Enabled</key>
-				<true/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/IO80211FamilyLegacy</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string>23.0.0</string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
-				<string>IO80211FamilyLegacy.kext/Contents/PlugIns/AirPortBrcmNIC.kext</string>
-				<key>Comment</key>
-				<string>AirPortBrcmNIC</string>
-				<key>Enabled</key>
-				<true/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/AirPortBrcmNIC</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string>23.0.0</string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
-				<string>IOS3XeFamily.kext</string>
-				<key>Comment</key>
-				<string>Restore S1X/S3X drive support for 14.0 Beta 2 and newer</string>
-				<key>Enabled</key>
-				<true/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/IOS3XeFamily</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string>23.0.0</string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
-				<string>AppleCameraInterface.kext</string>
-				<key>Comment</key>
-				<string>PCIe Camera</string>
-				<key>Enabled</key>
-				<true/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/AppleCameraInterface</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string>23.0.0</string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
-				<string>AMFIPass.kext</string>
-				<key>Comment</key>
-				<string>AMFIPass</string>
-				<key>Enabled</key>
-				<true/>
-				<key>ExecutablePath</key>
-				<string>Contents/MacOS/AMFIPass</string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string>20.0.0</string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
-			<dict>
-				<key>Arch</key>
-				<string>x86_64</string>
-				<key>BundlePath</key>
-				<string>ECM-Override.kext</string>
-				<key>Comment</key>
-				<string>USB Ethernet - ECM</string>
-				<key>Enabled</key>
-				<true/>
-				<key>ExecutablePath</key>
-				<string></string>
-				<key>MaxKernel</key>
-				<string></string>
-				<key>MinKernel</key>
-				<string>23.0.0</string>
-				<key>PlistPath</key>
-				<string>Contents/Info.plist</string>
-			</dict>
 		</array>
 		<key>Block</key>
 		<array>
@@ -854,7 +541,7 @@
 				<key>Comment</key>
 				<string>Allow IOSkywalk Downgrade</string>
 				<key>Enabled</key>
-				<true/>
+				<false/>
 				<key>Identifier</key>
 				<string>com.apple.iokit.IOSkywalkFamily</string>
 				<key>MaxKernel</key>
@@ -1480,7 +1167,7 @@
 			<key>SetApfsTrimTimeout</key>
 			<integer>0</integer>
 			<key>ThirdPartyDrives</key>
-			<false/>
+			<true/>
 			<key>XhciPortLimit</key>
 			<false/>
 		</dict>
@@ -1680,25 +1367,25 @@
 				AAAAAA==
 				</data>
 				<key>board-id</key>
-				<string>Mac-06F11FD93F0323C5</string>
+				<string>Mac-27AD2F918AE68F61</string>
 			</dict>
 			<key>4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102</key>
 			<dict>
 				<key>OCLP-Model</key>
-				<string>MacBookPro11,4</string>
+				<string>MacPro7,1</string>
 				<key>OCLP-Settings</key>
-				<string> -allow_fv -allow_amfi</string>
+				<string></string>
 				<key>OCLP-Spoofed-MLB</key>
-				<string>C02653609J9J1JHFB</string>
+				<string>C02806108J9J1JH1F</string>
 				<key>OCLP-Spoofed-SN</key>
-				<string>C02T13YQHTD5</string>
+				<string>C02W7YZSHTD5</string>
 				<key>OCLP-Version</key>
 				<string>0.0.1</string>
 			</dict>
 			<key>7C436110-AB2A-4BBB-A880-FE41995C9F82</key>
 			<dict>
 				<key>boot-args</key>
-				<string>keepsyms=1 debug=0x100 -lilubetaall -no_compat_check ipc_control_port_options=0 -nokcmismatchpanic -v -liludbgall liludump=90 -brcmfxwowl</string>
+				<string>keepsyms=1 debug=0x100 -lilubetaall ipc_control_port_options=0 -nokcmismatchpanic -v -liludbgall liludump=90 -brcmfxwowl</string>
 				<key>csr-active-config</key>
 				<data>
 				AwgAAA==
@@ -1788,7 +1475,7 @@
 			<key>AdviseFeatures</key>
 			<true/>
 			<key>MLB</key>
-			<string>C02653609J9J1JHFB</string>
+			<string>C02806108J9J1JH1F</string>
 			<key>MaxBIOSVersion</key>
 			<true/>
 			<key>ProcessorType</key>
@@ -1804,9 +1491,9 @@
 			<key>SystemProductName</key>
 			<string>MacBookPro14,3</string>
 			<key>SystemSerialNumber</key>
-			<string>C02T13YQHTD5</string>
+			<string>C02W7YZSHTD5</string>
 			<key>SystemUUID</key>
-			<string>D04E9DCA-069A-45D3-81DE-3D2305300A97</string>
+			<string>77D93A0A-B8F5-44B5-8028-70B9AE519C58</string>
 		</dict>
 		<key>PlatformNVRAM</key>
 		<dict>
@@ -2131,7 +1818,7 @@
 			<key>EnableVectorAcceleration</key>
 			<true/>
 			<key>EnableVmx</key>
-			<true/>
+			<false/>
 			<key>ExitBootServicesDelay</key>
 			<integer>0</integer>
 			<key>ForceOcWriteFlash</key>

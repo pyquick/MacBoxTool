@@ -25,7 +25,7 @@ class FirmwareACPIManager(ACPIManager):
             self.add_acpi("SSDT-CPBG.aml")
 
         # SSDT-PCI for Sandy/Ivy Bridge Windows 10 UEFI audio (legacy firmware.py:143)
-        if cpu_gen in (cpu_data.CPUGen.sandy_bridge.value, cpu_data.CPUGen.ivy_bridge.value):
+        if cpu_gen in (cpu_data.CPUGen.sandy_bridge.value, cpu_data.CPUGen.ivy_bridge.value)and self.model != "MacPro6,1":
             self.add_acpi("SSDT-PCI.aml")
             # Enable BUF0→BUF1 ACPI patch
             for patch in self.config.get("ACPI", {}).get("Patch", []):

@@ -73,22 +73,14 @@ class ACPIManager:
         """
         self._log("[STEP] Enabling ACPI tables")
 
-        # Import and enable feature-specific ACPI
-        from .ec import ECACPIManager
-        ec_mgr = ECACPIManager(self.config, self.constants, self.model, self.paths)
-        self.log_lines.extend(ec_mgr.apply())
 
-        from .usb import USBACPIManager
-        usb_mgr = USBACPIManager(self.config, self.constants, self.model, self.paths)
-        self.log_lines.extend(usb_mgr.apply())
+        
 
         from .gpu import GPUACPIManager
         gpu_mgr = GPUACPIManager(self.config, self.constants, self.model, self.paths)
         self.log_lines.extend(gpu_mgr.apply())
 
-        from .awac import AWACACPIManager
-        awac_mgr = AWACACPIManager(self.config, self.constants, self.model, self.paths)
-        self.log_lines.extend(awac_mgr.apply())
+        
 
         from .firmware import FirmwareACPIManager
         fw_mgr = FirmwareACPIManager(self.config, self.constants, self.model, self.paths)
