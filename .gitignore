@@ -14,6 +14,10 @@ dist/
 downloads/
 eggs/
 .eggs/
+EFI_Build/
+.EFI_Build/
+/EFI_Build/
+./EFI_Build/
 lib/
 prompt.md
 lib64/

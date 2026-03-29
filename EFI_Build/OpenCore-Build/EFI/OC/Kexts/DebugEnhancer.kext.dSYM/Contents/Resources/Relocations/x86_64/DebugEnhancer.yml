@@ -1,0 +1,52 @@
+---
+triple:          'x86_64-apple-darwin'
+binary-path:     '/Users/runner/work/DebugEnhancer/DebugEnhancer/build/Release/DebugEnhancer.kext/Contents/MacOS/DebugEnhancer'
+relocations:
+  - { offsetInCU: 0x35, offset: 0x35, size: 0x8, addend: 0x0, symName: _kmod_info, symObjAddr: 0xEE0, symBinAddr: 0x2990, symSize: 0x0 }
+  - { offsetInCU: 0x206, offset: 0x206, size: 0x8, addend: 0x0, symName: __realmain, symObjAddr: 0xFA8, symBinAddr: 0x2A58, symSize: 0x0 }
+  - { offsetInCU: 0x21C, offset: 0x21C, size: 0x8, addend: 0x0, symName: __antimain, symObjAddr: 0xFB0, symBinAddr: 0x2A60, symSize: 0x0 }
+  - { offsetInCU: 0xF4, offset: 0x319, size: 0x8, addend: 0x0, symName: __ZL10bootargOff, symObjAddr: 0xFB8, symBinAddr: 0x2A68, symSize: 0x0 }
+  - { offsetInCU: 0x125, offset: 0x34A, size: 0x8, addend: 0x0, symName: __ZL12bootargDebug, symObjAddr: 0xFC0, symBinAddr: 0x2A70, symSize: 0x0 }
+  - { offsetInCU: 0x142, offset: 0x367, size: 0x8, addend: 0x0, symName: __ZL11bootargBeta, symObjAddr: 0xFC8, symBinAddr: 0x2A78, symSize: 0x0 }
+  - { offsetInCU: 0x15F, offset: 0x384, size: 0x8, addend: 0x0, symName: __ZL6dbgenh, symObjAddr: 0x2D520, symBinAddr: 0x2AA8, symSize: 0x0 }
+  - { offsetInCU: 0x28, offset: 0xB975, size: 0x8, addend: 0x0, symName: '__ZZN6DBGENH4initEvEN3$_08__invokeEPvR13KernelPatcher', symObjAddr: 0x0, symBinAddr: 0xC20, symSize: 0x6B0 }
+  - { offsetInCU: 0x5F, offset: 0xB9AC, size: 0x8, addend: 0x0, symName: __ZL14callbackDBGENH, symObjAddr: 0x2D580, symBinAddr: 0x2B08, symSize: 0x0 }
+  - { offsetInCU: 0x711, offset: 0xC05E, size: 0x8, addend: 0x0, symName: '__ZZN6DBGENH4initEvEN3$_08__invokeEPvR13KernelPatcher', symObjAddr: 0x0, symBinAddr: 0xC20, symSize: 0x6B0 }
+  - { offsetInCU: 0xBAC, offset: 0xC4F9, size: 0x8, addend: 0x0, symName: __ZN6DBGENH10kdb_printfEPKcz, symObjAddr: 0x6B0, symBinAddr: 0x12D0, symSize: 0xC0 }
+  - { offsetInCU: 0xBF3, offset: 0xC540, size: 0x8, addend: 0x0, symName: __ZN6DBGENH7kprintfEPKcz, symObjAddr: 0x770, symBinAddr: 0x1390, symSize: 0xB0 }
+  - { offsetInCU: 0xC3A, offset: 0xC587, size: 0x8, addend: 0x0, symName: __ZN6DBGENH21hibernate_write_imageEv, symObjAddr: 0x820, symBinAddr: 0x1440, symSize: 0x60 }
+  - { offsetInCU: 0xC81, offset: 0xC5CE, size: 0x8, addend: 0x0, symName: __ZN6DBGENH22IOHibernateSystemSleepEv, symObjAddr: 0x880, symBinAddr: 0x14A0, symSize: 0x60 }
+  - { offsetInCU: 0xCC8, offset: 0xC615, size: 0x8, addend: 0x0, symName: __ZN6DBGENH5IOLogEPKcz, symObjAddr: 0x8E0, symBinAddr: 0x1500, symSize: 0xB0 }
+  - { offsetInCU: 0x28, offset: 0xC726, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancerD1Ev, symObjAddr: 0x990, symBinAddr: 0x15B0, symSize: 0x10 }
+  - { offsetInCU: 0x30, offset: 0xC72E, size: 0x8, addend: 0x0, symName: _kmod_info, symObjAddr: 0xEE0, symBinAddr: 0x2990, symSize: 0x0 }
+  - { offsetInCU: 0x4A, offset: 0xC748, size: 0x8, addend: 0x0, symName: _DebugEnhancer_startSuccess, symObjAddr: 0x2D588, symBinAddr: 0x2B10, symSize: 0x0 }
+  - { offsetInCU: 0x6B, offset: 0xC769, size: 0x8, addend: 0x0, symName: _DebugEnhancer_debugEnabled, symObjAddr: 0x2D589, symBinAddr: 0x2B11, symSize: 0x0 }
+  - { offsetInCU: 0x86, offset: 0xC784, size: 0x8, addend: 0x0, symName: _DebugEnhancer_debugPrintDelay, symObjAddr: 0x2D58C, symBinAddr: 0x2B14, symSize: 0x0 }
+  - { offsetInCU: 0x96, offset: 0xC794, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancer10gMetaClassE, symObjAddr: 0x2D598, symBinAddr: 0x2A80, symSize: 0x0 }
+  - { offsetInCU: 0x7FFD, offset: 0x146FB, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancer9metaClassE, symObjAddr: 0x14E0, symBinAddr: 0x2030, symSize: 0x0 }
+  - { offsetInCU: 0x8015, offset: 0x14713, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancer10superClassE, symObjAddr: 0x14E8, symBinAddr: 0x2038, symSize: 0x0 }
+  - { offsetInCU: 0x8033, offset: 0x14731, size: 0x8, addend: 0x0, symName: _DebugEnhancer_selfInstance, symObjAddr: 0x2D590, symBinAddr: 0x2B18, symSize: 0x0 }
+  - { offsetInCU: 0x805B, offset: 0x14759, size: 0x8, addend: 0x0, symName: __ZL11kextVersion, symObjAddr: 0x14C0, symBinAddr: 0x1FE0, symSize: 0x0 }
+  - { offsetInCU: 0x808C, offset: 0x1478A, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancerD1Ev, symObjAddr: 0x990, symBinAddr: 0x15B0, symSize: 0x10 }
+  - { offsetInCU: 0x8107, offset: 0x14805, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancerD0Ev, symObjAddr: 0x9A0, symBinAddr: 0x15C0, symSize: 0x30 }
+  - { offsetInCU: 0x8195, offset: 0x14893, size: 0x8, addend: 0x0, symName: __ZNK13DebugEnhancer12getMetaClassEv, symObjAddr: 0x9D0, symBinAddr: 0x15F0, symSize: 0x10 }
+  - { offsetInCU: 0x81C6, offset: 0x148C4, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancer5probeEP9IOServicePi, symObjAddr: 0x9E0, symBinAddr: 0x1600, symSize: 0x60 }
+  - { offsetInCU: 0x8238, offset: 0x14936, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancer5startEP9IOService, symObjAddr: 0xA40, symBinAddr: 0x1660, symSize: 0x60 }
+  - { offsetInCU: 0x8282, offset: 0x14980, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancer4stopEP9IOService, symObjAddr: 0xAA0, symBinAddr: 0x16C0, symSize: 0x20 }
+  - { offsetInCU: 0x82F4, offset: 0x149F2, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancer9MetaClassD1Ev, symObjAddr: 0xAC0, symBinAddr: 0x16E0, symSize: 0x10 }
+  - { offsetInCU: 0x836F, offset: 0x14A6D, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancer9MetaClassD0Ev, symObjAddr: 0xAD0, symBinAddr: 0x16F0, symSize: 0x10 }
+  - { offsetInCU: 0x8443, offset: 0x14B41, size: 0x8, addend: 0x0, symName: __ZNK13DebugEnhancer9MetaClass5allocEv, symObjAddr: 0xAE0, symBinAddr: 0x1700, symSize: 0x40 }
+  - { offsetInCU: 0x844B, offset: 0x14B49, size: 0x8, addend: 0x0, symName: __GLOBAL__sub_I_plugin_start.cpp, symObjAddr: 0xB20, symBinAddr: 0x1740, symSize: 0x40 }
+  - { offsetInCU: 0x8519, offset: 0x14C17, size: 0x8, addend: 0x0, symName: __GLOBAL__sub_I_plugin_start.cpp, symObjAddr: 0xB20, symBinAddr: 0x1740, symSize: 0x40 }
+  - { offsetInCU: 0x85A9, offset: 0x14CA7, size: 0x8, addend: 0x0, symName: __GLOBAL__D_a, symObjAddr: 0xB60, symBinAddr: 0x1780, symSize: 0x20 }
+  - { offsetInCU: 0x861B, offset: 0x14D19, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancer9MetaClassC1Ev, symObjAddr: 0xB80, symBinAddr: 0x17A0, symSize: 0x40 }
+  - { offsetInCU: 0x8676, offset: 0x14D74, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancerC2EPK11OSMetaClass, symObjAddr: 0xBC0, symBinAddr: 0x17E0, symSize: 0x20 }
+  - { offsetInCU: 0x86E6, offset: 0x14DE4, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancerC1EPK11OSMetaClass, symObjAddr: 0xBE0, symBinAddr: 0x1800, symSize: 0x20 }
+  - { offsetInCU: 0x876E, offset: 0x14E6C, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancerD2Ev, symObjAddr: 0xC00, symBinAddr: 0x1820, symSize: 0x10 }
+  - { offsetInCU: 0x879B, offset: 0x14E99, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancer9MetaClassC2Ev, symObjAddr: 0xC10, symBinAddr: 0x1830, symSize: 0x40 }
+  - { offsetInCU: 0x87CA, offset: 0x14EC8, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancerC1Ev, symObjAddr: 0xC50, symBinAddr: 0x1870, symSize: 0x30 }
+  - { offsetInCU: 0x8825, offset: 0x14F23, size: 0x8, addend: 0x0, symName: __ZN13DebugEnhancerC2Ev, symObjAddr: 0xC80, symBinAddr: 0x18A0, symSize: 0x30 }
+  - { offsetInCU: 0x888E, offset: 0x14F8C, size: 0x8, addend: 0x0, symName: _DebugEnhancer_kern_start, symObjAddr: 0xCB0, symBinAddr: 0x18D0, symSize: 0x220 }
+  - { offsetInCU: 0x8A08, offset: 0x15106, size: 0x8, addend: 0x0, symName: _DebugEnhancer_kern_stop, symObjAddr: 0xED0, symBinAddr: 0x1AF0, symSize: 0x10 }
+  - { offsetInCU: 0x8A10, offset: 0x1510E, size: 0x8, addend: 0x0, symName: _kmod_info, symObjAddr: 0xEE0, symBinAddr: 0x2990, symSize: 0x0 }
+...

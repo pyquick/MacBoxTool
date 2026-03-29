@@ -10,7 +10,6 @@ from . import support
 from .. import constants
 
 from ..support import utilities
-
 from ..detections import device_probe
 
 from ..datasets import (

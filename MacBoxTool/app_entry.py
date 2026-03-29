@@ -47,7 +47,7 @@ class MacBoxTool:
         super().__init__()
         self.constants: Constants = Constants()
         self.computer= device_probe.Computer().probe()
-
+        
         os_data = os_probe.OSProbe()
         self.constants.detected_os = os_data.detect_kernel_major()
         self.constants.detected_os_minor = os_data.detect_kernel_minor()
@@ -65,9 +65,20 @@ class MacBoxTool:
         LoggingHandler(self.constants)
         ThemeManager(self.constants)
         self.settings=GlobalSettings(self.constants)
+        self.target_model = self.settings.find_key("MODEL") or "MacPro7,1"
+        self.constants.custom_model=self.target_model if self.target_model !=("" or  None) else None
+        import threading
+        threading.Thread(target=self.hook_model,daemon=True).start()
         self.opengui()
 
-
+    def hook_model(self):
+        import threading
+        def set_target():
+            self.target_model = self.settings.find_key("MODEL") or "MacPro7,1"
+        self.constants.custom_model=self.target_model if self.target_model !=("" or  None) else None
+        a=threading.Thread(target=set_target,daemon=True)
+        a.start()
+        a.join()
     def opengui(self):
         w = OpenGUI(self.constants,self.settings)
         w.gui_main_menu()

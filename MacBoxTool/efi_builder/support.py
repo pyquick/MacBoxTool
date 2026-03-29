@@ -15,7 +15,6 @@ from .. import constants
 
 
 
-
 class BuildSupport:
     """
     Support Library for build.py and related libraries

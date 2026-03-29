@@ -43,6 +43,7 @@ class AboutInterface(ScrollArea):
 
         self.expandLayout.addWidget(self.show_about_label())
         self.expandLayout.addWidget(self.show_your_model())
+        self.expandLayout.addWidget(self.show_your_custom_model())
         self.expandLayout.addWidget(self.show_your_board_id())
         self.expandLayout.addSpacing(26)
 
@@ -68,10 +69,23 @@ class AboutInterface(ScrollArea):
         title_label.setStyleSheet("font-size: 24px; font-weight: bold;")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         return title_label
+
+    def show_custom_label(self):
+        self.label="Custom Label"
+        title_label = SubtitleLabel(self.label)
+        title_label.setStyleSheet("font-size: 24px; font-weight: bold;")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        return title_label
     
     def show_your_model(self):
         self.model= self.constants.computer.real_model
         model_label = BodyLabel("Model:"+" "+self.model)
+        model_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        return model_label
+    
+    def show_your_custom_model(self):
+        self.model= str(self.constants.custom_model)
+        model_label = BodyLabel("Custom Model:"+" "+self.model)
         model_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         return model_label
     

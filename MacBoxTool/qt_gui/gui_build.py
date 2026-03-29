@@ -591,7 +591,6 @@ class BuildOCPage(ScrollArea):
         self.progress_bar.setValue(pct)
 
     def _on_build_done(self, success: bool, info: str):
-
         self.build_btn.setEnabled(True)
         if success:
             self.last_output_path = info
