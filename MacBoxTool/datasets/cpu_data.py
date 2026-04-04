@@ -35,3 +35,19 @@ class CPUGen(enum.IntEnum):
     zen3         = 19
     zen4         = 20
     
+class CPUMODEL(enum.Enum):
+    penryn        = 23
+    nehalem       = [26,30]    
+    westmere      = 37
+    sandy_bridge  = 42 
+    sandy_bridge_e  = 45   
+    ivy_bridge      = 58
+    ivy_bridge_e    = 62 
+    haswell       = [60,70]
+    haswell_e     = 63 
+    broadwell     = 61    
+    skylake       = [78,94]    
+    kaby_lake     = [142,158]
+    coffee_lake   = [142,158] 
+    comet_lake    = [165,166]  
+    ice_lake      = 126
