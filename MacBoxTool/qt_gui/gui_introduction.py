@@ -1,0 +1,620 @@
+"""
+gui_introduction.py: Give introduction on GUI
+"""
+from ..include import *
+from ..constants import Constants
+from .gui_support import DefGUI
+from PySide6.QtCore import QThread, Signal, QTimer
+
+# Import install_helper only on macOS
+import sys
+if sys.platform == "darwin":
+    try:
+        from ..support.install_helper import check_helper_installed, install_privileged_helper, is_root
+    except ImportError:
+        check_helper_installed = None
+        install_privileged_helper = None
+        is_root = None
+else:
+    check_helper_installed = None
+    install_privileged_helper = None
+    is_root = None
+
+
+class HelperInstallWorker(QThread):
+    """Worker thread for installing privileged helper."""
+    finished_signal = Signal(bool, str)  # success, message
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def run(self):
+        """Run the installation in background thread."""
+        if install_privileged_helper:
+            success, msg = install_privileged_helper(verbose=False)
+            self.finished_signal.emit(success, msg)
+        else:
+            self.finished_signal.emit(False, "Helper installation not available on this platform")
+        is_root = None
+
+    check_helper_installed = None
+    install_privileged_helper = None
+    is_root = None
+
+# Import MessageBox for dialogs
+from ..UIkit.components.dialog_box.dialog import MessageBox
+
+
+class Introduction(ScrollArea):
+
+    # Navigation target constants
+    NAV_BUILD = "build"
+    NAV_SETTINGS = "settings"
+    NAV_ABOUT = "about"
+
+    def __init__(self,global_constants:Constants,ui_support:DefGUI=None,parent=None):
+        super().__init__(parent=parent)
+        self.setObjectName("Introduction")
+
+        logging.info("#############################")
+        logging.info("#####gui_introduction:OK#####")
+        logging.info("#############################")
+
+        self.global_constants = global_constants
+        self.navigation_callback = None  # For page navigation
+
+        self.scrollWidget = QWidget()
+        self.expandLayout = QVBoxLayout(self.scrollWidget)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setWidget(self.scrollWidget)
+        self.setWidgetResizable(True)
+        self.enableTransparentBackground()
+        self.scrollWidget.setStyleSheet("QWidget { background: transparent; }")
+        self.ui_support=ui_support
+
+        self._init_ui()
+
+        qconfig.themeChanged.connect(self.update_theme)
+        setTheme(Theme.AUTO)
+
+    def set_navigation_callback(self, callback):
+        """Set callback for page navigation."""
+        self.navigation_callback = callback
+
+    def navigate_to(self, target: str):
+        """Navigate to target page."""
+        if self.navigation_callback:
+            self.navigation_callback(target)
+
+    def update_theme(self):
+        setTheme(Theme.AUTO)
+        self.update()
+
+    def closeEvent(self, event):
+        self.themeListener.terminate()
+        self.themeListener.deleteLater()
+        super().closeEvent(event)
+
+    def _init_ui(self):
+        self.expandLayout.setContentsMargins(SPACING["xxlarge"], SPACING["xlarge"], SPACING["xxlarge"], SPACING["xlarge"])
+        self.expandLayout.setSpacing(SPACING["large"])
+
+        self.expandLayout.addWidget(self._create_title_label())
+
+        self.expandLayout.addWidget(self._create_hero_section())
+
+        self.expandLayout.addWidget(self._create_note_card())
+
+        self.expandLayout.addWidget(self._create_warning_card())
+
+        self.expandLayout.addWidget(self._create_guide_card())
+
+        self.expandLayout.addStretch()
+
+        # Defer helper check to after UI is shown (macOS only)
+        if sys.platform == "darwin":
+            QTimer.singleShot(100, self._check_and_show_helper_prompt)
+
+    def _create_helper_install_button(self):
+        """Create a small button for helper installation."""
+        card = CardWidget()
+
+        layout = QHBoxLayout(card)
+        layout.setContentsMargins(SPACING["large"], SPACING["small"], SPACING["large"], SPACING["small"])
+        layout.setSpacing(SPACING["medium"])
+
+        # Check if already installed
+        helper_installed = False
+        if check_helper_installed:
+            helper_installed = check_helper_installed()
+
+        if helper_installed:
+            icon = self.ui_support.build_icon_label(FluentIcon.ACCEPT, COLORS["success"], size=20)
+            status = StrongBodyLabel("Privileged Helper is installed")
+            status.setStyleSheet(f"color: {COLORS['success']}; font-size: 12px;")
+            layout.addWidget(icon)
+            layout.addWidget(status)
+        else:
+            icon = self.ui_support.build_icon_label(FluentIcon.INFO, COLORS["warning"], size=20)
+            status = StrongBodyLabel("Privileged Helper is NOT installed - Some features may be limited")
+            status.setStyleSheet(f"color: {COLORS['warning']}; font-size: 12px;")
+            layout.addWidget(icon)
+            layout.addWidget(status)
+
+            install_btn = PrimaryPushButton("Install Helper")
+            install_btn.clicked.connect(self._on_install_helper_clicked)
+            layout.addWidget(install_btn)
+
+        layout.addStretch()
+        return card
+
+    def _check_and_show_helper_prompt(self):
+        """Check helper status and show installation prompt if needed (deferred after UI init)."""
+        if not check_helper_installed:
+            return
+
+        if not check_helper_installed():
+            self._show_helper_install_dialog()
+            # Insert the button after warning card (index 4)
+            button = self._create_helper_install_button()
+            self.expandLayout.insertWidget(4, button)
+
+    def _show_helper_install_dialog(self):
+        """Show a dialog asking to install the helper if not already installed."""
+        if not check_helper_installed:
+            return
+
+        # Check if helper is installed
+        if not check_helper_installed():
+            # Show dialog - if helper file doesn't exist, always prompt
+            dialog = MessageBox(
+                "Privileged Helper Required",
+                "MacBoxTool requires a privileged helper tool to perform certain operations.\n\n"
+                "The helper will be installed to /Library/PrivilegedHelperTools/ with root privileges.\n\n"
+                "Would you like to install it now?",
+                self
+            )
+
+            if dialog.exec():
+                # User clicked OK
+                self._on_install_helper_clicked()
+            else:
+                # User clicked Cancel - don't mark first run complete, will ask again next time
+                pass
+
+    def _on_install_helper_clicked(self):
+        """Handle install helper button click - relaunch as root if needed."""
+        if not install_privileged_helper or (is_root and not is_root()):
+            # Need to get root privileges
+            self._relaunch_as_root()
+            return
+
+        # Show installing indicator
+        InfoBar.info(
+            title="Installing",
+            content="Installing Privileged Helper...",
+            orient=Qt.Orientation.Horizontal,
+            isClosable=False,
+            position=InfoBarPosition.TOP_RIGHT,
+            duration=0,  # Don't auto-close
+            parent=self
+        )
+
+        # Run installation in background thread
+        self._install_worker = HelperInstallWorker(self)
+        self._install_worker.finished_signal.connect(self._on_install_helper_finished)
+        self._install_worker.start()
+
+    def _on_install_helper_finished(self, success: bool, msg: str):
+        """Handle helper installation completion."""
+        if success:
+            # Show success message
+            InfoBar.success(
+                title="Success",
+                content="Privileged Helper installed successfully!",
+                orient=Qt.Orientation.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=3000,
+                parent=self
+            )
+
+            # Refresh to update the button
+            self.update()
+        else:
+            InfoBar.error(
+                title="Installation Failed",
+                content=msg,
+                orient=Qt.Orientation.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=5000,
+                parent=self
+            )
+
+    def _relaunch_as_root(self):
+        """Relaunch the application with sudo using AppleScript."""
+        import subprocess
+
+        # Get the current script path
+        script_path = sys.executable
+        app_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        main_script = os.path.join(app_path, "MacBoxTool", "app_entry.py")
+
+        # Build the AppleScript command
+        script = f'''
+        do shell script "echo 'Installing Privileged Helper...' && cd '{app_path}' && {script_path} -m MacBoxTool.support.install_helper" with administrator privileges
+        '''
+
+        try:
+            # Run AppleScript to get admin privileges and install
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+
+            if result.returncode == 0:
+                # Success - show message
+                InfoBar.success(
+                    title="Installed",
+                    content="Privileged Helper installed successfully!",
+                    orient=Qt.Orientation.Horizontal,
+                    isClosable=True,
+                    position=InfoBarPosition.TOP_RIGHT,
+                    duration=3000,
+                    parent=self
+                )
+
+                # Refresh UI
+                self._init_ui()
+            else:
+                # User cancelled or error
+                error_msg = result.stderr or "Installation was cancelled or failed."
+                InfoBar.warning(
+                    title="Installation",
+                    content=error_msg,
+                    orient=Qt.Orientation.Horizontal,
+                    isClosable=True,
+                    position=InfoBarPosition.TOP_RIGHT,
+                    duration=5000,
+                    parent=self
+                )
+
+        except subprocess.TimeoutExpired:
+            InfoBar.error(
+                title="Timeout",
+                content="Installation timed out.",
+                orient=Qt.Orientation.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=5000,
+                parent=self
+            )
+        except Exception as e:
+            InfoBar.error(
+                title="Error",
+                content=f"Failed to install: {str(e)}",
+                orient=Qt.Orientation.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=5000,
+                parent=self
+            )
+
+    def _create_hero_section(self):
+        hero_card = CardWidget()
+
+        hero_layout = QHBoxLayout(hero_card)
+        hero_layout.setContentsMargins(SPACING["large"], SPACING["large"], SPACING["large"], SPACING["large"])
+        hero_layout.setSpacing(SPACING["large"])
+
+        hero_text = QVBoxLayout()
+        hero_text.setSpacing(SPACING["medium"])
+
+        hero_title = QLabel("Introduction")
+        hero_title.setStyleSheet("font-size: 18px; color: {};".format(COLORS["primary"]))
+        hero_text.addWidget(hero_title)
+
+        hero_body = BodyLabel(
+            "A specialized tool that can generate your OpenCore EFI.<br>"
+            "Designed to reduce manual effort while ensuring accuracy in your Hackintosh journey.<br>"
+            "It both support old Macs."
+        )
+        hero_body.setWordWrap(True)
+        hero_body.setStyleSheet("line-height: 1.6; font-size: 14px;")
+        hero_text.addWidget(hero_body)
+
+        hero_layout.addLayout(hero_text, 2)
+
+        robot_icon = self.ui_support.build_icon_label(FluentIcon.ROBOT, COLORS["primary"], size=64)
+        hero_layout.addWidget(robot_icon, 1, Qt.AlignmentFlag.AlignVCenter)
+
+        return hero_card
+
+    def _create_title_label(self):
+        title_label = SubtitleLabel("Welcome to MacBoxTool")
+        title_label.setStyleSheet("font-size: 24px; font-weight: bold;")
+        return title_label
+
+    def _create_note_card(self):
+        return self.ui_support.custom_card(
+            card_type="note",
+            title="MacBoxTool: - Now Supports macOS Tahoe 26!",
+            body=(
+                "The long awaited version 3.0.4 of OCLP-R is here, bringing <b>initial support for macOS Tahoe 26</b> to the community!<br><br>"
+                "<b>Please Note:</b><br>"
+                "- Only MacBoxTool 3.0.2 from the <a href=\"https://github.com/pyquick/MacBoxTool/releases/download/3.0.2/MacBoxTool.pkg\" style=\"color: #0078D4; text-decoration: none;\">pyquick/MacBoxTool</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
+                "- Official Dortania releases or older patches <b>will NOT work</b> with macOS Tahoe 26."
+            )
+        )
+
+    def _create_warning_card(self):
+        return self.ui_support.custom_card(
+            card_type="warning",
+            title="This tool both support old Macs and Hackintoshes.",
+            body=(
+                "Even though this device supports older Macs and Hackintosh, "
+                "its use is not recommended due to its current instability. "
+                "Before using Hackintosh, please be sure to read Dortania's guide."
+            )
+        )
+
+    def _create_guide_card(self):
+        """Create a guide card with navigation buttons to different pages."""
+        card = CardWidget()
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(SPACING["large"], SPACING["large"], SPACING["large"], SPACING["large"])
+        layout.setSpacing(SPACING["medium"])
+
+        # Title
+        title = StrongBodyLabel("Quick Start Guide")
+        title.setStyleSheet("font-size: 16px; font-weight: bold;")
+        layout.addWidget(title)
+
+        # Description
+        desc = BodyLabel("Get started by following these steps:")
+        desc.setStyleSheet("font-size: 14px; color: #888;")
+        layout.addWidget(desc)
+
+        # New feature cards (added 2026-03-21)
+        # Card 1: Check Compatibility
+        layout.addWidget(self._create_compat_card())
+
+        # Card 2: ACPI Patching
+        layout.addWidget(self._create_acpi_card())
+
+        # Card 3: WiFi Setup
+        layout.addWidget(self._create_wifi_card())
+
+        # Card 4: Export/Import Hardware
+        layout.addWidget(self._create_hardware_export_card())
+
+        # Guide items with buttons
+        layout.addWidget(self._create_guide_item(
+            icon=FluentIcon.DEVELOPER_TOOLS,
+            title="5. Build OpenCore EFI",
+            description="Generate OpenCore EFI for your Mac or Hackintosh. Select your target model and click Build.",
+            button_text="Go to Build",
+            navigate_target=self.NAV_BUILD
+        ))
+
+        layout.addWidget(self._create_guide_item(
+            icon=FluentIcon.SETTING,
+            title="6. Configure Settings",
+            description="Adjust build settings like SMBIOS spoofing level, GPU options, and more.",
+            button_text="Go to Settings",
+            navigate_target=self.NAV_SETTINGS
+        ))
+
+        layout.addWidget(self._create_guide_item(
+            icon=FluentIcon.INFO,
+            title="7. Learn More",
+            description="Read about this tool, check for updates, and view credits.",
+            button_text="Go to About",
+            navigate_target=self.NAV_ABOUT
+        ))
+
+        return card
+
+    def _create_compat_card(self):
+        """Create Check Compatibility card."""
+        item_widget = QWidget()
+        item_layout = QHBoxLayout(item_widget)
+        item_layout.setContentsMargins(0, SPACING["small"], 0, SPACING["small"])
+        item_layout.setSpacing(SPACING["medium"])
+
+        icon_label = self.ui_support.build_icon_label(FluentIcon.INFO, COLORS["primary"], size=32)
+        item_layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(4)
+
+        title_label = BodyLabel("1. Check Compatibility")
+        title_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+
+        desc_label = BodyLabel("Detect hardware & check macOS support")
+        desc_label.setStyleSheet("font-size: 12px; color: #888;")
+        desc_label.setWordWrap(True)
+
+        text_layout.addWidget(title_label)
+        text_layout.addWidget(desc_label)
+        item_layout.addLayout(text_layout, 1)
+
+        nav_btn = PrimaryPushButton("Check Now")
+        nav_btn.setFixedHeight(32)
+        nav_btn.clicked.connect(self._on_check_compat)
+
+        item_layout.addWidget(nav_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        return item_widget
+
+    def _create_acpi_card(self):
+        """Create ACPI Patching placeholder card."""
+        item_widget = QWidget()
+        item_layout = QHBoxLayout(item_widget)
+        item_layout.setContentsMargins(0, SPACING["small"], 0, SPACING["small"])
+        item_layout.setSpacing(SPACING["medium"])
+
+        icon_label = self.ui_support.build_icon_label(FluentIcon.SEARCH, COLORS["primary"], size=32)
+        item_layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(4)
+
+        title_label = BodyLabel("2. ACPI Patching")
+        title_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+
+        desc_label = BodyLabel("View and manage ACPI patches (SSDT/SSDT)")
+        desc_label.setStyleSheet("font-size: 12px; color: #888;")
+        desc_label.setWordWrap(True)
+
+        text_layout.addWidget(title_label)
+        text_layout.addWidget(desc_label)
+        item_layout.addLayout(text_layout, 1)
+
+        nav_btn = PrimaryPushButton("Coming Soon")
+        nav_btn.setFixedHeight(32)
+        nav_btn.setEnabled(False)
+
+        item_layout.addWidget(nav_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        return item_widget
+
+    def _create_wifi_card(self):
+        """Create WiFi Setup placeholder card."""
+        item_widget = QWidget()
+        item_layout = QHBoxLayout(item_widget)
+        item_layout.setContentsMargins(0, SPACING["small"], 0, SPACING["small"])
+        item_layout.setSpacing(SPACING["medium"])
+
+        icon_label = self.ui_support.build_icon_label(FluentIcon.WIFI, COLORS["primary"], size=32)
+        item_layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(4)
+
+        title_label = BodyLabel("3. WiFi Setup")
+        title_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+
+        desc_label = BodyLabel("Configure WiFi adapters and AirPort support")
+        desc_label.setStyleSheet("font-size: 12px; color: #888;")
+        desc_label.setWordWrap(True)
+
+        text_layout.addWidget(title_label)
+        text_layout.addWidget(desc_label)
+        item_layout.addLayout(text_layout, 1)
+
+        nav_btn = PrimaryPushButton("Coming Soon")
+        nav_btn.setFixedHeight(32)
+        nav_btn.setEnabled(False)
+
+        item_layout.addWidget(nav_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        return item_widget
+
+    def _create_hardware_export_card(self):
+        """Create Export/Import Hardware placeholder card."""
+        item_widget = QWidget()
+        item_layout = QHBoxLayout(item_widget)
+        item_layout.setContentsMargins(0, SPACING["small"], 0, SPACING["small"])
+        item_layout.setSpacing(SPACING["medium"])
+
+        icon_label = self.ui_support.build_icon_label(FluentIcon.SAVE, COLORS["primary"], size=32)
+        item_layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(4)
+
+        title_label = BodyLabel("4. Export/Import Hardware")
+        title_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+
+        desc_label = BodyLabel("Export hardware profile or import from file")
+        desc_label.setStyleSheet("font-size: 12px; color: #888;")
+        desc_label.setWordWrap(True)
+
+        text_layout.addWidget(title_label)
+        text_layout.addWidget(desc_label)
+        item_layout.addLayout(text_layout, 1)
+
+        nav_btn = PrimaryPushButton("Coming Soon")
+        nav_btn.setFixedHeight(32)
+        nav_btn.setEnabled(False)
+
+        item_layout.addWidget(nav_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        return item_widget
+
+    def _on_check_compat(self):
+        """Open Check Compatibility dialog."""
+        # TODO: Create HardwareCompatDialog in gui_compat.py
+        MessageBox.info(
+            "Check Compatibility",
+            "Hardware detection and macOS compatibility check.\n\n"
+            "This will detect your hardware and check which macOS versions are supported.",
+            parent=self
+        )
+
+    def _on_acpi_clicked(self):
+        """Open ACPI Patching dialog (placeholder)."""
+        MessageBox.info(
+            "ACPI Patching",
+            "ACPI Patching feature is coming soon.\n\nThis will allow you to view and manage ACPI patches (SSDT/SSDT).",
+            parent=self
+        )
+
+    def _on_wifi_clicked(self):
+        """Open WiFi Setup dialog (placeholder)."""
+        MessageBox.info(
+            "WiFi Setup",
+            "WiFi Setup feature is coming soon.\n\nThis will allow you to configure WiFi adapters and AirPort support.",
+            parent=self
+        )
+
+    def _on_hardware_export_clicked(self):
+        """Open Export/Import Hardware dialog (placeholder)."""
+        MessageBox.info(
+            "Export/Import Hardware",
+            "Export/Import Hardware feature is coming soon.\n\nThis will allow you to export hardware profile or import from file.",
+            parent=self
+        )
+
+    def _create_guide_item(self, icon, title, description, button_text, navigate_target):
+        """Create a single guide item with navigation button."""
+        item_widget = QWidget()
+        item_layout = QHBoxLayout(item_widget)
+        item_layout.setContentsMargins(0, SPACING["small"], 0, SPACING["small"])
+        item_layout.setSpacing(SPACING["medium"])
+
+        # Icon
+        icon_label = self.ui_support.build_icon_label(icon, COLORS["primary"], size=32)
+        item_layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        # Text content
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(4)
+
+        title_label = BodyLabel(title)
+        title_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+
+        desc_label = BodyLabel(description)
+        desc_label.setStyleSheet("font-size: 12px; color: #888;")
+        desc_label.setWordWrap(True)
+
+        text_layout.addWidget(title_label)
+        text_layout.addWidget(desc_label)
+        item_layout.addLayout(text_layout, 1)
+
+        # Navigate button
+        nav_btn = PrimaryPushButton(button_text)
+        nav_btn.setFixedHeight(32)
+        nav_btn.clicked.connect(lambda: self.navigate_to(navigate_target))
+
+        item_layout.addWidget(nav_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        return item_widget
+
+    def refresh(self):
+        ...

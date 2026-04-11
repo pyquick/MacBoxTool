@@ -33,7 +33,7 @@ class CPU:
     name: str
     flags: list[str]
     leafs: list[str]
-    model: str
+    model: int
 
 
 @dataclass
@@ -979,11 +979,13 @@ class Computer:
     def cpu_probe(self):
         if sys.platform != "darwin":
             return
+        
+        
         self.cpu = CPU(
             subprocess.run(["/usr/sbin/sysctl", "machdep.cpu.brand_string"], stdout=subprocess.PIPE).stdout.decode().partition(": ")[2].strip(),
             subprocess.run(["/usr/sbin/sysctl", "machdep.cpu.features"], stdout=subprocess.PIPE).stdout.decode().partition(": ")[2].strip().split(" "),
             self.cpu_get_leafs(),
-            subprocess.run(["/usr/sbin/sysctl", "machdep.cpu.model"], stdout=subprocess.PIPE).stdout.decode().partition(": ")[2].strip().split(" "),
+            int(subprocess.run(["/usr/sbin/sysctl", "machdep.cpu.model"], stdout=subprocess.PIPE).stdout.decode().partition(": ")[2].strip().split(" ")[1]),
         )
 
     def cpu_get_leafs(self):

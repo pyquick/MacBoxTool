@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Optional
 import wmi
 
-from ..datasets import pci_data, usb_data
+from ..datasets import cpu_data, pci_data, usb_data
 from ..support import utilities_win as utilities
 
 
@@ -139,6 +139,40 @@ _cpuflags_cache: list[str] | None = None
 # Cached CPU data (reused across all Computer instances)
 _cached_cpu_name: str | None = None
 _cached_cpu_flags: list[str] | None = None
+_cached_cpu_gen: int | None = None
+
+
+def _detect_cpu_gen() -> int:
+    """
+    Detect Intel CPU generation from CPUID model (via Win32_Processor.ProcessorId).
+    Returns generation number (e.g. 11, 12, 13, 14, 15), or 0 if unknown.
+    """
+    global _cached_cpu_gen
+    if _cached_cpu_gen is not None:
+        return _cached_cpu_gen
+
+    try:
+        w = wmi.WMI()
+        proc = w.Win32_Processor()[0]
+        pid = proc.ProcessorId.strip()
+        # ProcessorId is a 16-char hex string representing EAX after CPUID(1)
+        # The low 32 bits (last 8 hex chars) contain Family/Model/Stepping
+        eax = int(pid[-8:], 16)
+
+        model = (eax >> 4) & 0xF
+        family = (eax >> 8) & 0xF
+        ext_model = (eax >> 16) & 0xF
+
+        if family == 0x6 or family == 0xF:
+            display_model = model + (ext_model << 4)
+        else:
+            display_model = model
+
+        _cached_cpu_gen = cpu_data.CPUID_MODEL_TO_GEN.get(display_model, 0)
+    except Exception:
+        _cached_cpu_gen = 0
+
+    return _cached_cpu_gen
 
 
 def _fast_cpu_flags() -> list[str]:
@@ -189,6 +223,7 @@ class CPU:
     name: str
     flags: list[str]
     leafs: list[str]
+    gen: int
 
 
 @dataclass
@@ -802,7 +837,7 @@ class Computer:
             flags = _cached_cpu_flags or _fast_cpu_flags()
             leafs = [f for f in flags if f.startswith("AVX") or f in ("BMI1", "BMI2", "SHA",
                                                                       "POPCNT", "AES", "PCLMULQDQ")]
-            self.cpu = CPU(_cached_cpu_name, flags, leafs)
+            self.cpu = CPU(_cached_cpu_name, flags, leafs, _detect_cpu_gen())
             return
 
         try:
@@ -816,7 +851,7 @@ class Computer:
         # Extract leafs: AVX extensions and BMI1/BMI2/SHA
         leafs = [f for f in flags if f.startswith("AVX") or f in ("BMI1", "BMI2", "SHA",
                                                                   "POPCNT", "AES", "PCLMULQDQ")]
-        self.cpu = CPU(name, flags, leafs)
+        self.cpu = CPU(name, flags, leafs, _detect_cpu_gen())
 
     def smbios_probe(self):
         try:
