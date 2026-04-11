@@ -985,7 +985,7 @@ class Computer:
             subprocess.run(["/usr/sbin/sysctl", "machdep.cpu.brand_string"], stdout=subprocess.PIPE).stdout.decode().partition(": ")[2].strip(),
             subprocess.run(["/usr/sbin/sysctl", "machdep.cpu.features"], stdout=subprocess.PIPE).stdout.decode().partition(": ")[2].strip().split(" "),
             self.cpu_get_leafs(),
-            int(subprocess.run(["/usr/sbin/sysctl", "machdep.cpu.model"], stdout=subprocess.PIPE).stdout.decode().partition(": ")[2].strip().split(" ")[1]),
+            int(subprocess.run(["/usr/sbin/sysctl", "machdep.cpu.model"], stdout=subprocess.PIPE).stdout.decode().partition(": ")[2].strip().split(" ")[0]),
         )
 
     def cpu_get_leafs(self):
