@@ -9,7 +9,7 @@ from .UIWindow.utils import *
 from PySide6.QtCore import QTimer,QObject
 from .support.toggle_theme import ThemeManager
 from .support import subprocess_wrapper
-
+from .support.network_handler import *
 #constants
 from .constants import *
 

@@ -4,6 +4,7 @@ gui_task.py: Download Task page - displays download tasks from other services
 
 from ..include import *
 from .gui_support import DefGUI
+from .. import constants
 from .gui_download import DownloadCard
 from ..support.network_handler import (
     DownloadObject, DownloadWorker, DownloadStatus,
@@ -40,6 +41,9 @@ class TaskManager:
     _downloads: list[DownloadObject] = []
     _workers: dict[int, DownloadWorker] = {}
     _icons: dict[int, object] = {}  # download id -> icon for DownloadCard
+    aconstants :Constants = Constants()
+    is_validate:bool = False
+        
 
     def __new__(cls):
         if cls._instance is None:
@@ -47,7 +51,7 @@ class TaskManager:
         return cls._instance
 
     @classmethod
-    def start_download(cls, download: DownloadObject, icon=None) -> DownloadWorker:
+    def start_download(cls, download: DownloadObject, icon=None, macos_install:bool=False,chunklist_url:str="") -> DownloadWorker:
         """Start a download and register it for display in TaskInterface.
 
         Usage:
@@ -55,6 +59,8 @@ class TaskManager:
             TaskManager.start_download(download, icon="/path/to/icon.png")
         """
         cls.register_download(download)
+        cls.chunklist_url=chunklist_url
+        cls.is_validate=macos_install
         if icon is not None:
             cls._icons[id(download)] = icon
             download.icon_path = icon
@@ -67,6 +73,19 @@ class TaskManager:
         )
         worker.start()
         return worker
+    
+    @classmethod
+    def validate_installer(cls,chunklist_link: str) -> None:
+        chunklist_stream = NetworkUtilities().get(chunklist_link).content
+        if chunklist_stream:
+            logging.info("Validating macOS Installer")
+            from ..support.integrity_verification import ChunklistVerification
+            chunk_obj = ChunklistVerification(cls.aconstants.payload_path / Path("InstallAssistant.pkg"), chunklist_stream)
+            if chunk_obj.chunks:
+                chunk_obj.validate()
+        logging.info("macOS installer validated")
+        
+
 
     @classmethod
     def cancel_download(cls, download: DownloadObject):
@@ -95,6 +114,12 @@ class TaskManager:
     def _on_download_finished(cls, download: DownloadObject, success: bool, message: str):
         """Handle download completion — cleanup worker and icon references"""
         worker = cls._workers.pop(id(download), None)
+        is_validate= cls.is_validate
+        if is_validate:
+            a=threading.Thread(target=cls.validate_installer, args=(cls.chunklist_url,))
+            a.start()
+            a.join()
+
         if worker:
             worker.deleteLater()
         cls._icons.pop(id(download), None)
@@ -146,7 +171,7 @@ class TaskInterface(ScrollArea):
         self.settings = global_settings
 
         # Task manager instance
-        self.task_manager = TaskManager()
+        self.task_manager = TaskManager
 
         # Download cards (key: download object id)
         self.download_cards: dict[int, DownloadCard] = {}

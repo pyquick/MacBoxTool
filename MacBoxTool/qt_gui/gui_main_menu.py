@@ -97,7 +97,7 @@ class Window(FluentWindow):
 
     def closeEvent(self, event):
         # Cancel all active downloads
-        task_manager = TaskManager()
+        task_manager = TaskManager
         for download in task_manager.get_downloads():
             task_manager.cancel_download(download)
 

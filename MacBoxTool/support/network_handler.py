@@ -1,14 +1,24 @@
 """
 network_handler.py: Network utilities and download management
 """
-from ..include import *
+import logging
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import threading
 import os
+from PySide6.QtWidgets import *
+from PySide6.QtGui import *
+from PySide6.QtCore import *
+import json,shutil
 from typing import Optional
+SESSION = requests.Session()
 
+# Security constants
+ALLOWED_URL_SCHEMES = {'https', 'http'}
+MAX_REDIRECTS = 10
+MAX_MEMORY_USAGE = 1024 * 1024 * 1024 * 1024  # 1TB max memory for multipart downloads
+SENSITIVE_PARAMS = {'token', 'key', 'api_key', 'apikey', 'secret', 'password', 'auth', 'access_token'}
 
 class DownloadStatus:
     """Download task status enum"""
@@ -129,10 +139,37 @@ class NetworkUtilities:
 
     @classmethod
     def get(cls, url: str, **kwargs) -> requests.Response:
-        """GET request (compatible with sucatalog module)"""
-        if 'timeout' not in kwargs:
-            kwargs['timeout'] = 60
-        return cls.custom_get(url, **kwargs)
+        """
+        Wrapper for requests's get method
+        Implement additional error handling
+
+        Parameters:
+            url (str): URL to get
+            **kwargs: Additional parameters for requests.get
+
+        Returns:
+            requests.Response: Response object from requests.get
+        """
+
+        result: requests.Response = None
+
+        try:
+            # Set default max redirects if not specified
+            if 'allow_redirects' in kwargs and kwargs['allow_redirects']:
+                kwargs['max_redirects'] = kwargs.get('max_redirects', MAX_REDIRECTS)
+            result = SESSION.get(url, **kwargs)
+        except (
+            requests.exceptions.Timeout,
+            requests.exceptions.TooManyRedirects,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.HTTPError,
+            requests.exceptions.SSLError
+        ) as error:
+            logging.warning(f"'Error calling requests.get': {error}")
+            # Return empty response object
+            return requests.Response()
+
+        return result
 
     @classmethod
     def custom_get(cls, url: str, **kwargs) -> requests.Response:
