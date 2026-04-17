@@ -16,6 +16,35 @@ from PySide6.QtWidgets import QFrame
 from PySide6.QtGui import QPainter, QColor, QPainterPath
 import requests
 import threading
+import re
+
+
+def parse_build_version(build_string):
+    """
+    解析 Apple build 版本号（如 24G90、24G711）
+    返回可排序的元组 (major, letter, minor)
+
+    Args:
+        build_string: 版本号字符串，如 "24G90"、"24G711"
+
+    Returns:
+        tuple: (major数字, letter字母, minor数字)
+               例如: "24G90" -> (24, "G", 90)
+                    "24G711" -> (24, "G", 711)
+    """
+    if not build_string:
+        return (0, "", 0)
+
+    # 匹配格式：数字 + 字母 + 数字（如 24G90）
+    match = re.match(r'^(\d+)([A-Za-z]+)?(\d+)?$', build_string)
+    if match:
+        major = int(match.group(1)) if match.group(1) else 0
+        letter = match.group(2) if match.group(2) else ""
+        minor = int(match.group(3)) if match.group(3) else 0
+        return (major, letter, minor)
+
+    # 如果无法匹配，返回原始字符串（用于降级处理）
+    return (0, "", 0)
 
 
 class NoAnimCardWidget(QFrame):
@@ -218,7 +247,7 @@ class MetallibList(ScrollArea):
                 response = requests.get(self.constants.metallib_api_link, timeout=10)
                 if response.status_code == 200:
                     self.available_metallibs = response.json()
-                    self.available_metallibs.sort(key=lambda x: (x.get("build", ""), x.get("version", "")), reverse=True)
+                    self.available_metallibs.sort(key=lambda x: (parse_build_version(x.get("build", "")), x.get("version", "")), reverse=True)
                     # Extract latest (top 4)
                     self.available_metallibs_latest = self.available_metallibs[:4]
             except Exception as e:

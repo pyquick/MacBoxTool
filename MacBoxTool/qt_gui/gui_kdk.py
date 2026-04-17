@@ -209,8 +209,20 @@ class KDKList(ScrollArea):
                 if response.status_code == 200:
                     self.available_kdks = response.json()
                     self.available_kdks.sort(key=lambda x: (x.get("build", ""), x.get("version", "")), reverse=True)
-                    # Extract latest (top 4)
-                    self.available_kdks_latest = self.available_kdks[:4]
+                    # Extract latest version for each major version (top 4 major versions)
+                    version_groups = {}
+                    for kdk in self.available_kdks:
+                        version = kdk.get("version", "")
+                        if not version:
+                            continue
+                        # Extract major version number (e.g., "26.3" -> 26)
+                        major_version = int(version.split(".")[0])
+                        if major_version not in version_groups:
+                            version_groups[major_version] = kdk  # First one is latest (already sorted)
+
+                    # Get top 4 major versions' latest KDK
+                    sorted_versions = sorted(version_groups.keys(), reverse=True)[:4]
+                    self.available_kdks_latest = [version_groups[v] for v in sorted_versions]
             except Exception as e:
                 logging.error(f"Failed to fetch KDK data: {e}")
 
