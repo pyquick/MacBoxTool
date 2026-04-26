@@ -107,19 +107,15 @@ class ChunklistVerification:
             return
 
         if not Path(self.file_path).exists():
-            if self.trans:
-                self.error_msg = f"{'File'} {self.file_path} {'does not exist'}"
-            else:
-                self.error_msg = f"File {self.file_path} does not exist"
+            self.error_msg = f"File {self.file_path} does not exist"
             self.status = ChunklistStatus.FAILURE
             logging.info(self.error_msg)
             return
 
         if not Path(self.file_path).is_file():
-            if self.trans:
-                self.error_msg = f"{'File'} {self.file_path} {'is not a file'}"
-            else:
-                self.error_msg = f"File {self.file_path} is not a file"
+            
+            
+            self.error_msg = f"File {self.file_path} is not a file"
             self.status = ChunklistStatus.FAILURE
             logging.info(self.error_msg)
             return
@@ -129,10 +125,8 @@ class ChunklistVerification:
                 self.current_chunk += 1
                 status = hashlib.sha256(f.read(chunk["length"])).digest()
                 if status != chunk["checksum"]:
-                    if self.trans:
-                        self.error_msg = f"{'Chunk'} {self.current_chunk} {'checksum status FAIL: chunk sum'} {binascii.hexlify(chunk['checksum']).decode()}, {'calculated sum'} {binascii.hexlify(status).decode()}"
-                    else:
-                        self.error_msg = f"Chunk {self.current_chunk} checksum status FAIL: chunk sum {binascii.hexlify(chunk['checksum']).decode()}, calculated sum {binascii.hexlify(status).decode()}"
+                    
+                    self.error_msg = f"Chunk {self.current_chunk} checksum status FAIL: chunk sum {binascii.hexlify(chunk['checksum']).decode()}, calculated sum {binascii.hexlify(status).decode()}"
                     self.status = ChunklistStatus.FAILURE
                     logging.info(self.error_msg)
                     return

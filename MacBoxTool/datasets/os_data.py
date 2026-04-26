@@ -55,6 +55,8 @@ class os_conversion:
         """
         if os.startswith("10."):
             return (int(os.split(".")[1]) + 4)
+        elif os.startswith("26."):
+            return (int(os.split(".")[1]) - 1)
         else:
             return (int(os.split(".")[0]) + 9)
 
@@ -69,7 +71,9 @@ class os_conversion:
         Returns:
             str: OS version
         """
-        if kernel >= os_data.big_sur:
+        if kernel >= os_data.tahoe:
+            return str((kernel + 1))
+        elif kernel >= os_data.big_sur and kernel < os_data.tahoe:
             return str((kernel - 9))
         else:
             return str((f"10.{kernel - 4}"))

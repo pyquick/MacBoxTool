@@ -6,6 +6,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import threading
+import MacBoxTool.support.utilities as utilities
 import os
 from PySide6.QtWidgets import *
 from PySide6.QtGui import *
@@ -213,8 +214,21 @@ class DownloadWorker(QThread):
     def run(self):
         """Execute multi-threaded download with 16 threads"""
         try:
+
+            utilities.disable_sleep_while_running()
             self.status_changed_signal.emit(DownloadStatus.DOWNLOADING)
             self.download.status = DownloadStatus.DOWNLOADING
+
+            # Check if file already exists and delete it
+            final_path = os.path.join(self.download.save_path, self.download.filename)
+            if os.path.exists(final_path):
+                logging.info(f"File already exists, deleting: {final_path}")
+                try:
+                    os.remove(final_path)
+                    logging.info(f"Successfully deleted existing file: {final_path}")
+                except Exception as e:
+                    logging.warning(f"Failed to delete existing file {final_path}: {e}")
+                    # Continue with download even if deletion fails
 
             # Get file size
             total_size = NetworkUtilities.get_file_size(self.download.url)
@@ -251,6 +265,7 @@ class DownloadWorker(QThread):
                     self.status_changed_signal.emit(DownloadStatus.CANCELLED)
                     self.download.status = DownloadStatus.CANCELLED
                     self.finished_signal.emit(False, "Download cancelled")
+                    utilities.enable_sleep_after_running()
                     return
 
                 thread = threading.Thread(
@@ -270,6 +285,7 @@ class DownloadWorker(QThread):
                 self.status_changed_signal.emit(DownloadStatus.CANCELLED)
                 self.download.status = DownloadStatus.CANCELLED
                 self.finished_signal.emit(False, "Download cancelled")
+                utilities.enable_sleep_after_running()
                 return
 
             # Combine parts
@@ -283,6 +299,7 @@ class DownloadWorker(QThread):
 
             # Cleanup temp directory
             self._cleanup_temp(temp_dir)
+            utilities.enable_sleep_after_running()
 
             self.download.status = DownloadStatus.COMPLETED
             self.download.completed_at = QDateTime.currentDateTime()
@@ -295,6 +312,7 @@ class DownloadWorker(QThread):
             self.download.error_message = str(e)
             self.status_changed_signal.emit(DownloadStatus.FAILED)
             self.finished_signal.emit(False, str(e))
+            utilities.enable_sleep_after_running()
 
     def _download_range(self, url: str, start: int, end: int, part_file: str, thread_id: int):
         """Download a specific range of bytes"""
@@ -320,6 +338,7 @@ class DownloadWorker(QThread):
             response.close()
         except Exception as e:
             logging.error(f"Thread {thread_id} download failed: {e}")
+            utilities.enable_sleep_after_running()
 
     def _download_single_thread(self, total_size: int):
         """Fallback single-thread download"""
@@ -339,12 +358,14 @@ class DownloadWorker(QThread):
                         self.download.status = DownloadStatus.CANCELLED
                         self.status_changed_signal.emit(DownloadStatus.CANCELLED)
                         self.finished_signal.emit(False, "Download cancelled")
+                        utilities.enable_sleep_after_running()
                         return
                     while self._is_paused:
                         if self._is_cancelled:
                             self.download.status = DownloadStatus.CANCELLED
                             self.status_changed_signal.emit(DownloadStatus.CANCELLED)
                             self.finished_signal.emit(False, "Download cancelled")
+                            utilities.enable_sleep_after_running()
                             return
                         threading.Event().wait(0.1)
                     f.write(chunk)
@@ -366,6 +387,7 @@ class DownloadWorker(QThread):
             self.status_changed_signal.emit(DownloadStatus.FAILED)
             self.finished_signal.emit(False, str(e))
         finally:
+            utilities.enable_sleep_after_running()
             if response:
                 response.close()
 

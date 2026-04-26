@@ -34,12 +34,58 @@ class NetworkCheckWorker(QThread):
         self._is_cancelled = True
 
 
+class ValidateExtractWorker(QThread):
+    """Worker thread for validating and extracting macOS installer."""
+    progress_signal = Signal(str)  # For progress updates
+    finished_signal = Signal(bool, str)  # For completion (success, message)
+
+    def __init__(self, chunklist_url: str, constants: Constants, filename: str, parent=None):
+        super().__init__(parent)
+        self.chunklist_url = chunklist_url
+        self.constants = constants
+        self.filename = filename
+
+    def run(self):
+        try:
+            # Step 1: Validate installer
+            self.progress_signal.emit("Validating macOS installer...")
+            chunklist_stream = NetworkUtilities().get(self.chunklist_url).content
+            if chunklist_stream:
+                logging.info("Validating macOS Installer")
+                from ..support.integrity_verification import ChunklistVerification
+                chunk_obj = ChunklistVerification(self.constants.payload_path / self.filename, chunklist_stream)
+                if chunk_obj.chunks:
+                    chunk_obj.validate()
+                logging.info("macOS installer validated")
+
+            # Step 2: Extract installer
+            self.progress_signal.emit("Extracting macOS installer...")
+            logging.info("Extracting macOS installer")
+            from ..support import macos_installer_handler
+            result = macos_installer_handler.InstallerCreation(global_constants=self.constants).install_macOS_installer(self.constants.payload_path)
+
+            if result:
+                self.progress_signal.emit("Installation completed successfully")
+                logging.info("macOS installer extracted successfully")
+                self.finished_signal.emit(True, "macOS installer validated and extracted successfully")
+            else:
+                self.progress_signal.emit("Extraction failed")
+                logging.warning("Failed to extract macOS installer")
+                self.finished_signal.emit(False, "Failed to extract macOS installer")
+
+        except Exception as e:
+            error_msg = f"Error during validation/extraction: {str(e)}"
+            logging.error(error_msg)
+            self.finished_signal.emit(False, error_msg)
+
+
 # Global task manager for registering downloads from other services
 class TaskManager:
     """Global task manager for download tasks"""
     _instance = None
     _downloads: list[DownloadObject] = []
     _workers: dict[int, DownloadWorker] = {}
+    _validate_workers: dict[int, ValidateExtractWorker] = {}  # validate/extract workers
     _icons: dict[int, object] = {}  # download id -> icon for DownloadCard
     aconstants :Constants = Constants()
     is_validate:bool = False
@@ -114,11 +160,19 @@ class TaskManager:
     def _on_download_finished(cls, download: DownloadObject, success: bool, message: str):
         """Handle download completion — cleanup worker and icon references"""
         worker = cls._workers.pop(id(download), None)
-        is_validate= cls.is_validate
-        if is_validate:
-            a=threading.Thread(target=cls.validate_installer, args=(cls.chunklist_url,))
-            a.start()
-            a.join()
+        is_validate = cls.is_validate
+        if is_validate and success:
+            # Start validate and extract worker
+            validate_worker = ValidateExtractWorker(cls.chunklist_url, cls.aconstants, download.filename)
+            cls._validate_workers[id(download)] = validate_worker
+            validate_worker.finished_signal.connect(
+                lambda success, msg: cls._on_validate_finished(download, success, msg)
+            )
+            validate_worker.start()
+
+            # Emit signal to notify UI to show progress
+            if hasattr(cls, '_validate_started_callback'):
+                cls._validate_started_callback(download)
 
         if worker:
             worker.deleteLater()
@@ -128,6 +182,18 @@ class TaskManager:
         else:
             logging.warning(f"Download failed: {download.filename} - {message}")
 
+    @classmethod
+    def _on_validate_finished(cls, download: DownloadObject, success: bool, message: str):
+        """Handle validation/extraction completion"""
+        worker = cls._validate_workers.pop(id(download), None)
+        if worker:
+            worker.deleteLater()
+        if success:
+            logging.info(f"Validation/Extraction completed: {download.filename}")
+        else:
+            logging.warning(f"Validation/Extraction failed: {download.filename} - {message}")
+
+    
     @classmethod
     def register_download(cls, download: DownloadObject):
         """Register a download task to be displayed"""
@@ -175,6 +241,9 @@ class TaskInterface(ScrollArea):
 
         # Download cards (key: download object id)
         self.download_cards: dict[int, DownloadCard] = {}
+
+        # Validate/Extract progress cards (key: download object id)
+        self.validate_cards: dict[int, QWidget] = {}
 
         # History
         self.download_history = DownloadHistory()
@@ -243,6 +312,9 @@ class TaskInterface(ScrollArea):
 
         # Load history
         self._load_history()
+
+        # Set up callback for validation started
+        TaskManager._validate_started_callback = self._show_validate_progress
 
     def _create_title(self) -> QWidget:
         title_label = SubtitleLabel("Download Tasks")
@@ -359,6 +431,15 @@ class TaskInterface(ScrollArea):
             self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.active_downloads_layout.addWidget(self.empty_label)
 
+        # Check for new validation/extraction workers and show progress
+        for worker_id, worker in list(TaskManager._validate_workers.items()):
+            if worker_id not in self.validate_cards and worker.isRunning():
+                # Find the corresponding download
+                for download in current_downloads:
+                    if id(download) == worker_id:
+                        self._show_validate_progress(download)
+                        break
+
     def _on_open_file(self, download: DownloadObject):
         """Handle open file action"""
         file_path = os.path.join(download.save_path, download.filename)
@@ -427,6 +508,60 @@ class TaskInterface(ScrollArea):
             card = self.download_cards.pop(download_id)
             self.active_downloads_layout.removeWidget(card)
             card.deleteLater()
+
+    def _show_validate_progress(self, download: DownloadObject):
+        """Show validation/extraction progress for a download"""
+        download_id = id(download)
+
+        # Find the existing download card
+        if download_id not in self.download_cards:
+            return
+
+        card = self.download_cards[download_id]
+
+        # Switch card to validation mode
+        card.show_validate_progress("Validating...")
+
+        # Mark as validating to prevent duplicate cards
+        self.validate_cards[download_id] = card
+
+        # Connect to worker for progress updates
+        worker = self.task_manager._validate_workers.get(download_id)
+        if worker:
+            worker.progress_signal.connect(card.update_validate_status)
+            worker.finished_signal.connect(
+                lambda success, msg: self._on_validate_complete(download, success, msg)
+            )
+
+    def _on_validate_complete(self, download: DownloadObject, success: bool, message: str):
+        """Handle validation/extraction completion"""
+        download_id = id(download)
+
+        # Remove from validating cards
+        if download_id in self.validate_cards:
+            card = self.validate_cards.pop(download_id)
+
+            # Return card to normal mode
+            if card and download_id in self.download_cards:
+                card.hide_validate_progress()
+
+        # Show completion message based on success
+        if success:
+            InfoBar.success(
+                "Installation Complete",
+                "macOS installer has been validated and extracted successfully",
+                duration=5000,
+                position=InfoBarPosition.TOP_RIGHT,
+                parent=self
+            )
+        else:
+            InfoBar.error(
+                "Installation Failed",
+                f"Failed to validate or extract macOS installer: {message}",
+                duration=5000,
+                position=InfoBarPosition.TOP_RIGHT,
+                parent=self
+            )
 
     def _move_to_history(self, download: DownloadObject):
         """Move a completed/failed download from active to history"""

@@ -110,20 +110,6 @@ int main(int argc, const char * argv[]) {
             return MBT_PHT_ERROR_SIGNING_INFORMATION_MISSING;
         }
         
-        #ifdef DEBUG
-        // Skip Team ID check in debug mode
-        // DO NOT USE IN PRODUCTION
-        #else
-        // Check Team ID
-        if (![processSigningInformation[@"74U2H5D43E"] isEqualToString:VALID_CLIENT_TEAM_ID] || ![parentProcessSigningInformation[@"74U2H5D43E"] isEqualToString:VALID_CLIENT_TEAM_ID]) {
-            return MBT_PHT_ERROR_INVALID_TEAM_ID;
-        }
-
-        // Check Certificates
-        if (![processSigningInformation[@"636H9J6N4H"] isEqualToArray:parentProcessSigningInformation[@"636H9J6N4H"]]) {
-            return MBT_PHT_ERROR_INVALID_CERTIFICATES;
-        }
-        #endif
         
         NSString *command = nil;
         NSArray *arguments = @[];

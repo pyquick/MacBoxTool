@@ -76,15 +76,7 @@ class InstallerCard(CardWidget):
         self.download_button.setFixedWidth(100)
         self.download_button.clicked.connect(self._on_download_clicked)
 
-        self.validate_button = PrimaryPushButton("Validate")
-        self.validate_button.setFixedWidth(100)
-        self.validate_button.clicked.connect(self._on_validate_clicked)
-        self.validate_button.hide()
-
-        self.extract_button = PrimaryPushButton("Extract")
-        self.extract_button.setFixedWidth(100)
-        self.extract_button.clicked.connect(self._on_extract_clicked)
-        self.extract_button.hide()
+        
 
         self.copy_link_button = TransparentToolButton(FluentIcon.COPY)
         self.copy_link_button.setFixedSize(32, 32)
@@ -112,8 +104,6 @@ class InstallerCard(CardWidget):
 
         # Right: Download button
         self.main_layout.addWidget(self.copy_link_button, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.main_layout.addWidget(self.validate_button, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.main_layout.addWidget(self.extract_button, 0, Qt.AlignmentFlag.AlignVCenter)
         self.main_layout.addWidget(self.download_button, 0, Qt.AlignmentFlag.AlignVCenter)
 
     # ── Actions ──
@@ -136,13 +126,7 @@ class InstallerCard(CardWidget):
                 parent=self.window()
             )
 
-    def _on_validate_clicked(self):
-        """Handle validate button click"""
-        self.parent().validate_installer(self.installer_data)
-
-    def _on_extract_clicked(self):
-        """Handle extract button click"""
-        self.parent().extract_installer(self.installer_data)
+    
 
 
 class MacOSInstallerList(ScrollArea):
@@ -405,8 +389,8 @@ class MacOSInstallerList(ScrollArea):
         icon_path = self.constants.icons_path[icon_index]
         png_path = icon_path.rsplit('.', 1)[0] + '.png'
 
-        # Use configured download path or fallback to payload_path
-        save_path = self.settings.find_key("download_path") or str(self.constants.payload_path)
+        # macOS installers must be downloaded to payload_path for validation to work
+        save_path = str(self.constants.payload_path)
         filename = f"InstallAssistant-macOS_{version}-{build}.pkg"
         download_obj = DownloadObject(url, save_path, filename)
 
@@ -428,7 +412,8 @@ class MacOSInstallerList(ScrollArea):
         build = installer_data.get("Build", "Unknown")
         install_assistant = installer_data.get("InstallAssistant") or {}
 
-        save_path = self.settings.find_key("download_path") or str(self.constants.payload_path)
+        # macOS installers must be in payload_path for validation to work
+        save_path = str(self.constants.payload_path)
         filename = f"InstallAssistant-macOS_{version}-{build}.pkg"
         file_path = Path(save_path) / filename
 
@@ -458,7 +443,8 @@ class MacOSInstallerList(ScrollArea):
         version = installer_data.get("Version", "Unknown")
         build = installer_data.get("Build", "Unknown")
 
-        save_path = self.settings.find_key("download_path") or str(self.constants.payload_path)
+        # macOS installers must be in payload_path for extraction to work
+        save_path = str(self.constants.payload_path)
         filename = f"InstallAssistant-macOS_{version}-{build}.pkg"
         file_path = Path(save_path) / filename
 

@@ -8,6 +8,7 @@ from ..UIkit.components.widgets.card_widget import CardWidget
 from ..UIkit.components.widgets.label import BodyLabel, CaptionLabel, ImageLabel
 from ..UIkit.components.widgets.button import TransparentToolButton
 from ..UIkit.components.widgets.menu import RoundMenu
+from ..UIkit.components.widgets.progress_bar import ProgressBar, IndeterminateProgressBar
 from ..UIkit.common.icon import FluentIcon, Action
 
 
@@ -23,6 +24,7 @@ class DownloadCard(CardWidget):
     def __init__(self, download_object: DownloadObject, icon=None, parent=None):
         super().__init__(parent)
         self.download = download_object
+        self.is_validating = False  # Track if showing validate/extract progress
 
         self.setFixedHeight(73)
         self._init_widgets(icon)
@@ -49,11 +51,18 @@ class DownloadCard(CardWidget):
         self.contentLabel.setTextColor("#606060", "#d2d2d2")
         self.contentLabel.setWordWrap(False)
 
+        # Regular progress bar for downloading
         self.progressBar = ProgressBar(self)
         self.progressBar.setFixedWidth(200)
         self.progressBar.setFixedHeight(4)
         self.progressBar.setRange(0, 100)
         self.progressBar.setValue(self.download.get_progress_percentage())
+
+        # Indeterminate progress bar for validation/extraction (initially hidden)
+        self.indeterminateProgressBar = IndeterminateProgressBar(self, start=False)
+        self.indeterminateProgressBar.setFixedWidth(200)
+        self.indeterminateProgressBar.setFixedHeight(4)
+        self.indeterminateProgressBar.hide()
 
         self.speedLabel = CaptionLabel(self.download.get_speed_display(), self)
         self.speedLabel.setTextColor("#606060", "#d2d2d2")
@@ -88,7 +97,14 @@ class DownloadCard(CardWidget):
         self.vBoxLayout.addWidget(self.contentLabel)
         self.hBoxLayout.addLayout(self.vBoxLayout, 1)
 
-        self.hBoxLayout.addWidget(self.progressBar, 0, Qt.AlignmentFlag.AlignVCenter)
+        # Create a container for progress bars to switch between them
+        self.progressContainer = QWidget()
+        self.progressLayout = QHBoxLayout(self.progressContainer)
+        self.progressLayout.setContentsMargins(0, 0, 0, 0)
+        self.progressLayout.addWidget(self.progressBar)
+        self.progressLayout.addWidget(self.indeterminateProgressBar)
+
+        self.hBoxLayout.addWidget(self.progressContainer, 0, Qt.AlignmentFlag.AlignVCenter)
         self.hBoxLayout.addWidget(self.speedLabel, 0, Qt.AlignmentFlag.AlignVCenter)
         self.hBoxLayout.addWidget(self.sizeLabel, 0, Qt.AlignmentFlag.AlignVCenter)
         self.hBoxLayout.addWidget(self.percentLabel, 0, Qt.AlignmentFlag.AlignVCenter)
@@ -152,14 +168,48 @@ class DownloadCard(CardWidget):
     # ── Public Methods ──
 
     def update_progress(self):
-        self.progressBar.setValue(self.download.get_progress_percentage())
-        self.speedLabel.setText(self.download.get_speed_display())
-        self.sizeLabel.setText(self.download.get_size_display())
-        self.percentLabel.setText(f"{self.download.get_progress_percentage()}%")
-        self.contentLabel.setText(self._get_status_text())
-        self._update_button_state()
+        # Don't update progress if in validate/extract mode
+        if not self.is_validating:
+            self.progressBar.setValue(self.download.get_progress_percentage())
+            self.speedLabel.setText(self.download.get_speed_display())
+            self.sizeLabel.setText(self.download.get_size_display())
+            self.percentLabel.setText(f"{self.download.get_progress_percentage()}%")
+            self.contentLabel.setText(self._get_status_text())
+            self._update_button_state()
 
     def set_status(self, status: DownloadStatus):
         self.download.status = status
+        self.contentLabel.setText(self._get_status_text())
+        self._update_button_state()
+
+    def show_validate_progress(self, message: str = "Validating..."):
+        """Switch to validation/extraction mode with indeterminate progress bar"""
+        self.is_validating = True
+        self.contentLabel.setText(message)
+        self.progressBar.hide()
+        self.indeterminateProgressBar.show()
+        self.indeterminateProgressBar.start()
+
+        # Hide download-specific labels during validation
+        self.speedLabel.hide()
+        self.percentLabel.hide()
+
+    def update_validate_status(self, message: str):
+        """Update validation status text"""
+        if self.is_validating:
+            self.contentLabel.setText(message)
+
+    def hide_validate_progress(self):
+        """Return to normal download mode"""
+        self.is_validating = False
+        self.indeterminateProgressBar.stop()
+        self.indeterminateProgressBar.hide()
+        self.progressBar.show()
+
+        # Show download-specific labels again
+        self.speedLabel.show()
+        self.percentLabel.show()
+
+        # Update to current download status
         self.contentLabel.setText(self._get_status_text())
         self._update_button_state()
