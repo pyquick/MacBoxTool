@@ -6,8 +6,8 @@ import subprocess
 
 from pathlib import Path
 
-from oclp_r import constants
-from oclp_r.support import subprocess_wrapper
+from MacBoxTool import constants
+from MacBoxTool.support import subprocess_wrapper
 
 
 
@@ -34,6 +34,9 @@ class GenerateDiskImages:
             "OpenCore",
             "Tools",
             "Launch Services",
+            'SSE',
+            'Apps',
+            'Tools',
         ]
 
         whitelist_files = []

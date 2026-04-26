@@ -5,7 +5,7 @@ package.py: Generate packages (Installer, Uninstaller, AutoPkg-Assets)
 import tempfile
 import macos_pkg_builder
 
-from oclp_r import constants
+from MacBoxTool import constants
 
 from .package_scripts import GenerateScripts
 
