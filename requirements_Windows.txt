@@ -7,4 +7,5 @@ pillow
 psutil
 wmi
 pywin32
+packaging
 py-cpuinfo
