@@ -973,9 +973,18 @@ class Constants:
     # Icons
     @property
     def icns_resource_path(self):
-        if self.launcher_script:
+        # 优先使用 payload_path,这适用于脚本和二进制状态
+        if self.payload_path and (self.payload_path / Path("Icon/AppIcons")).exists():
             return self.payload_path / Path("Icon/AppIcons")
-        return Path(self.launcher_binary).parent.parent / Path("Resources")
+
+        # 回退到二进制的 Resources 目录
+        if self.launcher_binary:
+            resources_path = Path(self.launcher_binary).parent.parent / Path("Resources")
+            if resources_path.exists():
+                return resources_path
+
+        # 最后回退到 payload_path (即使不存在,也应该尝试)
+        return self.payload_path / Path("Icon/AppIcons")
 
 
     @property

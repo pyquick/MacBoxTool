@@ -50,6 +50,12 @@ class InstallerCard(CardWidget):
         icon_path = self.constants.icons_path[icon_index]
         png_path = icon_path.rsplit('.', 1)[0] + '.png'
 
+        # 验证 PNG 文件是否存在,如果不存在则使用通用图标
+        if not Path(png_path).exists():
+            logging.warning(f"Icon not found: {png_path}, falling back to Generic")
+            generic_icon = str(self.constants.icon_path_macos_generic)
+            png_path = generic_icon.rsplit('.', 1)[0] + '.png'
+
         self.icon_widget = ImageLabel(png_path, self)
         self.icon_widget.setFixedSize(48, 48)
 
@@ -388,6 +394,12 @@ class MacOSInstallerList(ScrollArea):
             icon_index = 0
         icon_path = self.constants.icons_path[icon_index]
         png_path = icon_path.rsplit('.', 1)[0] + '.png'
+
+        # 验证图标文件是否存在
+        if not Path(png_path).exists():
+            logging.warning(f"Icon not found: {png_path}, falling back to Generic")
+            generic_icon = str(self.constants.icon_path_macos_generic)
+            png_path = generic_icon.rsplit('.', 1)[0] + '.png'
 
         # macOS installers must be downloaded to payload_path for validation to work
         save_path = str(self.constants.payload_path)

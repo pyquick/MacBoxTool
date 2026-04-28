@@ -148,8 +148,21 @@ class MacBoxTool:
 
        
 
-        logging.info(self.trans["Detected arguments, switching to CLI mode"])
+        logging.info("Detected arguments, switching to CLI mode")
         self.constants.gui_mode = True
+    
+    def _fix_cwd(self) -> None:
+        """
+        In some extreme scenarios, our current working directory may disappear
+        """
+        _test_dir = None
+        try:
+            _test_dir = Path.cwd()
+            logging.info(f"{'Current working directory:'} {_test_dir}")
+        except FileNotFoundError:
+            _test_dir = Path(__file__).parent.parent.resolve()
+            os.chdir(_test_dir)
+            logging.warning(f"{'Current working directory was invalid, switched to:'} {_test_dir}")
 
 
 def main():
