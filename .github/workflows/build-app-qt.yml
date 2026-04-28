@@ -11,7 +11,7 @@ on:
 permissions: write-all
 jobs:
   build:
-    name: Build wxPython
+    name: Build Qt
     runs-on: macos-26
     
     if: github.repository_owner == 'pyquick'
