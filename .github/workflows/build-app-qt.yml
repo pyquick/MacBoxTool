@@ -33,7 +33,7 @@ jobs:
         run: |
           rm -rf Univ*
           rm -rf *pay*.dmg
-          /Library/Frameworks/Python.framework/Versions/3.12/bin/python3 -m pip install -r requirements.txt
+          /Library/Frameworks/Python.framework/Versions/3.12/bin/python3 -m pip install -r requirements_macOS.txt
 
       - name: Force Universal charset for Python
         run: |
