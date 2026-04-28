@@ -6,6 +6,8 @@ termcolor
 pillow
 psutil
 wmi
+requests
 pywin32
 packaging
 py-cpuinfo
+pyinstaller

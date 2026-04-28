@@ -12,4 +12,6 @@ markdown2
 packaging
 macos-pkg-builder
 mac-signing-buddy
+requests
 colorama
+pyinstaller
