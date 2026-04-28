@@ -1,28 +1,39 @@
 import argparse
 import sys
 
-# Parse CLI arguments early, before any heavy imports
-_cli_parser = argparse.ArgumentParser(description='MacBoxTool - macOS Utility Tool')
-_cli_parser.add_argument('--build-efi', metavar='MODEL', help='Build EFI for specified model (e.g., MacPro7,1)')
-_cli_parser.add_argument('--install-disk', metavar='DISK', help='Install EFI to disk (use with --build-efi)')
-_cli_parser.add_argument('--download-installer', action='store_true', help='Download macOS installer')
-_cli_parser.add_argument('--probe-hardware', action='store_true', help='Probe and display hardware information')
-_cli_parser.add_argument('--settings', action='store_true', help='Show settings configuration')
-_cli_parser.add_argument('--test', action='store_true', help='Run tests and validation')
-_cli_parser.add_argument('--validate', action='store_true', help='Validate EFI build for all supported models')
-_cli_parser.add_argument('--version', action='store_true', help='Show version information')
-_cli_args = _cli_parser.parse_args()
-
-# Handle --validate early (before GUI imports)
-if _cli_args.validate:
-    from .validation import validate_all_models
-    validate_all_models()
-    sys.exit(0)
 
 # Only import heavy modules after CLI parsing
 from .install import Install
 import importlib
-Install()
+
+from .support import (
+    utilities,
+    reroute_payloads,
+    commit_info,
+    logging_handler,
+    analytics_handler
+)
+import threading
+import logging
+import time
+import os
+from pathlib import Path
+def _parse_cli_args():
+    """
+    Parse CLI arguments.
+    This function is called explicitly to avoid parsing at module import time,
+    which would interfere with other scripts that import MacBoxTool (e.g., Build-Project.command).
+    """
+    parser = argparse.ArgumentParser(description='MacBoxTool - macOS Utility Tool')
+    parser.add_argument('--build-efi', metavar='MODEL', help='Build EFI for specified model (e.g., MacPro7,1)')
+    parser.add_argument('--install-disk', metavar='DISK', help='Install EFI to disk (use with --build-efi)')
+    parser.add_argument('--download-installer', action='store_true', help='Download macOS installer')
+    parser.add_argument('--probe-hardware', action='store_true', help='Probe and display hardware information')
+    parser.add_argument('--settings', action='store_true', help='Show settings configuration')
+    parser.add_argument('--test', action='store_true', help='Run tests and validation')
+    parser.add_argument('--version', action='store_true', help='Show version information')
+    return parser.parse_args()
+
 
 from .qt_gui.gui_go_in import OpenGUI
 from .constants import Constants
@@ -42,11 +53,14 @@ from .detections import os_probe
 
 
 
+
 class MacBoxTool:
     def __init__(self)-> None:
         super().__init__()
         self.constants: Constants = Constants()
         self.computer= device_probe.Computer().probe()
+
+        self._generate_base_data()
         
         os_data = os_probe.OSProbe()
         self.constants.detected_os = os_data.detect_kernel_major()
@@ -54,14 +68,7 @@ class MacBoxTool:
         self.constants.detected_os_build = os_data.detect_os_build()
         self.constants.detected_os_version = os_data.detect_os_version()
         self.constants.computer = self.computer
-        launcher_binary = sys.executable
-        if "python" in launcher_binary:
-            # We're running from source
-            launcher_script =  __file__
-            if "main.py" in launcher_script:
-                launcher_script = launcher_script.replace("/resources/main.py", "/MaxToolBox_GUI.command")
-        self.constants.launcher_binary = launcher_binary
-        self.constants.launcher_script = launcher_script
+        
         LoggingHandler(self.constants)
         ThemeManager(self.constants)
         self.settings=GlobalSettings(self.constants)
@@ -83,10 +90,72 @@ class MacBoxTool:
         w = OpenGUI(self.constants,self.settings)
         w.gui_main_menu()
 
-def main():
-    # Handle CLI commands using pre-parsed args
-    args = _cli_args
+    def _generate_base_data(self) -> None:
+        """
+        Generate base data required for the patcher to run
+        """
 
+        self.constants.wxpython_variant = True
+
+        # Ensure we live after parent process dies (ie. LaunchAgent)
+        os.setpgrp()
+
+        # Generate OS data
+        os_data = os_probe.OSProbe()
+        self.constants.detected_os = os_data.detect_kernel_major()
+        self.constants.detected_os_minor = os_data.detect_kernel_minor()
+        self.constants.detected_os_build = os_data.detect_os_build()
+        self.constants.detected_os_version = os_data.detect_os_version()
+
+        # Generate computer data
+        self.constants.computer = device_probe.Computer.probe()
+        self.computer = self.constants.computer
+        self.constants.booted_oc_disk = utilities.find_disk_off_uuid(utilities.clean_device_path(self.computer.opencore_path))
+        if self.constants.computer.firmware_vendor:
+            if self.constants.computer.firmware_vendor != "Apple":
+                self.constants.host_is_hackintosh = True
+
+        # Generate environment data
+        self.constants.recovery_status = utilities.check_recovery()
+        utilities.disable_cls()
+        self._fix_cwd()
+
+        # Generate binary data
+        launcher_script = None
+        launcher_binary = sys.executable
+        if "python" in launcher_binary:
+            # We're running from source
+            launcher_script =  __file__
+            if "main.py" in launcher_script:
+                launcher_script = launcher_script.replace("/resources/main.py", "/OCLP-R-GUI.command")
+        self.constants.launcher_binary = launcher_binary
+        self.constants.launcher_script = launcher_script
+
+        # Initialize working directory
+        self.constants.unpack_thread = threading.Thread(target=reroute_payloads.RoutePayloadDiskImage, args=(self.constants,))
+        self.constants.unpack_thread.start()
+
+        # Generate commit info
+        self.constants.commit_info = commit_info.ParseCommitInfo(self.constants.launcher_binary).generate_commit_info()
+        if self.constants.commit_info[0] not in ["Running from source", "Built from source"]:
+            # Now that we have commit info, update nightly link
+            branch = self.constants.commit_info[0]
+            branch = branch.replace("refs/heads/", "")
+            self.constants.installer_pkg_url_nightly = self.constants.installer_pkg_url_nightly.replace("main", branch)
+
+       
+        threading.Thread(target=analytics_handler.Analytics(self.constants).send_analytics).start()
+
+       
+
+        logging.info(self.trans["Detected arguments, switching to CLI mode"])
+        self.constants.gui_mode = True
+
+
+def main():
+    # Handle CLI commands using parsed args
+    args = _parse_cli_args()
+    Install()
     if args.version:
         constants = Constants()
         print(f"MacBoxTool v{constants.mactoolbox_version}")

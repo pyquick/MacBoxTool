@@ -1,3 +1,4 @@
+
 """
 disk_images.py: Fetch and generate disk images (Universal-Binaries.dmg, payloads.dmg)
 """
@@ -6,7 +7,7 @@ import subprocess
 
 from pathlib import Path
 
-from MacBoxTool import constants
+import MacBoxTool.constants as constants
 from MacBoxTool.support import subprocess_wrapper
 
 
@@ -37,6 +38,8 @@ class GenerateDiskImages:
             'SSE',
             'Apps',
             'Tools',
+            'Plists',
+            'Scripts',
         ]
 
         whitelist_files = []
@@ -120,7 +123,7 @@ class GenerateDiskImages:
             subprocess_wrapper.run_and_verify(
                 [
                     "/usr/bin/curl", "-LO",
-                    f"https://github.com/pyquick/PatcherSupportPkg/releases/download/{patcher_support_pkg_version}/{resource}"
+                    f"https://github.com/hackdoc/PatcherSupportPkg/releases/download/{patcher_support_pkg_version}/{resource}"
                 ],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )

@@ -56,7 +56,7 @@ def main() -> None:
     parser.add_argument("--analytics-endpoint", type=str, help="Analytics Endpoint", default=None)
 
     # Help
-    parser.add_argument("--help", action="store_true", help="Show this help message and exit", default=False)
+    parser.add_argument("-h", "--help", action="store_true", help="Show this help message and exit", default=False)
 
     # Parse Arguments
     args = parser.parse_args()
@@ -78,7 +78,7 @@ def main() -> None:
     if (args.run_as_individual_steps is False) or (args.run_as_individual_steps and args.prepare_application):
         # Prepare Privileged Helper Tool
         sign_notarize.SignAndNotarize(
-            path=Path("./ci_tooling/privileged_helper_tool/com.pyquick.macboxtool.privileged-helper"),
+            path=Path("./ci/privileged_helper_tool/com.pyquick.macboxtool.privileged-helper"),
             signing_identity=args.application_signing_identity,
             notarization_apple_id=args.notarization_apple_id,
             notarization_password=args.notarization_password,
@@ -102,7 +102,7 @@ def main() -> None:
             notarization_apple_id=args.notarization_apple_id,
             notarization_password=args.notarization_password,
             notarization_team_id=args.notarization_team_id,
-            entitlements=Path("./ci_tooling/entitlements/entitlements.plist"),
+            entitlements=Path("./ci/entitlements/entitlements.plist"),
         ).sign_and_notarize()
 
 

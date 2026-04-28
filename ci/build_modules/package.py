@@ -21,7 +21,7 @@ class GeneratePackage:
         """
         self._files = {
             "./dist/MacBoxTool.app": "/Library/Application Support/Pyquick/MacBoxTool.app",
-            "./ci_tooling/privileged_helper_tool/com.pyquick.macboxtool.privileged-helper": "/Library/PrivilegedHelperTools/com.pyquick.macboxtool.privileged-helper",
+            "./ci/privileged_helper_tool/com.pyquick.macboxtool.privileged-helper": "/Library/PrivilegedHelperTools/com.pyquick.macboxtool.privileged-helper",
         }
         self._autopkg_files = {
             "./payloads/Launch Services/com.pyquick.macboxtool.auto-patch.plist": "/Library/LaunchAgents/com.pyquick.macboxtool.auto-patch.plist",
@@ -36,11 +36,10 @@ class GeneratePackage:
         _welcome = ""
 
         _welcome += "# Overview\n"
-        _welcome += f"This package will install the MacBoxTool application (v{constants.Constants().patcher_version}) on your system."
+        _welcome += f"This package will install the MacBoxTool application (v{constants.Constants().mactoolbox_version}) on your system."
 
         _welcome += "\n\nAdditionally, a shortcut for MacBoxTool will be added in the '/Applications' folder."
         _welcome += "\n\nThis package will not 'Build and Install OpenCore' or install any 'Root Patches' on your machine. If required, you can run MacBoxTool to install any patches you may need."
-        _welcome += f"\n\nFor more information on MacBoxTool usage, see our [documentation]({constants.Constants().guide_link}) and [GitHub repository]({constants.Constants().repo_link})."
         _welcome += "\n\n"
 
         _welcome += "## Files Installed"
@@ -93,8 +92,8 @@ class GeneratePackage:
         assert macos_pkg_builder.Packages(
             pkg_output="./dist/MacBoxTool-Uninstaller.pkg",
             pkg_bundle_id="com.pyquick.macboxtool-uninstaller",
-            pkg_version=constants.Constants().patcher_version,
-            pkg_background="./ci_tooling/pkg_assets/PkgBackground-Uninstaller.png",
+            pkg_version=constants.Constants().mactoolbox_version,
+            pkg_background="./ci/pkg_assets/PkgBackground-Uninstaller.png",
             pkg_preinstall_script=_tmp_uninstall.name,
             pkg_as_distribution=True,
             pkg_title="MacBoxTool Uninstaller",
@@ -113,10 +112,10 @@ class GeneratePackage:
         assert macos_pkg_builder.Packages(
             pkg_output="./dist/MacBoxTool.pkg",
             pkg_bundle_id="com.pyquick.macboxtool",
-            pkg_version=constants.Constants().patcher_version,
+            pkg_version=constants.Constants().mactoolbox_version,
             pkg_allow_relocation=False,
             pkg_as_distribution=True,
-            pkg_background="./ci_tooling/pkg_assets/PkgBackground-Installer.png",
+            pkg_background="./ci/pkg_assets/PkgBackground-Installer.png",
             pkg_preinstall_script=_tmp_pkg_preinstall.name,
             pkg_postinstall_script=_tmp_pkg_postinstall.name,
             pkg_file_structure=self._files,
@@ -124,25 +123,26 @@ class GeneratePackage:
             pkg_welcome=self._generate_installer_welcome(),
         ).build() is True
 
-        print("Generating AutoPkg-Assets.pkg")
+        # AutoPkg-Assets.pkg
+        # print("Generating AutoPkg-Assets.pkg")
 
-        _tmp_auto_pkg_preinstall = tempfile.NamedTemporaryFile(delete=False)
-        _tmp_auto_pkg_postinstall = tempfile.NamedTemporaryFile(delete=False)
-        with open(_tmp_auto_pkg_preinstall.name, "w") as f:
-            f.write(GenerateScripts().preinstall_autopkg())
-        with open(_tmp_auto_pkg_postinstall.name, "w") as f:
-            f.write(GenerateScripts().postinstall_autopkg())
+        # _tmp_auto_pkg_preinstall = tempfile.NamedTemporaryFile(delete=False)
+        # _tmp_auto_pkg_postinstall = tempfile.NamedTemporaryFile(delete=False)
+        # with open(_tmp_auto_pkg_preinstall.name, "w") as f:
+        #     f.write(GenerateScripts().preinstall_autopkg())
+        # with open(_tmp_auto_pkg_postinstall.name, "w") as f:
+        #     f.write(GenerateScripts().postinstall_autopkg())
 
-        assert macos_pkg_builder.Packages(
-            pkg_output="./dist/AutoPkg-Assets.pkg",
-            pkg_bundle_id="com.pyquick.pkg.AutoPkg-Assets",
-            pkg_version=constants.Constants().patcher_version,
-            pkg_allow_relocation=False,
-            pkg_as_distribution=True,
-            pkg_background="./ci_tooling/pkg_assets/PkgBackground-AutoPkg.png",
-            pkg_preinstall_script=_tmp_auto_pkg_preinstall.name,
-            pkg_postinstall_script=_tmp_auto_pkg_postinstall.name,
-            pkg_file_structure=self._autopkg_files,
-            pkg_title="AutoPkg Assets",
-            pkg_welcome=self._generate_autopkg_welcome(),
-        ).build() is True
+        # assert macos_pkg_builder.Packages(
+        #     pkg_output="./dist/AutoPkg-Assets.pkg",
+        #     pkg_bundle_id="com.pyquick.pkg.AutoPkg-Assets",
+        #     pkg_version=constants.Constants().mactoolbox_version,
+        #     pkg_allow_relocation=False,
+        #     pkg_as_distribution=True,
+        #     pkg_background="./ci/pkg_assets/PkgBackground-AutoPkg.png",
+        #     pkg_preinstall_script=_tmp_auto_pkg_preinstall.name,
+        #     pkg_postinstall_script=_tmp_auto_pkg_postinstall.name,
+        #     pkg_file_structure=self._autopkg_files,
+        #     pkg_title="AutoPkg Assets",
+        #     pkg_welcome=self._generate_autopkg_welcome(),
+        # ).build() is True
