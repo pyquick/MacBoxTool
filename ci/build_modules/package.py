@@ -15,10 +15,13 @@ class GeneratePackage:
     Generate MacBoxTool.pkg
     """
 
-    def __init__(self) -> None:
+    def __init__(self, arch_suffix: str = "") -> None:
         """
         Initialize
+
+        :param arch_suffix: Architecture suffix for pkg filenames (e.g., "-x86_64", "-arm64")
         """
+        self._arch_suffix = arch_suffix
         self._files = {
             "./dist/MacBoxTool.app": "/Library/Application Support/Pyquick/MacBoxTool.app",
             "./ci/privileged_helper_tool/com.pyquick.macboxtool.privileged-helper": "/Library/PrivilegedHelperTools/com.pyquick.macboxtool.privileged-helper",
@@ -90,7 +93,7 @@ class GeneratePackage:
             f.write(GenerateScripts().uninstall())
 
         assert macos_pkg_builder.Packages(
-            pkg_output="./dist/MacBoxTool-Uninstaller.pkg",
+            pkg_output=f"./dist/MacBoxTool-Uninstaller{self._arch_suffix}.pkg",
             pkg_bundle_id="com.pyquick.macboxtool-uninstaller",
             pkg_version=constants.Constants().mactoolbox_version,
             pkg_background="./ci/pkg_assets/PkgBackground-Uninstaller.png",
@@ -110,7 +113,7 @@ class GeneratePackage:
             f.write(GenerateScripts().postinstall_pkg())
 
         assert macos_pkg_builder.Packages(
-            pkg_output="./dist/MacBoxTool.pkg",
+            pkg_output=f"./dist/MacBoxTool{self._arch_suffix}.pkg",
             pkg_bundle_id="com.pyquick.macboxtool",
             pkg_version=constants.Constants().mactoolbox_version,
             pkg_allow_relocation=False,

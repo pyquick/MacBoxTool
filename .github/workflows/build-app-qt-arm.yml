@@ -1,4 +1,4 @@
-name: CI - Build Qt
+name: CI - Build Qt for Apple Silicon
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
 permissions: write-all
 jobs:
   build:
-    name: Build Qt
+    name: Build Qt for Apple Silicon
     runs-on: macos-26
     
     if: github.repository_owner == 'pyquick'
