@@ -3,6 +3,7 @@ package.py: Generate packages (Installer, Uninstaller, AutoPkg-Assets)
 """
 
 import tempfile
+import platform
 import macos_pkg_builder
 
 from MacBoxTool import constants
@@ -15,13 +16,10 @@ class GeneratePackage:
     Generate MacBoxTool.pkg
     """
 
-    def __init__(self, arch_suffix: str = "") -> None:
+    def __init__(self) -> None:
         """
         Initialize
-
-        :param arch_suffix: Architecture suffix for pkg filenames (e.g., "-x86_64", "-arm64")
         """
-        self._arch_suffix = arch_suffix
         self._files = {
             "./dist/MacBoxTool.app": "/Library/Application Support/Pyquick/MacBoxTool.app",
             "./ci/privileged_helper_tool/com.pyquick.macboxtool.privileged-helper": "/Library/PrivilegedHelperTools/com.pyquick.macboxtool.privileged-helper",
@@ -31,6 +29,10 @@ class GeneratePackage:
         }
         self._autopkg_files.update(self._files)
 
+        # Detect architecture for pkg naming
+        self._arch = platform.machine()
+        self._pkg_suffix = f"-{self._arch}" if self._arch in ["x86_64", "arm64"] else ""
+
 
     def _generate_installer_welcome(self) -> str:
         """
@@ -39,7 +41,7 @@ class GeneratePackage:
         _welcome = ""
 
         _welcome += "# Overview\n"
-        _welcome += f"This package will install the MacBoxTool application (v{constants.Constants().mactoolbox_version}) on your system."
+        _welcome += f"This package will install the MacBoxTool application (v{constants.Constants().mactoolbox_version}, {self._arch}) on your system."
 
         _welcome += "\n\nAdditionally, a shortcut for MacBoxTool will be added in the '/Applications' folder."
         _welcome += "\n\nThis package will not 'Build and Install OpenCore' or install any 'Root Patches' on your machine. If required, you can run MacBoxTool to install any patches you may need."
@@ -87,13 +89,13 @@ class GeneratePackage:
         """
         Generate MacBoxTool.pkg
         """
-        print("Generating MacBoxTool-Uninstaller.pkg")
+        print(f"Generating MacBoxTool-Uninstaller{self._pkg_suffix}.pkg")
         _tmp_uninstall = tempfile.NamedTemporaryFile(delete=False)
         with open(_tmp_uninstall.name, "w") as f:
             f.write(GenerateScripts().uninstall())
 
         assert macos_pkg_builder.Packages(
-            pkg_output=f"./dist/MacBoxTool-Uninstaller{self._arch_suffix}.pkg",
+            pkg_output=f"./dist/MacBoxTool-Uninstaller{self._pkg_suffix}.pkg",
             pkg_bundle_id="com.pyquick.macboxtool-uninstaller",
             pkg_version=constants.Constants().mactoolbox_version,
             pkg_background="./ci/pkg_assets/PkgBackground-Uninstaller.png",
@@ -103,7 +105,7 @@ class GeneratePackage:
             pkg_welcome=self._generate_uninstaller_welcome(),
         ).build() is True
 
-        print("Generating MacBoxTool.pkg")
+        print(f"Generating MacBoxTool{self._pkg_suffix}.pkg")
 
         _tmp_pkg_preinstall = tempfile.NamedTemporaryFile(delete=False)
         _tmp_pkg_postinstall = tempfile.NamedTemporaryFile(delete=False)
@@ -113,7 +115,7 @@ class GeneratePackage:
             f.write(GenerateScripts().postinstall_pkg())
 
         assert macos_pkg_builder.Packages(
-            pkg_output=f"./dist/MacBoxTool{self._arch_suffix}.pkg",
+            pkg_output=f"./dist/MacBoxTool{self._pkg_suffix}.pkg",
             pkg_bundle_id="com.pyquick.macboxtool",
             pkg_version=constants.Constants().mactoolbox_version,
             pkg_allow_relocation=False,

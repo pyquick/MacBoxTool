@@ -24,6 +24,10 @@ def main() -> None:
     Parse Command Line Arguments
     """
 
+    # Detect architecture for pkg naming
+    _arch = platform.machine()
+    _pkg_suffix = f"-{_arch}" if _arch in ["x86_64", "arm64"] else ""
+
     parser = argparse.ArgumentParser(description="Build MacBoxTool Suite", add_help=False)
 
     # Signing Parameters
@@ -108,16 +112,12 @@ def main() -> None:
 
 
     if (args.run_as_individual_steps is False) or (args.run_as_individual_steps and args.prepare_package):
-        # Detect system architecture
-        _arch = platform.processor() or platform.machine()
-        _arch_suffix = f"-{_arch}" if _arch in ["x86_64", "arm64"] else ""
-
         # Build MacBoxTool.pkg and MacBoxTool-Uninstaller.pkg
-        package.GeneratePackage(arch_suffix=_arch_suffix).generate()
+        package.GeneratePackage().generate()
 
         # Sign MacBoxTool.pkg
         sign_notarize.SignAndNotarize(
-            path=Path(f"dist/MacBoxTool{_arch_suffix}.pkg"),
+            path=Path(f"dist/MacBoxTool{_pkg_suffix}.pkg"),
             signing_identity=args.installer_signing_identity,
             notarization_apple_id=args.notarization_apple_id,
             notarization_password=args.notarization_password,
@@ -126,7 +126,7 @@ def main() -> None:
 
         # Sign MacBoxTool-Uninstaller.pkg
         sign_notarize.SignAndNotarize(
-            path=Path(f"dist/MacBoxTool-Uninstaller{_arch_suffix}.pkg"),
+            path=Path(f"dist/MacBoxTool-Uninstaller{_pkg_suffix}.pkg"),
             signing_identity=args.installer_signing_identity,
             notarization_apple_id=args.notarization_apple_id,
             notarization_password=args.notarization_password,
