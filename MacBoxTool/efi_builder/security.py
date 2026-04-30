@@ -46,7 +46,7 @@ class BuildSecurity:
             self.config["NVRAM"]["Add"]["7C436110-AB2A-4BBB-A880-FE41995C9F82"]["boot-args"] += " ipc_control_port_options=0"
             # Adds AutoPkgInstaller for Automatic MacBoxTool installation
             # Only install if running the GUI (AutoPkg-Assets.pkg requires the GUI)
-            if self.constants.wxpython_variant is True:
+            if self.constants.qt_variant is True:
                 support.BuildSupport(self.model, self.constants, self.config).enable_kext("AutoPkgInstaller.kext", self.constants.autopkg_version, self.constants.autopkg_path)
             if self.constants.custom_sip_value:
                 logging.info("- Setting SIP value to: {self.constants.custom_sip_value}".format(self=self))

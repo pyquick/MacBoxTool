@@ -95,7 +95,7 @@ class MacBoxTool:
         Generate base data required for the patcher to run
         """
 
-        self.constants.wxpython_variant = True
+        self.constants.qt_variant = True
 
         # Ensure we live after parent process dies (ie. LaunchAgent)
         os.setpgrp()
