@@ -10,7 +10,7 @@ class Install:
     def __init__(self):
         self.constants:Constants=Constants()
         self.settings=GlobalSettings(self.constants)
-        self.packages:list = ["PySide6","darkdetect","colorthief","scipy","pillow","termcolor","psutil"]
+        self.packages:list = self.read()
         self.version=str(sys.version_info.major)+"."+str(sys.version_info.minor)
 
         self.installed = self.settings.find_key("INSTALLED")  
@@ -23,6 +23,16 @@ class Install:
         if sys.platform == "win32":
             self.find_python_version_path()
         self.install_packages()
+
+    def read(self)->list:
+        import platform
+        if platform.system() == "Windows":
+            name = "Windows"
+        elif platform.system() == "Darwin":
+            name = "macOS"
+        with open(f"requirements_{name}.txt", "r") as file:
+            return [line.strip() for line in file]
+        
 
     def find_python_version_path(self):
         if sys.platform == "win32":

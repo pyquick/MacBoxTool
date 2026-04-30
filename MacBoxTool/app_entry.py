@@ -61,6 +61,7 @@ class MacBoxTool:
         self.computer= device_probe.Computer().probe()
 
         self._generate_base_data()
+        self.install_requirements()
         
         os_data = os_probe.OSProbe()
         self.constants.detected_os = os_data.detect_kernel_major()
@@ -77,6 +78,10 @@ class MacBoxTool:
         import threading
         threading.Thread(target=self.hook_model,daemon=True).start()
         self.opengui()
+    def install_requirements(self):
+        if self.constants.qt_variant is False or self.constants.launcher_script:
+            Install()
+        return
 
     def hook_model(self):
         import threading
@@ -168,7 +173,7 @@ class MacBoxTool:
 def main():
     # Handle CLI commands using parsed args
     args = _parse_cli_args()
-    Install()
+    
     if args.version:
         constants = Constants()
         print(f"MacBoxTool v{constants.mactoolbox_version}")
