@@ -70,7 +70,7 @@ coll = COLLECT(exe,
 
 app = BUNDLE(coll,
              name='MacBoxTool.app',
-             icon="payloads/Icon/AppIcons/MBT.icns",
+             icon="payloads/Icon/AppIcons/AppIcon.icns",
              bundle_identifier="com.pyquick.macboxtool",
              info_plist={
                 "CFBundleName": "MacBoxTool",

@@ -6,8 +6,10 @@
 	<string>MacBoxTool</string>
 	<key>CFBundleExecutable</key>
 	<string>MacBoxTool</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIconFile</key>
-	<string>MBT.icns</string>
+	<string>AppIcon.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.pyquick.macboxtool-helper</string>
 	<key>CFBundleInfoDictionaryVersion</key>
