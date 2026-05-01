@@ -147,6 +147,7 @@ class KDKList(ScrollArea):
         self.available_kdks = []
         self.available_kdks_latest = []
         self.show_latest_only = False
+        self._data_worker = None  # Multi-process data worker
 
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
@@ -201,42 +202,47 @@ class KDKList(ScrollArea):
         self.loading_container.setVisible(False)
 
     def load_kdks(self):
+        """Load KDK data using multi-process worker."""
         self._show_loading(True)
 
-        def _fetch():
-            try:
-                response = requests.get(self.constants.kdk_api_link, timeout=10)
-                if response.status_code == 200:
-                    self.available_kdks = response.json()
-                    self.available_kdks.sort(key=lambda x: (x.get("build", ""), x.get("version", "")), reverse=True)
-                    # Extract latest version for each major version (top 4 major versions)
-                    version_groups = {}
-                    for kdk in self.available_kdks:
-                        version = kdk.get("version", "")
-                        if not version:
-                            continue
-                        # Extract major version number (e.g., "26.3" -> 26)
-                        major_version = int(version.split(".")[0])
-                        if major_version not in version_groups:
-                            version_groups[major_version] = kdk  # First one is latest (already sorted)
+        # Clean up old worker
+        if self._data_worker is not None:
+            self._data_worker.stop()
+            self._data_worker = None
 
-                    # Get top 4 major versions' latest KDK
-                    sorted_versions = sorted(version_groups.keys(), reverse=True)[:4]
-                    self.available_kdks_latest = [version_groups[v] for v in sorted_versions]
-            except Exception as e:
-                logging.error(f"Failed to fetch KDK data: {e}")
+        # Create new data processing worker
+        from ..support.multiprocess_data_handler import DataProcessorWorker
 
-        thread = threading.Thread(target=_fetch)
-        thread.start()
+        self._data_worker = DataProcessorWorker(
+            self.constants.kdk_api_link,
+            "kdk",
+            self
+        )
+        self._data_worker.data_ready.connect(self._on_data_ready)
+        self._data_worker.error_occurred.connect(self._on_data_error)
+        self._data_worker.start_processing()
 
-        def _check():
-            if thread.is_alive():
-                QTimer.singleShot(100, _check)
-                return
-            self._show_loading(False)
-            self._display_kdks()
+    def _on_data_ready(self, data: dict):
+        """Callback when data processing completes."""
+        self.available_kdks = data.get("all", [])
+        self.available_kdks_latest = data.get("latest", [])
+        self._display_kdks()
 
-        QTimer.singleShot(100, _check)
+    def _on_data_error(self, error_msg: str):
+        """Callback when data processing fails."""
+        logging.error(f"Failed to process KDK data: {error_msg}")
+        self._show_loading(False)
+
+        # Show error notification
+        from qfluentwidgets import InfoBar, InfoBarPosition
+
+        InfoBar.error(
+            "Loading Failed",
+            f"Failed to load KDK packages: {error_msg}",
+            duration=5000,
+            position=InfoBarPosition.TOP_RIGHT,
+            parent=self
+        )
 
     def _on_latest_toggle(self, checked: bool):
         """Handle latest-only toggle"""
@@ -276,9 +282,14 @@ class KDKList(ScrollArea):
 
         self._render_batch(0, kdks)
 
-    def _render_batch(self, start_index: int, kdks: list, batch_size: int = 20):
+    def _render_batch(self, start_index: int, kdks: list, batch_size: int = 10):
         """Batch render cards to avoid UI freeze"""
         end_index = min(start_index + batch_size, len(kdks))
+
+        # Show loading progress
+        total = len(kdks)
+        if hasattr(self, 'loading_label'):
+            self.loading_label.setText(f"Loading packages... ({end_index}/{total})")
 
         for i in range(start_index, end_index):
             kdk = kdks[i]
@@ -287,9 +298,10 @@ class KDKList(ScrollArea):
             self.expandLayout.addWidget(card)
 
         if end_index < len(kdks):
-            QTimer.singleShot(10, lambda: self._render_batch(end_index, kdks, batch_size))
+            QTimer.singleShot(50, lambda: self._render_batch(end_index, kdks, batch_size))
         else:
             self.expandLayout.addStretch()
+            self._show_loading(False)
 
     def _on_download(self, kdk_data: dict):
         url = kdk_data.get("url")
@@ -304,4 +316,11 @@ class KDKList(ScrollArea):
         TaskManager.start_download(download_obj, icon=icon_path)
 
         InfoBar.success("Download Started", f"{filename} is downloading. Check Tasks for progress.", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
+
+    def closeEvent(self, event):
+        """Clean up resources when window closes."""
+        if self._data_worker is not None:
+            self._data_worker.stop()
+            self._data_worker = None
+        super().closeEvent(event)
 

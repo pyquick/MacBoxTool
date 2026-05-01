@@ -14,8 +14,6 @@ from ..support.network_handler import DownloadObject
 from .gui_task import TaskManager
 from PySide6.QtWidgets import QFrame
 from PySide6.QtGui import QPainter, QColor, QPainterPath
-import requests
-import threading
 import re
 
 
@@ -186,6 +184,7 @@ class MetallibList(ScrollArea):
         self.available_metallibs = []
         self.available_metallibs_latest = []
         self.show_latest_only = False
+        self._data_worker = None  # Multi-process data worker
 
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
@@ -240,30 +239,47 @@ class MetallibList(ScrollArea):
         self.loading_container.setVisible(False)
 
     def load_metallibs(self):
+        """Load MetalLib data using multi-process worker."""
         self._show_loading(True)
 
-        def _fetch():
-            try:
-                response = requests.get(self.constants.metallib_api_link, timeout=10)
-                if response.status_code == 200:
-                    self.available_metallibs = response.json()
-                    self.available_metallibs.sort(key=lambda x: (parse_build_version(x.get("build", "")), x.get("version", "")), reverse=True)
-                    # Extract latest (top 4)
-                    self.available_metallibs_latest = self.available_metallibs[:4]
-            except Exception as e:
-                logging.error(f"Failed to fetch Metallib data: {e}")
+        # Clean up old worker
+        if self._data_worker is not None:
+            self._data_worker.stop()
+            self._data_worker = None
 
-        thread = threading.Thread(target=_fetch)
-        thread.start()
+        # Create new data processing worker
+        from ..support.multiprocess_data_handler import DataProcessorWorker
 
-        def _check():
-            if thread.is_alive():
-                QTimer.singleShot(100, _check)
-                return
-            self._show_loading(False)
-            self._display_metallibs()
+        self._data_worker = DataProcessorWorker(
+            self.constants.metallib_api_link,
+            "metallib",
+            self
+        )
+        self._data_worker.data_ready.connect(self._on_data_ready)
+        self._data_worker.error_occurred.connect(self._on_data_error)
+        self._data_worker.start_processing()
 
-        QTimer.singleShot(100, _check)
+    def _on_data_ready(self, data: dict):
+        """Callback when data processing completes."""
+        self.available_metallibs = data.get("all", [])
+        self.available_metallibs_latest = data.get("latest", [])
+        self._display_metallibs()
+
+    def _on_data_error(self, error_msg: str):
+        """Callback when data processing fails."""
+        logging.error(f"Failed to process MetalLib data: {error_msg}")
+        self._show_loading(False)
+
+        # Show error notification
+        from qfluentwidgets import InfoBar, InfoBarPosition
+
+        InfoBar.error(
+            "Loading Failed",
+            f"Failed to load MetalLib packages: {error_msg}",
+            duration=5000,
+            position=InfoBarPosition.TOP_RIGHT,
+            parent=self
+        )
 
     def _on_latest_toggle(self, checked: bool):
         """Handle latest-only toggle"""
@@ -303,9 +319,14 @@ class MetallibList(ScrollArea):
 
         self._render_batch(0, metallibs)
 
-    def _render_batch(self, start_index: int, metallibs: list, batch_size: int = 20):
+    def _render_batch(self, start_index: int, metallibs: list, batch_size: int = 10):
         """Batch render cards to avoid UI freeze"""
         end_index = min(start_index + batch_size, len(metallibs))
+
+        # Show loading progress
+        total = len(metallibs)
+        if hasattr(self, 'loading_label'):
+            self.loading_label.setText(f"Loading packages... ({end_index}/{total})")
 
         for i in range(start_index, end_index):
             metallib = metallibs[i]
@@ -314,9 +335,10 @@ class MetallibList(ScrollArea):
             self.expandLayout.addWidget(card)
 
         if end_index < len(metallibs):
-            QTimer.singleShot(10, lambda: self._render_batch(end_index, metallibs, batch_size))
+            QTimer.singleShot(50, lambda: self._render_batch(end_index, metallibs, batch_size))
         else:
             self.expandLayout.addStretch()
+            self._show_loading(False)
 
     def _on_download(self, metallib_data: dict):
         url = metallib_data.get("url")
@@ -331,4 +353,11 @@ class MetallibList(ScrollArea):
         TaskManager.start_download(download_obj, icon=icon_path)
 
         InfoBar.success("Download Started", f"{filename} is downloading. Check Tasks for progress.", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
+
+    def closeEvent(self, event):
+        """Clean up resources when window closes."""
+        if self._data_worker is not None:
+            self._data_worker.stop()
+            self._data_worker = None
+        super().closeEvent(event)
 

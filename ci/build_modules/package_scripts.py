@@ -162,7 +162,7 @@ class ZSHFunctions:
         _script = ""
 
         _script += "function _logFile() {\n"
-        _script += "    echo \"/Users/Shared/.OCLP-AutoPatcher-Log-$(/bin/date +\"%Y_%m_%d_%I_%M_%p\").txt\"\n"
+        _script += "    echo \"/Users/Shared/.MBT-AutoPatcher-Log-$(/bin/date +\"%Y_%m_%d_%I_%M_%p\").txt\"\n"
         _script += "}\n"
 
         return _script
