@@ -47,6 +47,7 @@ class Window(FluentWindow):
         self._init_state()
         self._setup_window()
         self._init_ui()
+        ThemeManager(self.constants)
        
 
    

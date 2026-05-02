@@ -71,7 +71,7 @@ class MacBoxTool:
         self.constants.computer = self.computer
         
         LoggingHandler(self.constants)
-        ThemeManager(self.constants)
+        
         self.settings=GlobalSettings(self.constants)
         self.target_model = self.settings.find_key("MODEL") or "MacPro7,1"
         self.constants.custom_model=self.target_model if self.target_model !=("" or  None) else None
