@@ -1,0 +1,143 @@
+{
+  "fill" : "automatic",
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "Unknown.png",
+          "name" : "fixup",
+          "opacity" : 1,
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 3.5,
+                "translation-in-points" : [
+                  0,
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "blend-mode-specializations" : [
+            {
+              "value" : "soft-light"
+            },
+            {
+              "appearance" : "dark",
+              "value" : "multiply"
+            }
+          ],
+          "fill-specializations" : [
+            {
+              "value" : {
+                "solid" : "extended-gray:0.00000,1.00000"
+              }
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "extended-gray:1.00000,1.00000"
+              }
+            }
+          ],
+          "glass" : false,
+          "hidden-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : false
+            }
+          ],
+          "image-name" : "download-1.png",
+          "name" : "Apple",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  9.1435546875,
+                  22.8587646484375
+                ]
+              }
+            },
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  246.5408935546875,
+                  247.2188720703125
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "blend-mode-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : "normal"
+            }
+          ],
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "extended-srgb:0.00000,0.53333,1.00000,1.00000"
+              }
+            }
+          ],
+          "glass" : true,
+          "hidden-specializations" : [
+            {
+              "value" : false
+            },
+            {
+              "idiom" : "square",
+              "value" : true
+            }
+          ],
+          "image-name" : "Untitled-1 copy.png",
+          "name" : "background",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  123.3465576171875,
+                  33.04608154296875
+                ]
+              }
+            },
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  238,
+                  75.18682861328125
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

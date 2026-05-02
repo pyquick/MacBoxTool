@@ -97,6 +97,8 @@ class KDKCard(NoAnimCardWidget):
 
         version = kdk_data.get("version", "Unknown")
         build = kdk_data.get("build", "Unknown")
+        if build=="24A5279h":
+            version = "15.0"
         file_size = kdk_data.get("fileSize", 0)
         size_mb = file_size / (1024 * 1024) if file_size else 0
         self.version_label = CaptionLabel(f"Version: {version} | Build: {build} | Size: {size_mb:.0f} MB")
