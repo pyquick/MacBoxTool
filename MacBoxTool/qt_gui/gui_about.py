@@ -45,6 +45,9 @@ class AboutInterface(ScrollArea):
         self.expandLayout.addWidget(self.show_your_model())
         self.expandLayout.addWidget(self.show_your_custom_model())
         self.expandLayout.addWidget(self.show_your_board_id())
+        
+        self.expandLayout.addWidget(self.check_update_button(),0,Qt.AlignmentFlag.AlignCenter)
+
         self.expandLayout.addSpacing(26)
 
         self.expandLayout.addWidget(self.gro())
@@ -118,6 +121,11 @@ class AboutInterface(ScrollArea):
             self
         )
         return path_card
+    
+    def check_update_button(self):
+        update_button=PushButton("Check for Updates")
+        update_button.setFixedWidth(250)
+        return update_button
 
     
     

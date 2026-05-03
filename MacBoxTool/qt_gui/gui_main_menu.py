@@ -47,7 +47,8 @@ class Window(FluentWindow):
         self._init_state()
         self._setup_window()
         self._init_ui()
-        ThemeManager(self.constants)
+        self.theme_manager=ThemeManager(self.constants)
+        self.theme_manager.start()
        
 
    
@@ -220,6 +221,8 @@ class Window(FluentWindow):
             self.stackedWidget.setCurrentWidget(self.settings_page)
         elif target == Introduction.NAV_ABOUT:
             self.stackedWidget.setCurrentWidget(self.about)
+        elif target == Introduction.NAV_DOWNLOADS:
+            self.stackedWidget.setCurrentWidget(self.download_page)
 
     def _on_page_changed(self, index):
         widget = self.stackedWidget.widget(index)

@@ -29,8 +29,6 @@ def _parse_cli_args():
     parser.add_argument('--install-disk', metavar='DISK', help='Install EFI to disk (use with --build-efi)')
     parser.add_argument('--download-installer', action='store_true', help='Download macOS installer')
     parser.add_argument('--probe-hardware', action='store_true', help='Probe and display hardware information')
-    parser.add_argument('--settings', action='store_true', help='Show settings configuration')
-    parser.add_argument('--test', action='store_true', help='Run tests and validation')
     parser.add_argument('--version', action='store_true', help='Show version information')
     return parser.parse_args()
 
@@ -58,6 +56,7 @@ class MacBoxTool:
     def __init__(self)-> None:
         super().__init__()
         self.constants: Constants = Constants()
+        LoggingHandler(self.constants)
         self.computer= device_probe.Computer().probe()
 
         self._generate_base_data()
@@ -70,7 +69,7 @@ class MacBoxTool:
         self.constants.detected_os_version = os_data.detect_os_version()
         self.constants.computer = self.computer
         
-        LoggingHandler(self.constants)
+        
         
         self.settings=GlobalSettings(self.constants)
         self.target_model = self.settings.find_key("MODEL") or "MacPro7,1"
@@ -190,11 +189,8 @@ def main():
         print("Download installer mode - launching GUI...")
         # Falls through to GUI launch
 
-    if args.settings:
-        print("Settings mode - launching GUI...")
 
-    if args.test:
-        print("Test mode - launching GUI...")
+
 
     # Default: Launch GUI
     MacBoxTool()

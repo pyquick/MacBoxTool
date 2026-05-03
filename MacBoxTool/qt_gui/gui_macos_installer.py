@@ -150,6 +150,10 @@ class MacOSInstallerList(ScrollArea):
         logging.info("#####MacOSInstallerList:OK#####")
         logging.info("######################")
 
+        # Register this instance to TaskManager for validation/extraction callbacks
+        from .gui_task import TaskManager
+        TaskManager.register_installer_list(self)
+
         # Data
         self.available_installers = []
         self.available_installers_latest = []
@@ -406,7 +410,7 @@ class MacOSInstallerList(ScrollArea):
         filename = f"InstallAssistant-macOS_{version}-{build}.pkg"
         download_obj = DownloadObject(url, save_path, filename)
 
-        TaskManager.start_download(download_obj, icon=png_path,macos_install=True,chunklist_url=chunklist_link)
+        TaskManager.start_download(download_obj, icon=png_path, macos_install=True, chunklist_url=chunklist_link, installer_data=installer_data)
 
         InfoBar.success(
             "Download Started",
@@ -535,6 +539,9 @@ class MacOSInstallerList(ScrollArea):
         """Handle validation completion"""
         if success:
             InfoBar.success("Validation Complete", message, duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
+            # 自动调用提取
+            logging.info("Validation successful, starting extraction...")
+            self.extract_installer(installer_data)
         else:
             InfoBar.error("Validation Failed", message, duration=5000, position=InfoBarPosition.TOP_RIGHT, parent=self)
 

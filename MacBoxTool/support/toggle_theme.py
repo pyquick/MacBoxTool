@@ -54,5 +54,4 @@ class ThemeManager(QObject):
     def stop(self):
         pass
     
-
-
+ThemeManager().start()

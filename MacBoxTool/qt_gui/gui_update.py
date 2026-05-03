@@ -34,7 +34,3 @@ class Model(ScrollArea):
             SPACING["xxlarge"], SPACING["xlarge"]
         )
         self.expandLayout.setSpacing(SPACING["large"])
-        
-
-        
-        

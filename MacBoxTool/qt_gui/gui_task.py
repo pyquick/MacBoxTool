@@ -87,6 +87,8 @@ class TaskManager:
     _workers: dict[int, DownloadWorker] = {}
     _validate_workers: dict[int, ValidateExtractWorker] = {}  # validate/extract workers
     _icons: dict[int, object] = {}  # download id -> icon for DownloadCard
+    _installer_data: dict[int, dict] = {}  # download id -> installer_data
+    _installer_list_instance = None  # Reference to MacOSInstallerList instance
     aconstants :Constants = Constants()
     is_validate:bool = False
         
@@ -97,7 +99,7 @@ class TaskManager:
         return cls._instance
 
     @classmethod
-    def start_download(cls, download: DownloadObject, icon=None, macos_install:bool=False,chunklist_url:str="") -> DownloadWorker:
+    def start_download(cls, download: DownloadObject, icon=None, macos_install:bool=False, chunklist_url:str="", installer_data:dict=None) -> DownloadWorker:
         """Start a download and register it for display in TaskInterface.
 
         Usage:
@@ -111,6 +113,10 @@ class TaskManager:
             cls._icons[id(download)] = icon
             download.icon_path = icon
 
+        # Register installer_data if provided
+        if installer_data is not None:
+            cls.register_installer_data(download, installer_data)
+
         worker = DownloadWorker(download)
         cls._workers[id(download)] = worker
 
@@ -119,18 +125,6 @@ class TaskManager:
         )
         worker.start()
         return worker
-    
-    @classmethod
-    def validate_installer(cls,chunklist_link: str) -> None:
-        chunklist_stream = NetworkUtilities().get(chunklist_link).content
-        if chunklist_stream:
-            logging.info("Validating macOS Installer")
-            from ..support.integrity_verification import ChunklistVerification
-            chunk_obj = ChunklistVerification(cls.aconstants.payload_path / Path("InstallAssistant.pkg"), chunklist_stream)
-            if chunk_obj.chunks:
-                chunk_obj.validate()
-        logging.info("macOS installer validated")
-        
 
 
     @classmethod
@@ -161,18 +155,25 @@ class TaskManager:
         """Handle download completion — cleanup worker and icon references"""
         worker = cls._workers.pop(id(download), None)
         is_validate = cls.is_validate
-        if is_validate and success:
-            # Start validate and extract worker
-            validate_worker = ValidateExtractWorker(cls.chunklist_url, cls.aconstants, download.filename)
-            cls._validate_workers[id(download)] = validate_worker
-            validate_worker.finished_signal.connect(
-                lambda success, msg: cls._on_validate_finished(download, success, msg)
-            )
-            validate_worker.start()
 
-            # Emit signal to notify UI to show progress
-            if hasattr(cls, '_validate_started_callback'):
-                cls._validate_started_callback(download)
+        if is_validate and success:
+            # Get installer_data and installer_list instance
+            installer_data = cls._installer_data.pop(id(download), None)
+            installer_list = cls._installer_list_instance
+
+            if installer_data and installer_list:
+                # Call MacOSInstallerList.validate_installer
+                # It will automatically call extract_installer on success
+                try:
+                    installer_list.validate_installer(installer_data)
+                    logging.info(f"Starting validation for: {download.filename}")
+                except Exception as e:
+                    logging.error(f"Failed to call validate_installer: {e}")
+            else:
+                if not installer_list:
+                    logging.warning(f"MacOSInstallerList instance not registered in TaskManager")
+                if not installer_data:
+                    logging.warning(f"No installer_data found for download: {download.filename}")
 
         if worker:
             worker.deleteLater()
@@ -199,6 +200,16 @@ class TaskManager:
         """Register a download task to be displayed"""
         if download not in cls._downloads:
             cls._downloads.append(download)
+
+    @classmethod
+    def register_installer_list(cls, installer_list_instance):
+        """Register MacOSInstallerList instance for validation/extraction callbacks"""
+        cls._installer_list_instance = installer_list_instance
+
+    @classmethod
+    def register_installer_data(cls, download: DownloadObject, installer_data: dict):
+        """Register installer_data for a download task"""
+        cls._installer_data[id(download)] = installer_data
 
     @classmethod
     def unregister_download(cls, download: DownloadObject):
