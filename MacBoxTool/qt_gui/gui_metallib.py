@@ -128,7 +128,7 @@ class MetallibCard(NoAnimCardWidget):
         self.icon_widget = ImageLabel(icon_path, self)
         self.icon_widget.setFixedSize(48, 48)
 
-        self.title_label = BodyLabel("Metallib Support Package")
+        self.title_label = BodyLabel("Metallib Package")
         self.title_label.setStyleSheet("font-weight: 600;")
 
         date_str = metallib_data.get("date", "Unknown")

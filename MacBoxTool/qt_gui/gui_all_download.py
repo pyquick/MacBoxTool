@@ -51,7 +51,7 @@ class DownloadInterface(QWidget):
         # Add tabs
         self._add_tab("installer", "macOS Installer", self.tab_installer)
         self._add_tab("kdk", "Kernel Debug Kit", None)
-        self._add_tab("metallib", "Metallib Support", None)
+        self._add_tab("metallib", "Metallib", None)
 
         # Set default tab
         self.pivot.setCurrentItem("installer")

@@ -315,9 +315,8 @@ class Introduction(ScrollArea):
         hero_text.addWidget(hero_title)
 
         hero_body = BodyLabel(
-            "A specialized tool that can generate your OpenCore EFI.<br>"
-            "Designed to reduce manual effort while ensuring accuracy in your Hackintosh journey.<br>"
-            "It both support old Macs."
+            "A specialized tool that can work like OCLP.<br>"
+            "Now it only support old Macs."
         )
         hero_body.setWordWrap(True)
         hero_body.setStyleSheet("line-height: 1.6; font-size: 14px;")
@@ -336,13 +335,14 @@ class Introduction(ScrollArea):
         return title_label
 
     def _create_note_card(self):
+        self.oclp_version="3.1.2"
         return self.ui_support.custom_card(
             card_type="note",
-            title="MacBoxTool: - Now Supports macOS Tahoe 26!",
+            title="OCLP-R: - Now Supports macOS Tahoe 26!",
             body=(
-                "The long awaited version 3.0.4 of MacBoxTool is here, bringing <b>initial support for macOS Tahoe 26</b> to the community!<br><br>"
+                f"The long awaited version {self.oclp_version} of OCLP-R is here, bringing <b>initial support for macOS Tahoe 26</b> to the community!<br><br>"
                 "<b>Please Note:</b><br>"
-                "- Only MacBoxTool 3.0.2 from the <a href=\"https://github.com/pyquick/MacBoxTool/releases/download/3.0.2/MacBoxTool.pkg\" style=\"color: #0078D4; text-decoration: none;\">pyquick/MacBoxTool</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
+                f"- Only OCLP-R {self.oclp_version} from the <a href=\"https://github.com/pyquick/MacBoxTool/releases/download/{self.oclp_version}/OCLP-R.pkg\" style=\"color: #0078D4; text-decoration: none;\">pyquick/OCLP-R</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
                 "- Official Dortania releases or older patches <b>will NOT work</b> with macOS Tahoe 26."
             )
         )
@@ -350,10 +350,9 @@ class Introduction(ScrollArea):
     def _create_warning_card(self):
         return self.ui_support.custom_card(
             card_type="warning",
-            title="This tool both support old Macs and Hackintoshes.",
+            title="This tool now only support old Macs. Hackintosh will be supported on MacBoxTool 0.2.0",
             body=(
-                "Even though this device supports older Macs and Hackintosh, "
-                "its use is not recommended due to its current instability. "
+                "Its use is not recommended due to its current instability. "
                 "Before using Hackintosh, please be sure to read Dortania's guide."
             )
         )

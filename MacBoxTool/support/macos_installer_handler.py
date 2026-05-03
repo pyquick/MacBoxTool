@@ -49,14 +49,58 @@ class InstallerCreation:
             bool: True if successful, False otherwise
         """
 
-        logging.info("Extracting macOS installer from InstallAssistant.pkg")
-        result = subprocess_wrapper.run_as_root(["/usr/sbin/installer", "-pkg", f"{Path(download_path)}/InstallAssistant.pkg", "-target", "/"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        pkg_path = Path(download_path) / "InstallAssistant.pkg"
+
+        # 如果 InstallAssistant.pkg 是符号链接，解析它找到实际的 pkg 文件
+        if pkg_path.is_symlink():
+            # 解析符号链接
+            actual_pkg = pkg_path.resolve()
+            logging.info(f"InstallAssistant.pkg is a symlink, resolving to: {actual_pkg}")
+
+            # 检查是否存在对应的完整文件名 pkg
+            # 例如：InstallAssistant.pkg -> InstallAssistant-macOS_12.7.4-21H1123.pkg
+            download_path_obj = Path(download_path)
+            actual_pkg_files = list(download_path_obj.glob("InstallAssistant-*.pkg"))
+
+            if actual_pkg_files:
+                # 使用最新的 pkg 文件
+                actual_pkg_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                pkg_path = actual_pkg_files[0]
+                logging.info(f"Using most recent pkg file: {pkg_path.name}")
+            else:
+                # 回退到解析的符号链接目标
+                pkg_path = actual_pkg
+
+        logging.info(f"Starting macOS installer extraction from: {pkg_path}")
+
+        if not pkg_path.exists():
+            logging.error(f"InstallAssistant.pkg not found at: {pkg_path}")
+            return False
+
+        logging.info("Running installer command to extract package...")
+        result = subprocess_wrapper.run_as_root(
+            ["/usr/sbin/installer", "-pkg", str(pkg_path), "-target", "/"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+
         if result.returncode != 0:
-            logging.info("Failed to install InstallAssistant")
+            logging.error(f"Failed to install InstallAssistant. Return code: {result.returncode}")
+            if result.stdout:
+                logging.error(f"stdout: {result.stdout.decode()}")
+            if result.stderr:
+                logging.error(f"stderr: {result.stderr.decode()}")
             subprocess_wrapper.log(result)
             return False
 
-        logging.info("InstallAssistant installed")
+        logging.info("InstallAssistant installed and extracted successfully")
+
+        # 验证提取结果
+        if list(Path("/Applications").glob("Install macOS*.app")):
+            logging.info("macOS installer application found in /Applications")
+        else:
+            logging.warning("No macOS installer application found in /Applications after extraction")
+
         return True
 
 

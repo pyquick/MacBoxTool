@@ -10,6 +10,7 @@ from ..support.network_handler import (
     DownloadObject, DownloadWorker, DownloadStatus,
     NetworkUtilities, DownloadHistory
 )
+from ..support.integrity_verification import ChunklistStatus
 
 
 class NetworkCheckWorker(QThread):
@@ -36,6 +37,9 @@ class NetworkCheckWorker(QThread):
 
 class ValidateExtractWorker(QThread):
     """Worker thread for validating and extracting macOS installer."""
+
+    # 新增阶段信号
+    stage_changed_signal = Signal(str)  # "validate" 或 "extract"
     progress_signal = Signal(str)  # For progress updates
     finished_signal = Signal(bool, str)  # For completion (success, message)
 
@@ -47,35 +51,76 @@ class ValidateExtractWorker(QThread):
 
     def run(self):
         try:
-            # Step 1: Validate installer
+            # ========== 阶段 1: 验证 ==========
+            self.stage_changed_signal.emit("validate")
             self.progress_signal.emit("Validating macOS installer...")
-            chunklist_stream = NetworkUtilities().get(self.chunklist_url).content
-            if chunklist_stream:
-                logging.info("Validating macOS Installer")
-                from ..support.integrity_verification import ChunklistVerification
-                chunk_obj = ChunklistVerification(self.constants.payload_path / self.filename, chunklist_stream)
-                if chunk_obj.chunks:
-                    chunk_obj.validate()
-                logging.info("macOS installer validated")
+            logging.info(f"Starting validation for: {self.filename}")
 
-            # Step 2: Extract installer
+            # 下载 chunklist
+            logging.info(f"Downloading chunklist from: {self.chunklist_url}")
+            chunklist_stream = NetworkUtilities().get(self.chunklist_url).content
+
+            if not chunklist_stream:
+                error_msg = "Failed to download chunklist"
+                logging.error(error_msg)
+                self.finished_signal.emit(False, error_msg)
+                return
+
+            logging.info("Chunklist downloaded successfully")
+
+            # 验证文件
+            from ..support.integrity_verification import ChunklistVerification
+            chunk_obj = ChunklistVerification(
+                self.constants.payload_path / self.filename,
+                chunklist_stream
+            )
+
+            if chunk_obj.chunks is None:
+                error_msg = "Invalid chunklist format"
+                logging.error(error_msg)
+                self.finished_signal.emit(False, error_msg)
+                return
+
+            logging.info(f"Starting validation of {chunk_obj.total_chunks} chunks")
+            chunk_obj.validate()
+
+            # 等待验证完成
+            while chunk_obj.status == ChunklistStatus.IN_PROGRESS:
+                self.progress_signal.emit(
+                    f"Validating... {chunk_obj.current_chunk}/{chunk_obj.total_chunks}"
+                )
+                QThread.msleep(100)
+
+            if chunk_obj.status == ChunklistStatus.FAILURE:
+                error_msg = f"Validation failed: {chunk_obj.error_msg}"
+                logging.error(error_msg)
+                self.finished_signal.emit(False, error_msg)
+                return
+
+            logging.info("Validation completed successfully")
+
+            # ========== 阶段 2: 提取 ==========
+            self.stage_changed_signal.emit("extract")
             self.progress_signal.emit("Extracting macOS installer...")
-            logging.info("Extracting macOS installer")
+            logging.info("Starting installer extraction")
+
             from ..support import macos_installer_handler
-            result = macos_installer_handler.InstallerCreation(global_constants=self.constants).install_macOS_installer(self.constants.payload_path)
+            result = macos_installer_handler.InstallerCreation(
+                global_constants=self.constants
+            ).install_macOS_installer(str(self.constants.payload_path))
 
             if result:
+                logging.info("Installer extraction completed successfully")
                 self.progress_signal.emit("Installation completed successfully")
-                logging.info("macOS installer extracted successfully")
                 self.finished_signal.emit(True, "macOS installer validated and extracted successfully")
             else:
-                self.progress_signal.emit("Extraction failed")
-                logging.warning("Failed to extract macOS installer")
-                self.finished_signal.emit(False, "Failed to extract macOS installer")
+                error_msg = "Failed to extract macOS installer"
+                logging.error(error_msg)
+                self.finished_signal.emit(False, error_msg)
 
         except Exception as e:
             error_msg = f"Error during validation/extraction: {str(e)}"
-            logging.error(error_msg)
+            logging.error(error_msg, exc_info=True)
             self.finished_signal.emit(False, error_msg)
 
 
@@ -152,29 +197,42 @@ class TaskManager:
 
     @classmethod
     def _on_download_finished(cls, download: DownloadObject, success: bool, message: str):
-        """Handle download completion — cleanup worker and icon references"""
+        """Handle download completion — cleanup worker and trigger validation/extract"""
         worker = cls._workers.pop(id(download), None)
         is_validate = cls.is_validate
 
         if is_validate and success:
-            # Get installer_data and installer_list instance
+            # 获取必要参数
+            chunklist_url = cls.chunklist_url
             installer_data = cls._installer_data.pop(id(download), None)
-            installer_list = cls._installer_list_instance
 
-            if installer_data and installer_list:
-                # Call MacOSInstallerList.validate_installer
-                # It will automatically call extract_installer on success
-                try:
-                    installer_list.validate_installer(installer_data)
-                    logging.info(f"Starting validation for: {download.filename}")
-                except Exception as e:
-                    logging.error(f"Failed to call validate_installer: {e}")
-            else:
-                if not installer_list:
-                    logging.warning(f"MacOSInstallerList instance not registered in TaskManager")
-                if not installer_data:
-                    logging.warning(f"No installer_data found for download: {download.filename}")
+            # 创建并启动 ValidateExtractWorker
+            validate_worker = ValidateExtractWorker(
+                chunklist_url=chunklist_url,
+                constants=cls.aconstants,
+                filename=download.filename,
+                parent=None
+            )
 
+            # 注册 worker
+            cls._validate_workers[id(download)] = validate_worker
+
+            # 连接信号
+            validate_worker.stage_changed_signal.connect(
+                lambda stage: cls._on_stage_changed(download, stage)
+            )
+            validate_worker.progress_signal.connect(
+                lambda msg: cls._on_validate_progress(download, msg)
+            )
+            validate_worker.finished_signal.connect(
+                lambda success, msg: cls._on_validate_finished(download, success, msg)
+            )
+
+            # 启动验证/提取
+            validate_worker.start()
+            logging.info(f"Started validation/extraction for: {download.filename}")
+
+        # 清理 worker
         if worker:
             worker.deleteLater()
         cls._icons.pop(id(download), None)
@@ -182,6 +240,18 @@ class TaskManager:
             logging.info(f"Download completed: {download.filename}")
         else:
             logging.warning(f"Download failed: {download.filename} - {message}")
+
+    @classmethod
+    def _on_stage_changed(cls, download: DownloadObject, stage: str):
+        """Handle validation/extraction stage change"""
+        if hasattr(cls, '_stage_changed_callback') and cls._stage_changed_callback:
+            cls._stage_changed_callback(download, stage)
+
+    @classmethod
+    def _on_validate_progress(cls, download: DownloadObject, message: str):
+        """Handle validation/extraction progress update"""
+        if hasattr(cls, '_progress_callback') and cls._progress_callback:
+            cls._progress_callback(download, message)
 
     @classmethod
     def _on_validate_finished(cls, download: DownloadObject, success: bool, message: str):
@@ -324,8 +394,10 @@ class TaskInterface(ScrollArea):
         # Load history
         self._load_history()
 
-        # Set up callback for validation started
+        # Set up callbacks for validation/extraction
         TaskManager._validate_started_callback = self._show_validate_progress
+        TaskManager._stage_changed_callback = self._on_validate_stage_changed
+        TaskManager._progress_callback = self._on_validate_progress_update
 
     def _create_title(self) -> QWidget:
         title_label = SubtitleLabel("Download Tasks")
@@ -543,6 +615,30 @@ class TaskInterface(ScrollArea):
             worker.finished_signal.connect(
                 lambda success, msg: self._on_validate_complete(download, success, msg)
             )
+
+    def _on_validate_stage_changed(self, download: DownloadObject, stage: str):
+        """Handle validation/extraction stage change"""
+        download_id = id(download)
+        if download_id not in self.download_cards:
+            return
+
+        card = self.download_cards[download_id]
+
+        if stage == "validate":
+            card.show_validate_progress("Validating...")
+            logging.info(f"Validation stage started for: {download.filename}")
+        elif stage == "extract":
+            card.update_validate_status("Extracting...")
+            logging.info(f"Extraction stage started for: {download.filename}")
+
+    def _on_validate_progress_update(self, download: DownloadObject, message: str):
+        """Handle validation/extraction progress updates"""
+        download_id = id(download)
+        if download_id not in self.download_cards:
+            return
+
+        card = self.download_cards[download_id]
+        card.update_validate_status(message)
 
     def _on_validate_complete(self, download: DownloadObject, success: bool, message: str):
         """Handle validation/extraction completion"""

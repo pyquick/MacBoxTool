@@ -159,6 +159,10 @@ class MacOSInstallerList(ScrollArea):
         self.available_installers_latest = []
         self.show_latest_only = False
 
+        # Worker threads (keep references to prevent premature garbage collection)
+        self._validation_worker = None
+        self._extraction_worker = None
+
         self._init_scroll_area()
         self.init_ui()
 
@@ -500,9 +504,10 @@ class MacOSInstallerList(ScrollArea):
                 except Exception as e:
                     self.finished.emit(False, str(e))
 
-        worker = ValidationWorker(file_path, chunklist_data)
-        worker.finished.connect(lambda success, msg: self._on_validation_finished(success, msg, installer_data))
-        worker.start()
+        # Store worker as instance variable to prevent premature garbage collection
+        self._validation_worker = ValidationWorker(file_path, chunklist_data)
+        self._validation_worker.finished.connect(lambda success, msg: self._on_validation_finished(success, msg, installer_data))
+        self._validation_worker.start()
 
         InfoBar.info("Validating", "Validating installer integrity...", duration=2000, position=InfoBarPosition.TOP_RIGHT, parent=self)
 
@@ -529,14 +534,21 @@ class MacOSInstallerList(ScrollArea):
                 except Exception as e:
                     self.finished.emit(False, str(e))
 
-        worker = ExtractionWorker(file_path, self.constants)
-        worker.finished.connect(lambda success, msg: self._on_extraction_finished(success, msg, installer_data))
-        worker.start()
+        # Store worker as instance variable to prevent premature garbage collection
+        self._extraction_worker = ExtractionWorker(file_path, self.constants)
+        self._extraction_worker.finished.connect(lambda success, msg: self._on_extraction_finished(success, msg, installer_data))
+        self._extraction_worker.start()
 
         InfoBar.info("Extracting", "Extracting installer...", duration=2000, position=InfoBarPosition.TOP_RIGHT, parent=self)
 
     def _on_validation_finished(self, success: bool, message: str, installer_data: dict):
         """Handle validation completion"""
+        # Clean up worker reference
+        if self._validation_worker is not None:
+            self._validation_worker.quit()
+            self._validation_worker.wait()
+            self._validation_worker = None
+
         if success:
             InfoBar.success("Validation Complete", message, duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
             # 自动调用提取
@@ -547,7 +559,32 @@ class MacOSInstallerList(ScrollArea):
 
     def _on_extraction_finished(self, success: bool, message: str, installer_data: dict):
         """Handle extraction completion"""
+        # Clean up worker reference
+        if self._extraction_worker is not None:
+            self._extraction_worker.quit()
+            self._extraction_worker.wait()
+            self._extraction_worker = None
+
         if success:
             InfoBar.success("Extraction Complete", message, duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
         else:
             InfoBar.error("Extraction Failed", message, duration=5000, position=InfoBarPosition.TOP_RIGHT, parent=self)
+
+    def cleanup_workers(self):
+        """Clean up any running worker threads"""
+        if self._validation_worker is not None:
+            if self._validation_worker.isRunning():
+                self._validation_worker.quit()
+                self._validation_worker.wait()
+            self._validation_worker = None
+
+        if self._extraction_worker is not None:
+            if self._extraction_worker.isRunning():
+                self._extraction_worker.quit()
+                self._extraction_worker.wait()
+            self._extraction_worker = None
+
+    def closeEvent(self, event):
+        """Handle window close event"""
+        self.cleanup_workers()
+        super().closeEvent(event)

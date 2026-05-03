@@ -60,7 +60,7 @@ class ChunklistVerification:
 
         self.error_msg:     str = ""
         self.current_chunk: int = 0
-        self.total_chunks:  int = len(self.chunks)
+        self.total_chunks:  int = len(self.chunks) if self.chunks is not None else 0
 
         self.status: ChunklistStatus = ChunklistStatus.IN_PROGRESS
        
@@ -104,33 +104,44 @@ class ChunklistVerification:
 
         if self.chunks is None:
             self.status = ChunklistStatus.FAILURE
+            logging.error("Invalid chunklist format")
             return
+
+        logging.info(f"Starting validation for file: {self.file_path.name}")
+        logging.info(f"Total chunks to validate: {self.total_chunks}")
 
         if not Path(self.file_path).exists():
             self.error_msg = f"File {self.file_path} does not exist"
             self.status = ChunklistStatus.FAILURE
-            logging.info(self.error_msg)
+            logging.error(self.error_msg)
             return
 
         if not Path(self.file_path).is_file():
-            
-            
+
+
             self.error_msg = f"File {self.file_path} is not a file"
             self.status = ChunklistStatus.FAILURE
-            logging.info(self.error_msg)
+            logging.error(self.error_msg)
             return
 
         with self.file_path.open("rb") as f:
             for chunk in self.chunks:
                 self.current_chunk += 1
+
+                # 每10%记录进度
+                if self.current_chunk % max(1, self.total_chunks // 10) == 0:
+                    progress = (self.current_chunk / self.total_chunks) * 100
+                    logging.info(f"Validation progress: {self.current_chunk}/{self.total_chunks} ({progress:.1f}%)")
+
                 status = hashlib.sha256(f.read(chunk["length"])).digest()
                 if status != chunk["checksum"]:
-                    
-                    self.error_msg = f"Chunk {self.current_chunk} checksum status FAIL: chunk sum {binascii.hexlify(chunk['checksum']).decode()}, calculated sum {binascii.hexlify(status).decode()}"
+
+                    self.error_msg = f"Chunk {self.current_chunk} checksum mismatch"
                     self.status = ChunklistStatus.FAILURE
-                    logging.info(self.error_msg)
+                    logging.error(f"{self.error_msg} - expected: {binascii.hexlify(chunk['checksum']).decode()}, got: {binascii.hexlify(status).decode()}")
                     return
 
+        logging.info(f"Validation completed successfully for: {self.file_path.name}")
         self.status = ChunklistStatus.SUCCESS
 
 
