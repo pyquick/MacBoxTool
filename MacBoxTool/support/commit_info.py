@@ -50,5 +50,5 @@ class ParseCommitInfo:
         return (
             "Running from source",
             "Not applicable",
-            "",
+            "N/A",
         )

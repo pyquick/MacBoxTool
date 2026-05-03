@@ -41,31 +41,21 @@ class AboutInterface(ScrollArea):
         )
         self.expandLayout.setSpacing(SPACING["large"])
 
+        #Gen
         self.expandLayout.addWidget(self.show_about_label())
         self.expandLayout.addWidget(self.show_your_model())
         self.expandLayout.addWidget(self.show_your_custom_model())
         self.expandLayout.addWidget(self.show_your_board_id())
-        
-        self.expandLayout.addWidget(self.check_update_button(),0,Qt.AlignmentFlag.AlignCenter)
-
         self.expandLayout.addSpacing(26)
+        # App Information
+        self.expandLayout.addWidget(self.app_information())
+        
 
-        self.expandLayout.addWidget(self.gro())
-        self.expandLayout.addWidget(self.gengrate_settings_card())
-        self.expandLayout.addWidget(self.show_pspkg_card())
-        self.expandLayout.addWidget(self.show_launcher_card())
-
+        self.expandLayout.addSpacing(13)
+        self.expandLayout.addWidget(self.show_commit_information())
         self.expandLayout.addStretch()
 
-    def gengrate_settings_card(self):
-        version_card=SettingCard(
-            FIF.APPLICATION,
-            "MacBoxTool",
-            f"Version {self.constants.mactoolbox_version}",
-            self
-        )
-        return version_card
-    
+  
     def show_about_label(self):
         self.label="About MacBoxTool"
         title_label = SubtitleLabel(self.label)
@@ -91,12 +81,6 @@ class AboutInterface(ScrollArea):
         model_label = BodyLabel("Custom Model:"+" "+self.model)
         model_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         return model_label
-    
-    def gro(self):
-        self.model= self.constants.computer.real_model
-        model_label = BodyLabel("Basic Information")
-        model_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        return model_label
 
     def show_your_board_id(self):
         self.board_id= self.constants.computer.real_board_id
@@ -104,28 +88,70 @@ class AboutInterface(ScrollArea):
         board_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         return board_label
     
-    def show_pspkg_card(self):
+    
+    def app_information(self):
+        widgets=QWidget()
+        expandLayout = QVBoxLayout(widgets)
+        self.model= self.constants.computer.real_model
+        model_label = BodyLabel("Application Information")
+        model_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         version_card=SettingCard(
+            FIF.APPLICATION,
+            "MacBoxTool",
+            f"Version {self.constants.mactoolbox_version}",
+            self
+        )
+        pversion_card=SettingCard(
             FIF.ZIP_FOLDER,
             "PatcherSupportPkg Version",
             f"Version {self.constants.patcher_support_pkg_version}",
             self
         )
-        return version_card
-
-    def show_launcher_card(self):
         path_card=SettingCard(
             FIF.PASTE,
             "Luancher Path",
             f"{self.constants.launcher_binary}",
             self
         )
-        return path_card
+        mount_card= SettingCard(
+            FIF.PASTE,
+            "Payload Mount",
+            f"{self.constants.payload_path}"
+        )
+        expandLayout.addWidget(version_card)
+        expandLayout.addWidget(pversion_card)
+        expandLayout.addWidget(path_card)
+        expandLayout.addWidget(mount_card)
+        return widgets
     
-    def check_update_button(self):
-        update_button=PushButton("Check for Updates")
-        update_button.setFixedWidth(250)
-        return update_button
+    
+    def show_commit_information(self):
+        widgets=QWidget()
+        expandLayout = QVBoxLayout(widgets)
+        commit_label = BodyLabel("Commit Information")
+        branch_card=SettingCard(
+            FIF.BRUSH,
+            "Branch",
+            f"{self.constants.commit_info[0]}",
+        )
+        date_card=SettingCard(
+            FIF.DATE_TIME,
+            "Date",
+            f"{self.constants.commit_info[1]}",
+        )
+        url_card=SettingCard(
+            FIF.WIFI,
+            "URL",
+            f"{self.constants.commit_info[2]}",
+        )
+        expandLayout.addWidget(commit_label)
+        expandLayout.addWidget(branch_card)
+        expandLayout.addWidget(date_card)
+        expandLayout.addWidget(url_card)
+        return widgets
+
+
+
 
     
     

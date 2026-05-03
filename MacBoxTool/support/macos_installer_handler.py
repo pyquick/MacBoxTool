@@ -51,25 +51,43 @@ class InstallerCreation:
 
         pkg_path = Path(download_path) / "InstallAssistant.pkg"
 
-        # 如果 InstallAssistant.pkg 是符号链接，解析它找到实际的 pkg 文件
-        if pkg_path.is_symlink():
-            # 解析符号链接
-            actual_pkg = pkg_path.resolve()
-            logging.info(f"InstallAssistant.pkg is a symlink, resolving to: {actual_pkg}")
+        # 检查 InstallAssistant.pkg 是否存在
+        if not pkg_path.exists():
+            logging.warning(f"InstallAssistant.pkg symlink not found, searching for actual pkg files")
 
-            # 检查是否存在对应的完整文件名 pkg
-            # 例如：InstallAssistant.pkg -> InstallAssistant-macOS_12.7.4-21H1123.pkg
+            # 查找所有 InstallAssistant-*.pkg 文件
             download_path_obj = Path(download_path)
             actual_pkg_files = list(download_path_obj.glob("InstallAssistant-*.pkg"))
 
-            if actual_pkg_files:
-                # 使用最新的 pkg 文件
+            if not actual_pkg_files:
+                logging.error(f"No InstallAssistant pkg files found in {download_path}")
+                return False
+
+            # 使用最新的 pkg 文件
+            actual_pkg_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+            pkg_path = actual_pkg_files[0]
+            logging.info(f"Using most recent pkg file: {pkg_path.name}")
+        elif pkg_path.is_symlink():
+            # 如果是符号链接，解析它
+            actual_pkg = pkg_path.resolve()
+            logging.info(f"InstallAssistant.pkg is a symlink, resolving to: {actual_pkg}")
+
+            # 检查解析后的文件是否存在
+            if actual_pkg.exists():
+                pkg_path = actual_pkg
+            else:
+                # 符号链接损坏，查找实际的 pkg 文件
+                logging.warning(f"Symlink is broken, searching for actual pkg files")
+                download_path_obj = Path(download_path)
+                actual_pkg_files = list(download_path_obj.glob("InstallAssistant-*.pkg"))
+
+                if not actual_pkg_files:
+                    logging.error(f"No InstallAssistant pkg files found in {download_path}")
+                    return False
+
                 actual_pkg_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
                 pkg_path = actual_pkg_files[0]
                 logging.info(f"Using most recent pkg file: {pkg_path.name}")
-            else:
-                # 回退到解析的符号链接目标
-                pkg_path = actual_pkg
 
         logging.info(f"Starting macOS installer extraction from: {pkg_path}")
 
