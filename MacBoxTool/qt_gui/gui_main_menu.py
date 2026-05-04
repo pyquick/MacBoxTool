@@ -55,7 +55,7 @@ class Window(FluentWindow):
    
 
     def _setup_window(self):
-        self.setWindowTitle(f"MacBoxTool ({self.constants.macboxtool_version})"+" (Nightly)" if on_nightly.CheckNightly(self.constants).check() else "")
+        self.setWindowTitle(f"MacBoxTool ({self.constants.macboxtool_version}) {"(Nightly)"if on_nightly.CheckNightly(self.constants).check() else ""}")
         self.setMinimumSize(*WINDOW_MIN_SIZE)
         
         #self._restore_window_geometry()
