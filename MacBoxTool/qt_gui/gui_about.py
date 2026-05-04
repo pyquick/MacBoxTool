@@ -53,6 +53,8 @@ class AboutInterface(ScrollArea):
 
         self.expandLayout.addSpacing(13)
         self.expandLayout.addWidget(self.show_commit_information())
+        self.expandLayout.addSpacing(13)
+        self.expandLayout.addWidget(self.show_booted_information())
         self.expandLayout.addStretch()
 
   
@@ -148,6 +150,38 @@ class AboutInterface(ScrollArea):
         expandLayout.addWidget(branch_card)
         expandLayout.addWidget(date_card)
         expandLayout.addWidget(url_card)
+        return widgets
+    
+    def show_booted_information(self):
+        widgets=QWidget()
+        expandLayout = QVBoxLayout(widgets)
+        booted_label = BodyLabel("Booted Information")
+        btos_card=SettingCard(
+            FIF.CERTIFICATE,
+            "Booted OS",
+            f"XNU {self.constants.detected_os} ({self.constants.detected_os_version})",
+        )
+        btpv_card=SettingCard(
+            FIF.ZIP_FOLDER,
+            "Booted Patcher Version (OCLP)",
+            f"{self.constants.computer.mbt_version}",
+        )
+        btoc_card=SettingCard(
+            FIF.ROTATE,
+            "Booted Opencore Version",
+            f"{self.constants.computer.opencore_version}",
+        )
+        btod_card=SettingCard(
+            FIF.ROTATE,
+            "Booted Opencore Disk",
+            f"{self.constants.booted_oc_disk}",
+        )
+        expandLayout.addWidget(booted_label)
+        expandLayout.addWidget(btos_card)
+        expandLayout.addWidget(btpv_card)
+        expandLayout.addWidget(btoc_card)
+        expandLayout.addWidget(btod_card)
+        
         return widgets
 
 
