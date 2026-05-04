@@ -5,6 +5,7 @@ from ..include import *
 from ..constants import Constants
 from .gui_support import DefGUI
 from PySide6.QtCore import QThread, Signal, QTimer
+from ..support.on_nightly import CheckNightly
 
 # Import install_helper only on macOS
 import sys
@@ -103,6 +104,9 @@ class Introduction(ScrollArea):
         self.expandLayout.addWidget(self._create_note_card())
 
         self.expandLayout.addWidget(self._create_warning_card())
+
+        if CheckNightly(self.global_constants).check():
+            self.expandLayout.addWidget(self._create_nightly_warning_card())
 
         self.expandLayout.addWidget(self._create_guide_card())
 
@@ -345,6 +349,13 @@ class Introduction(ScrollArea):
                 f"- Only OCLP-R {self.oclp_version} from the <a href=\"https://github.com/pyquick/MacBoxTool/releases/download/{self.oclp_version}/OCLP-R.pkg\" style=\"color: #0078D4; text-decoration: none;\">pyquick/OCLP-R</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
                 "- Official Dortania releases or older patches <b>will NOT work</b> with macOS Tahoe 26."
             )
+        )
+    def _create_nightly_warning_card(self):
+        
+        return self.ui_support.custom_card(
+            card_type="warning",
+            title="For Nightly Users",
+            body=CheckNightly(self.global_constants).warning()
         )
 
     def _create_warning_card(self):

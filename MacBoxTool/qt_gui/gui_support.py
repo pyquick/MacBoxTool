@@ -87,6 +87,8 @@ class DefGUI():
         label.setFixedSize(size + 12, size + 12)
         return label
     
+
+    
     def create_info_widget(self, text: str, color: Optional[str] = None) -> QWidget:
         if not text:
             return QWidget()
@@ -248,3 +250,19 @@ class DefGUI():
         spacer.setFixedHeight(spacing)
         return spacer
         
+
+def wait_for_thread(thread: threading.Thread, sleep_interval=None):
+    """
+    Waits for a thread to finish while processing UI events at regular intervals
+    to prevent UI freezing and excessive CPU usage.
+
+    Args:
+        thread: The thread to wait for
+        sleep_interval: Optional sleep interval in seconds, defaults to Constants.thread_sleep_interval
+    """
+    # Use the passed sleep_interval, or get from global_constants
+    interval = sleep_interval if sleep_interval is not None else Constants().thread_sleep_interval
+
+    while thread.is_alive():
+        QApplication.processEvents()  # Process Qt events instead of wx.Yield()
+        thread.join(timeout=interval)

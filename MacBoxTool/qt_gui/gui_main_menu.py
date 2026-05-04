@@ -69,7 +69,7 @@ class Window(FluentWindow):
         self.setFont(font)
 
     
-
+    
     def _center_window(self):
         screen = QApplication.primaryScreen()
         if screen:
