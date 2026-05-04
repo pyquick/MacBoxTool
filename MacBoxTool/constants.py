@@ -19,7 +19,7 @@ from packaging import version
 class Constants:
     def __init__(self):
         #MacBoxTool Version
-        self.macboxtool_version:        str = "0.0.2"
+        self.macboxtool_version:        str = "0.0.3"
         self.patcher_support_pkg_version:     str = "1.11.3"  # PatcherSupportPkg
         self.copyright:                        str = "Copyright © 2020-2026 Pyquick"
         self.launcher_binary:           str = None

@@ -171,8 +171,12 @@ class DataProcessorWorker(QThread):
         # Create IPC queue
         self.queue = multiprocessing.Queue()
 
+        # Use 'spawn' start method for PyInstaller compatibility on macOS
+        # 'fork' doesn't work well with PyInstaller-bundled apps
+        ctx = multiprocessing.get_context('spawn')
+
         # Start subprocess
-        self.process = multiprocessing.Process(
+        self.process = ctx.Process(
             target=_process_data,
             args=(self.api_url, self.data_type, self.queue)
         )
@@ -205,8 +209,15 @@ class DataProcessorWorker(QThread):
 
     def _cleanup_resources(self):
         """Clean up resources after processing completes."""
+        # Stop timer first to prevent QObject::startTimer errors
         if self._timer:
             self._timer.stop()
+            # Disconnect signals to prevent further callbacks
+            try:
+                self._timer.timeout.disconnect(self._check_queue)
+            except Exception:
+                pass
+            self._timer.deleteLater()
             self._timer = None
 
         if self.process and self.process.is_alive():
@@ -219,7 +230,11 @@ class DataProcessorWorker(QThread):
         self.process = None
 
         if self.queue:
-            self.queue.close()
+            try:
+                self.queue.close()
+                self.queue.join_thread()
+            except Exception:
+                pass
             self.queue = None
 
     def stop(self):

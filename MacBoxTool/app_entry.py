@@ -1,6 +1,9 @@
 import argparse
 import sys
+import multiprocessing
 
+# Required for PyInstaller multiprocessing support on macOS
+multiprocessing.freeze_support()
 
 # Only import heavy modules after CLI parsing
 from .install import Install

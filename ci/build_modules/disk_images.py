@@ -40,6 +40,7 @@ class GenerateDiskImages:
             'Tools',
             'Plists',
             'Scripts',
+            "IB",
         ]
 
         whitelist_files = []
