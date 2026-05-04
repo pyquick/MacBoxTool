@@ -175,7 +175,7 @@ def main():
     
     if args.version:
         constants = Constants()
-        print(f"MacBoxTool v{constants.mactoolbox_version}")
+        print(f"MacBoxTool v{constants.macboxtool_version}")
         return
 
     if args.probe_hardware:

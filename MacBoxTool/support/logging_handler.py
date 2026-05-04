@@ -26,7 +26,7 @@ class LoggingHandler:
         self.constants:Constants  = global_constants
         log_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")
 
-        self.log_filename: str  = f"MacBoxTool_{self.constants.mactoolbox_version}_{log_time}.log"
+        self.log_filename: str  = f"MacBoxTool_{self.constants.macboxtool_version}_{log_time}.log"
         self.log_filepath: Path = None
 
         self.original_excepthook:        sys       = sys.excepthook
@@ -188,7 +188,7 @@ class LoggingHandler:
         Start logging, used as easily identifiable start point in logs
         """
 
-        str_msg = f"# MacBoxTool ({self.constants.mactoolbox_version}) #"
+        str_msg = f"# MacBoxTool ({self.constants.macboxtool_version}) #"
         str_len = len(str_msg)
 
         logging.info('#' * str_len)
@@ -226,7 +226,7 @@ class LoggingHandler:
 
             # Ask user if they want to send crash report
             try:
-                result=applescript.AppleScript(f'display dialog "{error_msg}" with title "MacBoxTool ({self.constants.mactoolbox_version})" buttons {{"Yes", "No"}} default button "Yes" with icon caution').run()
+                result=applescript.AppleScript(f'display dialog "{error_msg}" with title "MacBoxTool ({self.constants.macboxtool_version})" buttons {{"Yes", "No"}} default button "Yes" with icon caution').run()
             except Exception as e:
                 logging.error("Failed to display crash report dialog: {0}".format(e))
                 return
@@ -263,7 +263,7 @@ class LoggingHandler:
 
                 # Get active window as parent, or use None
                 parent = app.activeWindow()
-                title = f"MacBoxTool ({self.constants.mactoolbox_version})"
+                title = f"MacBoxTool ({self.constants.macboxtool_version})"
                 message_box = Dialog(title, error_msg, parent)
 
                 # Connect signals

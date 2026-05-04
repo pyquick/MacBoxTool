@@ -51,7 +51,7 @@ class Analytics:
         self.constants: constants.Constants = global_constants
         self.unique_identity = str(self.constants.computer.uuid_sha1)
         self.application =     str("MacBoxTool")
-        self.version =         str(self.constants.mactoolbox_version)
+        self.version =         str(self.constants.macboxtool_version)
         self.os =              str(self.constants.detected_os_version)
         self.model =           str(self.constants.computer.real_model)
         self.date =            str(datetime.datetime.now().strftime(DATE_FORMAT))

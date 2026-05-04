@@ -98,7 +98,7 @@ class AboutInterface(ScrollArea):
         version_card=SettingCard(
             FIF.APPLICATION,
             "MacBoxTool",
-            f"Version {self.constants.mactoolbox_version}",
+            f"Version {self.constants.macboxtool_version}",
             self
         )
         pversion_card=SettingCard(

@@ -41,7 +41,7 @@ class GeneratePackage:
         _welcome = ""
 
         _welcome += "# Overview\n"
-        _welcome += f"This package will install the MacBoxTool application (v{constants.Constants().mactoolbox_version}, {self._arch}) on your system."
+        _welcome += f"This package will install the MacBoxTool application (v{constants.Constants().macboxtool_version}, {self._arch}) on your system."
 
         _welcome += "\n\nAdditionally, a shortcut for MacBoxTool will be added in the '/Applications' folder."
         _welcome += "\n\nThis package will not 'Build and Install OpenCore' or install any 'Root Patches' on your machine. If required, you can run MacBoxTool to install any patches you may need."
@@ -97,7 +97,7 @@ class GeneratePackage:
         assert macos_pkg_builder.Packages(
             pkg_output=f"./dist/MacBoxTool-Uninstaller{self._pkg_suffix}.pkg",
             pkg_bundle_id="com.pyquick.macboxtool-uninstaller",
-            pkg_version=constants.Constants().mactoolbox_version,
+            pkg_version=constants.Constants().macboxtool_version,
             pkg_background="./ci/pkg_assets/PkgBackground-Uninstaller.png",
             pkg_preinstall_script=_tmp_uninstall.name,
             pkg_as_distribution=True,
@@ -117,7 +117,7 @@ class GeneratePackage:
         assert macos_pkg_builder.Packages(
             pkg_output=f"./dist/MacBoxTool{self._pkg_suffix}.pkg",
             pkg_bundle_id="com.pyquick.macboxtool",
-            pkg_version=constants.Constants().mactoolbox_version,
+            pkg_version=constants.Constants().macboxtool_version,
             pkg_allow_relocation=False,
             pkg_as_distribution=True,
             pkg_background="./ci/pkg_assets/PkgBackground-Installer.png",
@@ -141,7 +141,7 @@ class GeneratePackage:
         # assert macos_pkg_builder.Packages(
         #     pkg_output="./dist/AutoPkg-Assets.pkg",
         #     pkg_bundle_id="com.pyquick.pkg.AutoPkg-Assets",
-        #     pkg_version=constants.Constants().mactoolbox_version,
+        #     pkg_version=constants.Constants().macboxtool_version,
         #     pkg_allow_relocation=False,
         #     pkg_as_distribution=True,
         #     pkg_background="./ci/pkg_assets/PkgBackground-AutoPkg.png",

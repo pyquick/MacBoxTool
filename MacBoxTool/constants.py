@@ -19,7 +19,7 @@ from packaging import version
 class Constants:
     def __init__(self):
         #MacBoxTool Version
-        self.mactoolbox_version:        str = "0.0.2"
+        self.macboxtool_version:        str = "0.0.2"
         self.patcher_support_pkg_version:     str = "1.11.3"  # PatcherSupportPkg
         self.copyright:                        str = "Copyright © 2020-2026 Pyquick"
         self.launcher_binary:           str = None
@@ -59,7 +59,7 @@ class Constants:
         self.discord_link:                    str = ""
         self.guide_link:                      str = "https://dortania.github.io/OpenCore-Legacy-Patcher/"
         self.repo_link:                       str = "https://github.com/hackdoc/OCLP-R/releases/"
-        self.installer_pkg_url:               str = f"{self.repo_link}/releases/download/{self.mactoolbox_version}/AutoPkg-Assets.pkg"
+        self.installer_pkg_url:               str = f"{self.repo_link}/releases/download/{self.macboxtool_version}/AutoPkg-Assets.pkg"
         self.installer_pkg_url_nightly:       str = "http://nightly.link/hackdoc/OCLP-R/workflows/build-app-wxpython/main/AutoPkg-Assets.pkg.zip"
         self.user_download_file:              str = f"/Users/{getpass.getuser()}/Downloads"
 
@@ -298,7 +298,7 @@ class Constants:
         """
 
         try:
-            version.parse(self.mactoolbox_version)
+            version.parse(self.macboxtool_version)
             return False
         except version.InvalidVersion:
             return True

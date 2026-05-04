@@ -54,7 +54,7 @@ class Window(FluentWindow):
    
 
     def _setup_window(self):
-        self.setWindowTitle(f"MacBoxTool ({self.constants.mactoolbox_version})")
+        self.setWindowTitle(f"MacBoxTool ({self.constants.macboxtool_version})")
         self.setMinimumSize(*WINDOW_MIN_SIZE)
         
         #self._restore_window_geometry()
