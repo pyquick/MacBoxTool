@@ -377,6 +377,36 @@ class MetallibList(ScrollArea):
             self.expandLayout.addStretch()
             self._show_loading(False)
 
+    def get_package_icon_path(self, major_version: int) -> str:
+        """
+        Get package icon path for a given macOS major version.
+        Returns PNG path with version-specific icon (Packagexx.png where 11<=xx<=26).
+
+        Args:
+            major_version: macOS major version (e.g., 11 for Big Sur, 15 for Sequoia)
+
+        Returns:
+            str: Path to package icon PNG file
+        """
+        # Map version to package icon index (11-26)
+        if 11 <= major_version <= 26:
+            version_to_index = {
+                11: 1,  # Big Sur -> Package11
+                12: 2,  # Monterey -> Package12
+                13: 3,  # Ventura -> Package13
+                14: 4,  # Sonoma -> Package14
+                15: 5,  # Sequoia -> Package15
+                26: 6,  # Tahoe -> Package26
+            }
+            index = version_to_index.get(major_version)
+            if index is not None and index < len(self.constants.package_icns_paths):
+                icns_path = self.constants.package_icns_paths[index]
+                # Convert .icns to .png
+                return icns_path.rsplit('.', 1)[0] + '.png'
+
+        # Fallback to generic Package.png
+        return str(self.constants.package_icns_path_generic.rsplit('.', 1)[0] + '.png')
+
     def _on_download(self, metallib_data: dict):
         url = metallib_data.get("url")
         version = metallib_data.get("version")
@@ -393,7 +423,7 @@ class MetallibList(ScrollArea):
         # Use version-specific Package icon (Packagexx.png where 11<=xx<=26)
         try:
             major_version = int(str(version).split('.')[0])
-            icon_path = MetallibCard.get_package_icon_path(major_version)
+            icon_path = self.get_package_icon_path(major_version)
         except (ValueError, IndexError):
             icon_path = str(self.constants.payload_path / "Icon/AppIcons/Package.png")
 

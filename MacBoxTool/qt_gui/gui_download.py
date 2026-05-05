@@ -128,12 +128,10 @@ class DownloadCard(CardWidget):
         self.open_file_action.triggered.connect(lambda: self.open_file_signal.emit(self.download))
         self.open_folder_action.triggered.connect(lambda: self.open_folder_signal.emit(self.download))
 
+        # Active downloads: only show Cancel, Pause, Resume
         self.menu.addAction(self.cancel_action)
         self.menu.addAction(self.pause_action)
         self.menu.addAction(self.resume_action)
-        self.menu.addSeparator()
-        self.menu.addAction(self.open_file_action)
-        self.menu.addAction(self.open_folder_action)
 
         self.moreButton.clicked.connect(self._show_menu)
 
@@ -157,13 +155,10 @@ class DownloadCard(CardWidget):
         is_downloading = self.download.status == DownloadStatus.DOWNLOADING
         is_paused = self.download.status == DownloadStatus.PAUSED
         is_active = is_downloading or is_paused or self.download.status == DownloadStatus.PENDING
-        is_completed = self.download.is_completed()
 
         self.cancel_action.setEnabled(is_active)
         self.pause_action.setEnabled(is_downloading)
         self.resume_action.setEnabled(is_paused)
-        self.open_file_action.setEnabled(is_completed)
-        self.open_folder_action.setEnabled(is_completed)
 
     # ── Public Methods ──
 

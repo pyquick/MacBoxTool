@@ -359,12 +359,15 @@ class RoundMenu(QMenu):
         return self._title
 
     def clear(self):
-        """ clear all actions """
+        """ clear all actions and items """
         while self._actions:
             self.removeAction(self._actions[-1])
 
         while self._subMenus:
             self.removeMenu(self._subMenus[-1])
+
+        # Clear all items from the list widget (including separators)
+        self.view.clear()
 
     def setIcon(self, icon: Union[QIcon, FluentIconBase]):
         """ set the icon of menu """

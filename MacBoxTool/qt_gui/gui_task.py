@@ -708,13 +708,28 @@ class TaskInterface(ScrollArea):
         icon = icon or download.icon_path
         card = DownloadCard(download, icon=icon, parent=self)
 
-        # Clear default menu and add simplified history menu
+        # Clear default menu and add history menu with Open File/Folder
         card.menu.clear()
 
+        # Open File action
+        open_file_action = Action(FluentIcon.DOCUMENT, "Open File", card)
+        open_file_action.triggered.connect(lambda: self._on_open_file(download))
+        card.menu.addAction(open_file_action)
+
+        # Open Folder action
+        open_folder_action = Action(FluentIcon.FOLDER, "Open Folder", card)
+        open_folder_action.triggered.connect(lambda: self._on_open_folder(download))
+        card.menu.addAction(open_folder_action)
+
+        # Separator
+        card.menu.addSeparator()
+
+        # Re-download action
         redownload_action = Action(FluentIcon.DOWNLOAD, "Re-download", card)
         redownload_action.triggered.connect(lambda: self._on_redownload(download, icon))
         card.menu.addAction(redownload_action)
 
+        # Remove from list action
         remove_action = Action(FluentIcon.DELETE, "Remove from list", card)
         remove_action.triggered.connect(lambda: self._on_remove_history(download))
         card.menu.addAction(remove_action)
