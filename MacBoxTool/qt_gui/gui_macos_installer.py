@@ -18,7 +18,7 @@ class InstallerCard(CardWidget):
         self.installer_data = installer_data
         self.constants = constants
 
-        logging.info(f"#####InstallerCard: {installer_data.get('Title', 'Unknown')}#####")
+        logging.info(f"[InstallerCard] Initializing: {installer_data.get('Title', 'Unknown')}")
         self._init_card()
         self._init_icon()
         self._init_info_labels()
@@ -146,9 +146,7 @@ class MacOSInstallerList(ScrollArea):
         self.ui_support = ui_support
         self.settings = global_settings
 
-        logging.info("######################")
-        logging.info("#####MacOSInstallerList:OK#####")
-        logging.info("######################")
+        logging.info("[MacOSInstallerList] Initialized")
 
         # Register this instance to TaskManager for validation/extraction callbacks
         from .gui_task import TaskManager
@@ -246,14 +244,13 @@ class MacOSInstallerList(ScrollArea):
 
     def load_installers(self):
         """Load installers from Apple catalog using background thread"""
-        logging.info("######################")
-        logging.info("#####load_installers:Start#####")
-        logging.info(f"Fetching installer catalog: {sucatalog.SeedType.DeveloperSeed.name}")
+        logging.info("[MacOSInstallerList] Loading installers...")
+        logging.info(f"[MacOSInstallerList] Catalog seed: {sucatalog.SeedType.DeveloperSeed.name}")
 
         self._show_loading(True)
 
         def _fetch_installers():
-            logging.info(f"Fetching installer catalog: {sucatalog.SeedType.DeveloperSeed.name}")
+            logging.info(f"[MacOSInstallerList] Fetching catalog from: {sucatalog.SeedType.DeveloperSeed.name}")
 
             sucatalog_contents = sucatalog.CatalogURL(seed=sucatalog.SeedType.DeveloperSeed).url_contents
             if sucatalog_contents is None:
@@ -276,13 +273,10 @@ class MacOSInstallerList(ScrollArea):
             # Thread finished
             if not self.available_installers and not self.available_installers_latest:
                 self._show_error("Failed to download catalog")
-                logging.info("#####load_installers:Failed#####")
-                logging.info("######################")
+                logging.error("[MacOSInstallerList] Failed to load installers")
                 return
 
-            logging.info("Catalog downloaded successfully")
-            logging.info(f"Found {len(self.available_installers)} installers")
-            logging.info(f"Found {len(self.available_installers_latest)} latest installers")
+            logging.info(f"[MacOSInstallerList] Loaded {len(self.available_installers)} installers ({len(self.available_installers_latest)} latest)")
 
             for i, installer in enumerate(self.available_installers):
                 title = installer.get("Title", "Unknown")
@@ -292,10 +286,9 @@ class MacOSInstallerList(ScrollArea):
                 install_assistant = installer.get("InstallAssistant") or {}
                 size = install_assistant.get("Size", 0)
                 size_mb = size / (1024 * 1024) if size else 0
-                logging.info(f"  [{i+1}] {title} ({version} - {build}) | Size: {size_mb:.2f} MB | Date: {post_date}")
+                logging.info(f"[MacOSInstallerList] [{i+1}] {title} ({version} - {build}) | {size_mb:.2f} MB | {post_date}")
 
-            logging.info("#####load_installers:Success#####")
-            logging.info("######################")
+            logging.info("[MacOSInstallerList] Load completed successfully")
 
             self._show_loading(False)
             self._display_installers()
@@ -341,7 +334,7 @@ class MacOSInstallerList(ScrollArea):
 
     def _display_installers(self):
         """Display installer cards"""
-        logging.info("#####_display_installers:Start#####")
+        logging.info("[MacOSInstallerList] Displaying installers...")
 
         self._clear_layout()
         self._init_header()
@@ -350,14 +343,13 @@ class MacOSInstallerList(ScrollArea):
         installers = self.available_installers_latest if self.show_latest_only else self.available_installers
 
         if not installers:
-            logging.warning("No installers available to display")
+            logging.warning("[MacOSInstallerList] No installers available to display")
             no_data_label = BodyLabel("No installers available")
             no_data_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.expandLayout.addWidget(no_data_label)
-            logging.info("#####_display_installers:NoData#####")
             return
 
-        logging.info(f"Creating {len(installers)} installer cards...")
+        logging.info(f"[MacOSInstallerList] Creating {len(installers)} cards...")
 
         for installer in installers:
             card = InstallerCard(installer, self.constants, self)
@@ -366,7 +358,7 @@ class MacOSInstallerList(ScrollArea):
 
         self.expandLayout.addStretch(1)
 
-        logging.info(f"#####_display_installers:Success ({len(installers)} cards)#####")
+        logging.info(f"[MacOSInstallerList] Displayed {len(installers)} cards")
 
     # ── Actions ──
 
@@ -380,7 +372,7 @@ class MacOSInstallerList(ScrollArea):
         url = install_assistant.get("URL")
         chunklist_link = install_assistant.get("IntegrityDataURL")
         if not url:
-            logging.warning("No download URL available")
+            logging.warning(f"[MacOSInstallerList] No download URL for {title}")
             InfoBar.error(
                 "Download Failed",
                 "No download URL available for this installer.",
@@ -390,8 +382,8 @@ class MacOSInstallerList(ScrollArea):
             )
             return
 
-        logging.info(f"Starting download: {title} ({version} - {build})")
-        logging.info(f"Download URL: {url}")
+        logging.info(f"[MacOSInstaller] Starting download: {title} ({version} - {build})")
+        logging.info(f"[MacOSInstaller] URL: {url}")
 
         # Resolve macOS version icon for DownloadCard
         xnu_major = install_assistant.get("XNUMajor", 0)
@@ -405,7 +397,7 @@ class MacOSInstallerList(ScrollArea):
 
         # 验证图标文件是否存在
         if not Path(png_path).exists():
-            logging.warning(f"Icon not found: {png_path}, falling back to Generic")
+            logging.warning(f"[MacOSInstaller] Icon not found: {png_path}, using generic")
             generic_icon = str(self.constants.icon_path_macos_generic)
             png_path = generic_icon.rsplit('.', 1)[0] + '.png'
 

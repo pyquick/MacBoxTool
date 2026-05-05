@@ -124,7 +124,14 @@ class MetallibCard(NoAnimCardWidget):
         self.setFixedHeight(80)
         self.setBorderRadius(8)
 
-        icon_path = str(constants.payload_path / "Icon/AppIcons/Package.png")
+        # Use version-specific Package icon (Packagexx.png where 11<=xx<=26)
+        version = metallib_data.get("version", "Unknown")
+        try:
+            major_version = int(str(version).split('.')[0])
+            icon_path = self.get_package_icon_path(major_version)
+        except (ValueError, IndexError):
+            icon_path = str(constants.payload_path / "Icon/AppIcons/Package.png")
+
         self.icon_widget = ImageLabel(icon_path, self)
         self.icon_widget.setFixedSize(48, 48)
 
@@ -148,6 +155,36 @@ class MetallibCard(NoAnimCardWidget):
         self.copy_link_button.clicked.connect(self._on_copy_link)
 
         self._init_layout()
+
+    def get_package_icon_path(self, major_version: int) -> str:
+        """
+        Get package icon path for a given macOS major version.
+        Returns PNG path with version-specific icon (Packagexx.png where 11<=xx<=26).
+
+        Args:
+            major_version: macOS major version (e.g., 11 for Big Sur, 15 for Sequoia)
+
+        Returns:
+            str: Path to package icon PNG file
+        """
+        # Map version to package icon index (11-26)
+        if 11 <= major_version <= 26:
+            version_to_index = {
+                11: 1,  # Big Sur -> Package11
+                12: 2,  # Monterey -> Package12
+                13: 3,  # Ventura -> Package13
+                14: 4,  # Sonoma -> Package14
+                15: 5,  # Sequoia -> Package15
+                26: 6,  # Tahoe -> Package26
+            }
+            index = version_to_index.get(major_version)
+            if index is not None and index < len(self.constants.package_icns_paths):
+                icns_path = self.constants.package_icns_paths[index]
+                # Convert .icns to .png
+                return icns_path.rsplit('.', 1)[0] + '.png'
+
+        # Fallback to generic Package.png
+        return str(self.constants.package_icns_path_generic.rsplit('.', 1)[0] + '.png')
 
     def _init_layout(self):
         layout = QHBoxLayout(self)
@@ -199,7 +236,7 @@ class MetallibList(ScrollArea):
         self._init_header()
         self._init_loading()
 
-        logging.info("MetallibList initialized")
+        logging.info("[MetalLibList] Initialized")
         self.load_metallibs()
 
     def _init_header(self):
@@ -267,7 +304,7 @@ class MetallibList(ScrollArea):
 
     def _on_data_error(self, error_msg: str):
         """Callback when data processing fails."""
-        logging.error(f"Failed to process MetalLib data: {error_msg}")
+        logging.error(f"[MetalLibList] Failed to process data: {error_msg}")
         self._show_loading(False)
 
         # Show error notification
@@ -345,11 +382,21 @@ class MetallibList(ScrollArea):
         version = metallib_data.get("version")
         build = metallib_data.get("build")
 
+        # Unified logging style
+        logging.info(f"[MetalLib] Starting download: MetalLib Support Package ({version} - {build})")
+        logging.info(f"[MetalLib] URL: {url}")
+
         save_path = self.settings.find_key("download_path") or str(self.constants.payload_path)
         filename = f"MetallibSupportPkg-{version}-{build}.pkg"
         download_obj = DownloadObject(url, save_path, filename)
 
-        icon_path = str(self.constants.payload_path / "Icon/AppIcons/Package.png")
+        # Use version-specific Package icon (Packagexx.png where 11<=xx<=26)
+        try:
+            major_version = int(str(version).split('.')[0])
+            icon_path = MetallibCard.get_package_icon_path(major_version)
+        except (ValueError, IndexError):
+            icon_path = str(self.constants.payload_path / "Icon/AppIcons/Package.png")
+
         TaskManager.start_download(download_obj, icon=icon_path)
 
         InfoBar.success("Download Started", f"{filename} is downloading. Check Tasks for progress.", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)

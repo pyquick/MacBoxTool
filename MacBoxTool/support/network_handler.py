@@ -194,7 +194,7 @@ class NetworkUtilities:
             response = session.head(url, allow_redirects=True, timeout=10)
             return int(response.headers.get('content-length', 0))
         except Exception as e:
-            logging.warning(f"Failed to get file size: {e}")
+            logging.warning(f"[NetworkUtilities] Failed to get file size: {e}")
             return 0
 
 
@@ -214,6 +214,8 @@ class DownloadWorker(QThread):
     def run(self):
         """Execute multi-threaded download with 16 threads"""
         try:
+            # Unified logging: Download start
+            logging.info(f"[DownloadWorker] Starting: {self.download.filename}")
 
             utilities.disable_sleep_while_running()
             self.status_changed_signal.emit(DownloadStatus.DOWNLOADING)
@@ -222,12 +224,12 @@ class DownloadWorker(QThread):
             # Check if file already exists and delete it
             final_path = os.path.join(self.download.save_path, self.download.filename)
             if os.path.exists(final_path):
-                logging.info(f"File already exists, deleting: {final_path}")
+                logging.info(f"[DownloadWorker] Removing existing file: {final_path}")
                 try:
                     os.remove(final_path)
-                    logging.info(f"Successfully deleted existing file: {final_path}")
+                    logging.info(f"[DownloadWorker] Removed: {final_path}")
                 except Exception as e:
-                    logging.warning(f"Failed to delete existing file {final_path}: {e}")
+                    logging.warning(f"[DownloadWorker] Failed to remove {final_path}: {e}")
                     # Continue with download even if deletion fails
 
             # Get file size
@@ -337,13 +339,16 @@ class DownloadWorker(QThread):
                         self.download.update_progress(self.download.downloaded_size, self.download.total_size)
             response.close()
         except Exception as e:
-            logging.error(f"Thread {thread_id} download failed: {e}")
+            logging.error(f"[DownloadWorker] Thread {thread_id} failed: {e}")
             utilities.enable_sleep_after_running()
 
     def _download_single_thread(self, total_size: int):
         """Fallback single-thread download"""
         response = None
         try:
+            # Unified logging: Single-thread fallback
+            logging.info(f"[DownloadWorker] Starting (single-thread): {self.download.filename}")
+
             final_path = os.path.join(self.download.save_path, self.download.filename)
             response = NetworkUtilities.custom_get(self.download.url, stream=True)
 
@@ -404,7 +409,7 @@ class DownloadWorker(QThread):
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
         except Exception as e:
-            logging.warning(f"Failed to cleanup temp directory: {e}")
+            logging.warning(f"[DownloadWorker] Cleanup failed: {e}")
 
     def cancel(self):
         """Cancel the download"""
@@ -474,7 +479,7 @@ class DownloadHistory:
                 json.dump(data, f)
 
         except Exception as e:
-            logging.error(f"Failed to save download history: {e}")
+            logging.error(f"[DownloadHistory] Failed to save: {e}")
 
     def _load_history(self):
         """Load history from file"""
@@ -497,4 +502,4 @@ class DownloadHistory:
                 self.history.append(download)
 
         except Exception as e:
-            logging.error(f"Failed to load download history: {e}")
+            logging.error(f"[DownloadHistory] Failed to load: {e}")
