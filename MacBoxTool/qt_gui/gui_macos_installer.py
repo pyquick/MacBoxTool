@@ -161,6 +161,11 @@ class MacOSInstallerList(ScrollArea):
         self._validation_worker = None
         self._extraction_worker = None
 
+        # Loading state
+        self._loading_thread = None
+        self._stop_loading = False
+        self._max_cards = 4
+
         self._init_scroll_area()
         self.init_ui()
 
@@ -244,15 +249,33 @@ class MacOSInstallerList(ScrollArea):
 
     def load_installers(self):
         """Load installers from Apple catalog using background thread"""
+        # Interrupt previous loading if any
+        if self._loading_thread and self._loading_thread.is_alive():
+            logging.info("[MacOSInstallerList] Interrupting previous loading...")
+            self._stop_loading = True
+            # Wait for previous thread to finish (max 1 second)
+            self._loading_thread.join(timeout=1.0)
+
+        # Reset stop flag
+        self._stop_loading = False
+
         logging.info("[MacOSInstallerList] Loading installers...")
         logging.info(f"[MacOSInstallerList] Catalog seed: {sucatalog.SeedType.DeveloperSeed.name}")
 
         self._show_loading(True)
 
         def _fetch_installers():
+            if self._stop_loading:
+                logging.info("[MacOSInstallerList] Loading was interrupted")
+                return
+
             logging.info(f"[MacOSInstallerList] Fetching catalog from: {sucatalog.SeedType.DeveloperSeed.name}")
 
             sucatalog_contents = sucatalog.CatalogURL(seed=sucatalog.SeedType.DeveloperSeed).url_contents
+            if self._stop_loading:
+                logging.info("[MacOSInstallerList] Loading was interrupted during fetch")
+                return
+
             if sucatalog_contents is None:
                 logging.error("Failed to download Installer Catalog from Apple")
                 return
@@ -260,17 +283,24 @@ class MacOSInstallerList(ScrollArea):
             self.available_installers = sucatalog.CatalogProducts(sucatalog_contents).products
             self.available_installers.sort(key=lambda x: x.get("Build", ""), reverse=True)
             self.available_installers_latest = sucatalog.CatalogProducts(sucatalog_contents).latest_products
+            self.available_installers_latest.sort(key=lambda x: x.get("Build", ""), reverse=True)
 
         thread = threading.Thread(target=_fetch_installers)
+        self._loading_thread = thread
         thread.start()
 
         # Poll thread completion without blocking UI
         def _check_thread():
             if thread.is_alive():
-                QTimer.singleShot(100, _check_thread)
+                if not self._stop_loading:
+                    QTimer.singleShot(100, _check_thread)
                 return
 
-            # Thread finished
+            # Thread finished or was interrupted
+            if self._stop_loading:
+                logging.info("[MacOSInstallerList] Previous loading was interrupted")
+                return
+
             if not self.available_installers and not self.available_installers_latest:
                 self._show_error("Failed to download catalog")
                 logging.error("[MacOSInstallerList] Failed to load installers")
@@ -278,7 +308,7 @@ class MacOSInstallerList(ScrollArea):
 
             logging.info(f"[MacOSInstallerList] Loaded {len(self.available_installers)} installers ({len(self.available_installers_latest)} latest)")
 
-            for i, installer in enumerate(self.available_installers):
+            for i, installer in enumerate(self.available_installers[:self._max_cards]):
                 title = installer.get("Title", "Unknown")
                 version = installer.get("Version", "Unknown")
                 build = installer.get("Build", "Unknown")
@@ -348,6 +378,9 @@ class MacOSInstallerList(ScrollArea):
             no_data_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.expandLayout.addWidget(no_data_label)
             return
+
+        # Limit to max_cards
+        installers = installers[:self._max_cards]
 
         logging.info(f"[MacOSInstallerList] Creating {len(installers)} cards...")
 
@@ -564,6 +597,12 @@ class MacOSInstallerList(ScrollArea):
 
     def cleanup_workers(self):
         """Clean up any running worker threads"""
+        # Stop loading thread
+        if self._loading_thread is not None and self._loading_thread.is_alive():
+            self._stop_loading = True
+            self._loading_thread.join(timeout=1.0)
+            self._loading_thread = None
+
         if self._validation_worker is not None:
             if self._validation_worker.isRunning():
                 self._validation_worker.quit()
