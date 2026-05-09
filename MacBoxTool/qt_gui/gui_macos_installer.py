@@ -161,10 +161,9 @@ class MacOSInstallerList(ScrollArea):
         self._validation_worker = None
         self._extraction_worker = None
 
-        # Loading state
+        # Loading state control
         self._loading_thread = None
         self._stop_loading = False
-        self._max_cards = 4
 
         self._init_scroll_area()
         self.init_ui()
@@ -272,6 +271,7 @@ class MacOSInstallerList(ScrollArea):
             logging.info(f"[MacOSInstallerList] Fetching catalog from: {sucatalog.SeedType.DeveloperSeed.name}")
 
             sucatalog_contents = sucatalog.CatalogURL(seed=sucatalog.SeedType.DeveloperSeed).url_contents
+
             if self._stop_loading:
                 logging.info("[MacOSInstallerList] Loading was interrupted during fetch")
                 return
@@ -298,7 +298,7 @@ class MacOSInstallerList(ScrollArea):
 
             # Thread finished or was interrupted
             if self._stop_loading:
-                logging.info("[MacOSInstallerList] Previous loading was interrupted")
+                logging.info("[MacOSInstallerList] Previous loading was interrupted, starting new load...")
                 return
 
             if not self.available_installers and not self.available_installers_latest:
@@ -308,7 +308,7 @@ class MacOSInstallerList(ScrollArea):
 
             logging.info(f"[MacOSInstallerList] Loaded {len(self.available_installers)} installers ({len(self.available_installers_latest)} latest)")
 
-            for i, installer in enumerate(self.available_installers[:self._max_cards]):
+            for i, installer in enumerate(self.available_installers):
                 title = installer.get("Title", "Unknown")
                 version = installer.get("Version", "Unknown")
                 build = installer.get("Build", "Unknown")
@@ -379,8 +379,10 @@ class MacOSInstallerList(ScrollArea):
             self.expandLayout.addWidget(no_data_label)
             return
 
-        # Limit to max_cards
-        installers = installers[:self._max_cards]
+        # Limit to 4 cards only when showing latest only
+        if self.show_latest_only:
+            installers = installers[:4]
+            logging.info("[MacOSInstallerList] Latest mode: limiting to 4 cards")
 
         logging.info(f"[MacOSInstallerList] Creating {len(installers)} cards...")
 

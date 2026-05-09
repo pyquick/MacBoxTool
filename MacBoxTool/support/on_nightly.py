@@ -13,8 +13,5 @@ class CheckNightly:
         return 1
     
     def warning(self):
-        text="""
-The Nightly version is unstable; it may fix previous issues but could also introduce new bugs. Please use it with caution.
-The Nightly source code originates from main.
-        """
+        text="The Nightly version is unstable; it may fix previous issues but could also introduce new bugs. Please use it with caution.\nThe Nightly source code originates from main."
         return text

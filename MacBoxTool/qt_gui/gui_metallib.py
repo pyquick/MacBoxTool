@@ -354,6 +354,11 @@ class MetallibList(ScrollArea):
             self.expandLayout.addWidget(label)
             return
 
+        # Limit to 4 cards only when showing latest only
+        if self.show_latest_only:
+            metallibs = metallibs[:4]
+            logging.info("[MetalLibList] Latest mode: limiting to 4 cards")
+
         self._render_batch(0, metallibs)
 
     def _render_batch(self, start_index: int, metallibs: list, batch_size: int = 10):
