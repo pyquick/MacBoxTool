@@ -186,7 +186,7 @@ class KDKList(ScrollArea):
         self.settings = global_settings
         self.available_kdks = []
         self.available_kdks_latest = []
-        self.show_latest_only = False
+        self.show_latest_only = True
         self._data_worker = None  # Multi-process data worker
 
         self.scrollWidget = QWidget()

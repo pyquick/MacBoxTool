@@ -155,7 +155,7 @@ class MacOSInstallerList(ScrollArea):
         # Data
         self.available_installers = []
         self.available_installers_latest = []
-        self.show_latest_only = False
+        self.show_latest_only = True
 
         # Worker threads (keep references to prevent premature garbage collection)
         self._validation_worker = None
