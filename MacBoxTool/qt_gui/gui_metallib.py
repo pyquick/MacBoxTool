@@ -268,7 +268,7 @@ class MetallibList(ScrollArea):
         loading_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.progress_ring = IndeterminateProgressRing(self)
         self.progress_ring.setFixedSize(48, 48)
-        self.loading_label = BodyLabel("Fetching packages...")
+        self.loading_label = BodyLabel("Loading Metallibs...")
         self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         loading_layout.addWidget(self.progress_ring, 0, Qt.AlignmentFlag.AlignCenter)
         loading_layout.addWidget(self.loading_label, 0, Qt.AlignmentFlag.AlignCenter)
@@ -368,7 +368,7 @@ class MetallibList(ScrollArea):
         # Show loading progress
         total = len(metallibs)
         if hasattr(self, 'loading_label'):
-            self.loading_label.setText(f"Loading packages... ({end_index}/{total})")
+            self.loading_label.setText(f"Loading Metallibs... ({end_index}/{total})")
 
         for i in range(start_index, end_index):
             metallib = metallibs[i]

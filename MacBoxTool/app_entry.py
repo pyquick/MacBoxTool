@@ -1,9 +1,48 @@
 import argparse
 import sys
 import multiprocessing
+import signal
+from typing import Optional
 
 # Required for PyInstaller multiprocessing support on macOS
 multiprocessing.freeze_support()
+
+# Global flag for graceful shutdown
+_shutdown_requested = False
+_qt_app: Optional['QApplication'] = None
+_qt_window: Optional['QWidget'] = None
+
+
+def _signal_handler(_signum, _frame):
+    """Handle Ctrl+C (SIGINT) for graceful shutdown"""
+    global _shutdown_requested, _qt_app, _qt_window
+    if _shutdown_requested:
+        # Force exit if already requested
+        sys.exit(1)
+    _shutdown_requested = True
+
+    # Immediately destroy GUI window first
+    if _qt_window:
+        try:
+            _qt_window.close()
+            _qt_window.destroy()
+        except:
+            pass
+
+    # Then quit the application
+    if _qt_app:
+        try:
+            _qt_app.quit()
+            _qt_app.processEvents()
+        except:
+            pass
+
+    logging.info("GUI is destroyed by user.")
+    sys.exit(0)
+
+
+# Register signal handler
+signal.signal(signal.SIGINT, _signal_handler)
 
 # Only import heavy modules after CLI parsing
 from .install import Install
@@ -42,7 +81,6 @@ from PySide6.QtWidgets import *
 from PySide6.QtCore import *
 from PySide6.QtGui import *
 from .support.logging_handler import LoggingHandler
-from .support.toggle_theme import ThemeManager
 from .support.global_settings import GlobalSettings
 if sys.platform=="darwin":
     from .detections import device_probe

@@ -268,7 +268,7 @@ class MacOSInstallerList(ScrollArea):
                 logging.info("[MacOSInstallerList] Loading was interrupted")
                 return
 
-            logging.info(f"[MacOSInstallerList] Fetching catalog from: {sucatalog.SeedType.DeveloperSeed.name}")
+            logging.info(f"[MacOSInstallerList] Loading catalog from: {sucatalog.SeedType.DeveloperSeed.name}")
 
             sucatalog_contents = sucatalog.CatalogURL(seed=sucatalog.SeedType.DeveloperSeed).url_contents
 
