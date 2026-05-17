@@ -35,4 +35,3 @@ class Model(ScrollArea):
         )
         self.expandLayout.setSpacing(SPACING["large"])
 
-    def show_
