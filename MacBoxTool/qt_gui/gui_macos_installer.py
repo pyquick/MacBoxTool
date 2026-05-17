@@ -28,7 +28,21 @@ class InstallerCard(CardWidget):
     # ── Icon Helper ──
 
     def _macos_version_to_icon(self, version: int) -> int:
-        """Convert macOS XNUMajor version to icon index"""
+        """Convert macOS XNUMajor version to icon index
+
+        Args:
+            version: Darwin major version (e.g., 19 for Catalina, 20 for Big Sur)
+
+        Returns:
+            int: Icon index (0=Generic, or calculated index for specific icon paths)
+        """
+        # Legacy versions (Lion to Catalina: Darwin 11-19)
+        if 11 <= version < 20:
+            # Calculate index for icon_path_legacy: index = 20 - darwin_version
+            # Darwin 19 → index 1, Darwin 11 → index 9
+            return 20 - version
+
+        # Modern versions (Big Sur and later: Darwin 20+)
         try:
             self.constants.icons_path[version - 19]
             return version - 19
@@ -46,11 +60,41 @@ class InstallerCard(CardWidget):
         """Initialize macOS icon widget using XNUMajor"""
         install_assistant = self.installer_data.get("InstallAssistant") or {}
         xnu_major = install_assistant.get("XNUMajor", 0)
+
+        # Fallback: If XNUMajor is not available, convert Version string
+        if xnu_major == 0:
+            from ..datasets.os_data import os_conversion
+            version_str = self.installer_data.get("Version", "0.0.0")
+            try:
+                if version_str.startswith("10."):
+                    # Legacy macOS (10.x): 10.7 → 11, 10.15 → 19
+                    xnu_major = os_conversion.os_to_kernel(version_str)
+                elif version_str.startswith("11.") or version_str.startswith("12.") or version_str.startswith("13.") or version_str.startswith("14.") or version_str.startswith("15.") or version_str.startswith("26."):
+                    # Modern macOS (11.x = Big Sur, etc.): 11 → 20, 15 → 24, 26 → 35
+                    major = int(version_str.split(".")[0])
+                    xnu_major = major + 9  # 11 → 20, 15 → 24
+            except (ValueError, IndexError):
+                xnu_major = 0
+
         icon_index = self._macos_version_to_icon(xnu_major)
-        icon_path = self.constants.icons_path[icon_index]
+
+        # Select appropriate icon path based on version
+        if 11 <= xnu_major < 20:
+            # Legacy versions: use icon_path_legacy
+            icon_path_list = self.constants.icon_path_legacy
+        else:
+            # Modern versions: use icons_path
+            icon_path_list = self.constants.icons_path
+
+        # Get icon path from list (with fallback to generic)
+        try:
+            icon_path = icon_path_list[icon_index]
+        except IndexError:
+            icon_path = icon_path_list[0]  # Generic icon
+
         png_path = icon_path.rsplit('.', 1)[0] + '.png'
 
-        # 验证 PNG 文件是否存在,如果不存在则使用通用图标
+        # Verify PNG file exists, fallback to generic if not
         if not Path(png_path).exists():
             logging.warning(f"Icon not found: {png_path}, falling back to Generic")
             generic_icon = str(self.constants.icon_path_macos_generic)
@@ -359,8 +403,17 @@ class MacOSInstallerList(ScrollArea):
     def _on_latest_toggle(self, checked: bool):
         """Handle latest-only toggle"""
         self.show_latest_only = checked
+        # Clear all widgets from layout
+        while self.expandLayout.count():
+            item = self.expandLayout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        self._clear_layout()
+        self._init_header()
+        self._show_loading(True)
         if self.available_installers:
-            self._display_installers()
+            QTimer.singleShot(800, lambda: self._display_installers())
+            
 
     def _display_installers(self):
         """Display installer cards"""

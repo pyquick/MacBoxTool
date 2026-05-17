@@ -1015,6 +1015,42 @@ class Constants:
     @property
     def package_icns_path_generic(self):
         return self.icns_resource_path / Path("Package.icns")
+    
+    @property
+    def icon_path_macos_lion(self):
+        return self.icns_resource_path / Path("Lion.icns")
+    
+    @property
+    def icon_path_macos_mountain_lion(self):
+        return self.icns_resource_path / Path("MountainLion.icns")
+
+    @property
+    def icon_path_macos_mavericks(self):
+        return self.icns_resource_path / Path("Mavericks.icns")
+    
+    @property
+    def icon_path_macos_yosemite(self):
+        return self.icns_resource_path / Path("Yosemite.icns")
+    
+    @property
+    def icon_path_macos_ei_capitan(self):
+        return self.icns_resource_path / Path("EICapitan.icns")
+
+    @property
+    def icon_path_macos_sierra(self):
+        return self.icns_resource_path / Path("Sierra.icns")
+    
+    @property
+    def icon_path_macos_high_sierra(self):
+        return self.icns_resource_path / Path("HighSierra.icns")
+    
+    @property
+    def icon_path_macos_mojave(self):
+        return self.icns_resource_path / Path("Mojave.icns")
+    
+    @property
+    def icon_path_macos_catalina(self):
+        return self.icns_resource_path / Path("Catalina.icns")
 
     @property
     def icon_path_macos_big_sur(self):
@@ -1100,7 +1136,20 @@ class Constants:
             str(self.icon_path_macos_sequoia),
             str(self.icon_path_macos_tahoe),
         ]
-
+    @property
+    def icon_path_legacy(self):
+        return [ 
+            str(self.icon_path_macos_generic),
+            str(self.icon_path_macos_catalina),
+            str(self.icon_path_macos_mojave),
+            str(self.icon_path_macos_high_sierra),
+            str(self.icon_path_macos_sierra),
+            str(self.icon_path_macos_ei_capitan),
+            str(self.icon_path_macos_yosemite),
+            str(self.icon_path_macos_mavericks),
+            str(self.icon_path_macos_mountain_lion),
+            str(self.icon_path_macos_lion),
+        ]
     @property
     def package_icns_paths(self):
         return [

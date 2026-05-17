@@ -74,10 +74,12 @@ class Introduction(ScrollArea):
         self.scrollWidget.setStyleSheet("QWidget { background: transparent; }")
         self.ui_support=ui_support
 
-        self._init_ui()
+        setTheme(Theme.AUTO)
 
         qconfig.themeChanged.connect(self.update_theme)
-        setTheme(Theme.AUTO)
+
+        self._init_ui()
+
 
     def set_navigation_callback(self, callback):
         """Set callback for page navigation."""
@@ -159,6 +161,9 @@ class Introduction(ScrollArea):
             # Insert the button after warning card (index 4)
             button = self._create_helper_install_button()
             self.expandLayout.insertWidget(4, button)
+
+    def closeEvent(self, event):
+        super().closeEvent(event)
 
     def _show_helper_install_dialog(self):
         """Show a dialog asking to install the helper if not already installed."""

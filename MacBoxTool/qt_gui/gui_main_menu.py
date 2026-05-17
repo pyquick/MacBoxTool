@@ -42,14 +42,15 @@ class Window(FluentWindow):
         logging.info("######################")
         logging.info("###gui_main_menu:OK###")
         logging.info("######################")
-        setTheme(Theme.AUTO)
         self.themeListener= SystemThemeListener(self)
         self.themeListener.start()
+        self.theme_manager=ThemeManager(self.constants)
+        self.theme_manager.start()
         self._init_state()
         self._setup_window()
         self._init_ui()
-        self.theme_manager=ThemeManager(self.constants)
-        self.theme_manager.start()
+        setTheme(Theme.AUTO)
+       
        
 
    

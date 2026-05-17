@@ -109,15 +109,14 @@ class MacBoxTool:
         self.constants.detected_os_build = os_data.detect_os_build()
         self.constants.detected_os_version = os_data.detect_os_version()
         self.constants.computer = self.computer
-        
-        
-        
+
         self.settings=GlobalSettings(self.constants)
         self.target_model = self.settings.find_key("MODEL") or "MacPro7,1"
         self.constants.custom_model=self.target_model if self.target_model !=("" or  None) else None
         import threading
         threading.Thread(target=self.hook_model,daemon=True).start()
         self.opengui()
+        
     def install_requirements(self):
         if self.constants.qt_variant is False or self.constants.launcher_script:
             Install()

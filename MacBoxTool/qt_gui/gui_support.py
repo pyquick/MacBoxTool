@@ -202,6 +202,7 @@ class DefGUI():
         icon_label = self.build_icon_label(resolved_icon, get_style()["text"], size=40)
         def _refresh_icon():
             icon_label.setPixmap(resolved_icon.icon(color=get_style()["text"]).pixmap(40, 40))
+        _refresh_icon()
         qconfig.themeChanged.connect(_refresh_icon)
         main_layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
 

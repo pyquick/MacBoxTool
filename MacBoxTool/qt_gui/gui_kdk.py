@@ -182,8 +182,10 @@ class KDKList(ScrollArea):
     def __init__(self, global_constants: Constants, ui_support: DefGUI = None, global_settings: GlobalSettings = None, parent=None):
         super().__init__(parent)
         self.setObjectName("KDK")
+        self.is_already_list: bool = False
         self.constants = global_constants
         self.settings = global_settings
+        self.is_loading = False
         self.available_kdks = []
         self.available_kdks_latest = []
         self.show_latest_only = True
@@ -317,8 +319,17 @@ class KDKList(ScrollArea):
     def _on_latest_toggle(self, checked: bool):
         """Handle latest-only toggle"""
         self.show_latest_only = checked
+        self.is_loading = False
+        # Clear all widgets from layout
+        while self.expandLayout.count():
+            item = self.expandLayout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        self._init_loading()
+        self._show_loading(True)
         if self.available_kdks:
-            self._display_kdks()
+            QTimer.singleShot(800, lambda: self._display_kdks())
+            
 
     def _show_loading(self, show: bool):
         if show:
@@ -332,6 +343,7 @@ class KDKList(ScrollArea):
 
     def _display_kdks(self):
         # Clear all widgets from layout
+        self.is_loading = True
         while self.expandLayout.count():
             item = self.expandLayout.takeAt(0)
             if item.widget():
@@ -341,7 +353,7 @@ class KDKList(ScrollArea):
         self._init_header()
         self.header_container.setVisible(True)
         self._init_loading()
-
+        
         kdks = self.available_kdks_latest if self.show_latest_only else self.available_kdks
 
         if not kdks:
@@ -349,34 +361,48 @@ class KDKList(ScrollArea):
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.expandLayout.addWidget(label)
             return
+        
+        self.is_already_list = True
 
         # Limit to 4 cards only when showing latest only
         if self.show_latest_only:
             kdks = kdks[:4]
-            logging.info("[KDKList] Latest mode: limiting to 4 cards")
 
         self._render_batch(0, kdks)
 
     def _render_batch(self, start_index: int, kdks: list, batch_size: int = 10):
-        """Batch render cards to avoid UI freeze"""
-        end_index = min(start_index + batch_size, len(kdks))
+        if self.is_loading:
+            """Batch render cards to avoid UI freeze"""
+            end_index = min(start_index + batch_size, len(kdks))
 
-        # Show loading progress
-        total = len(kdks)
-        if hasattr(self, 'loading_label'):
-            self.loading_label.setText(f"Loading KDKs... ({end_index}/{total})")
+            # Show loading progress
+            total = len(kdks)
+            if hasattr(self, 'loading_label'):
+                self.loading_label.setText(f"Loading KDKs... ({end_index}/{total})")
 
-        for i in range(start_index, end_index):
-            kdk = kdks[i]
-            card = KDKCard(kdk, self.constants, self)
-            card.download_clicked.connect(self._on_download)
-            self.expandLayout.addWidget(card)
+            for i in range(start_index, end_index):
+                kdk = kdks[i]
+                card = KDKCard(kdk, self.constants, self)
+                card.download_clicked.connect(self._on_download)
+                self.expandLayout.addWidget(card)
 
-        if end_index < len(kdks):
-            QTimer.singleShot(50, lambda: self._render_batch(end_index, kdks, batch_size))
+            if end_index < len(kdks):
+                QTimer.singleShot(50, lambda: self._render_batch(end_index, kdks, batch_size))
+            else:
+                self.expandLayout.addStretch()
+                self._show_loading(False)
         else:
-            self.expandLayout.addStretch()
-            self._show_loading(False)
+            # Clear all widgets from layout
+            while self.expandLayout.count():
+                item = self.expandLayout.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+            self._init_loading()
+            self._show_loading(True)
+            if self.available_kdks:
+                QTimer.singleShot(800, lambda: self._display_kdks())
+            
+            
 
     def _on_download(self, kdk_data: dict):
         url = kdk_data.get("url")
