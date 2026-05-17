@@ -403,14 +403,10 @@ class MacOSInstallerList(ScrollArea):
     def _on_latest_toggle(self, checked: bool):
         """Handle latest-only toggle"""
         self.show_latest_only = checked
-        # Clear all widgets from layout
-        while self.expandLayout.count():
-            item = self.expandLayout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
         self._clear_layout()
-        self._init_header()
+        self.init_ui()
         self._show_loading(True)
+        
         if self.available_installers:
             QTimer.singleShot(800, lambda: self._display_installers())
             
@@ -483,7 +479,6 @@ class MacOSInstallerList(ScrollArea):
         icon_path = self.constants.icons_path[icon_index]
         png_path = icon_path.rsplit('.', 1)[0] + '.png'
 
-        # 验证图标文件是否存在
         if not Path(png_path).exists():
             logging.warning(f"[MacOSInstaller] Icon not found: {png_path}, using generic")
             generic_icon = str(self.constants.icon_path_macos_generic)

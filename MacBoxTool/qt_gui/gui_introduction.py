@@ -343,8 +343,21 @@ class Introduction(ScrollArea):
         title_label.setStyleSheet("font-size: 24px; font-weight: bold;")
         return title_label
 
+    def find_oclp_version(self):
+        REPO_LATEST_RELEASE_URL: str = "https://api.github.com/repos/hackdoc/OCLP-R/releases/latest"
+        if not NetworkUtilities().verify_network_connection(REPO_LATEST_RELEASE_URL,1):
+            return None
+        response = NetworkUtilities().get(REPO_LATEST_RELEASE_URL)
+        data_set = response.json()
+        if "tag_name" not in data_set:
+            return None
+        try:
+            latest_remote_version = version.parse(data_set["tag_name"])
+            return latest_remote_version
+        except version.InvalidVersion:
+            return None
     def _create_note_card(self):
-        self.oclp_version="3.1.2"
+        self.oclp_version=self.find_oclp_version() or "3.1.3"
         return self.ui_support.custom_card(
             card_type="note",
             title="OCLP-R: - Now Supports macOS Tahoe 26!",

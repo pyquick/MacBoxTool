@@ -11,6 +11,7 @@ import os
 from PySide6.QtWidgets import *
 from PySide6.QtGui import *
 from PySide6.QtCore import *
+from .. import constants
 import json,shutil
 from typing import Optional
 SESSION = requests.Session()
@@ -112,6 +113,7 @@ class NetworkUtilities:
 
     _thread_local = threading.local()
 
+
     @classmethod
     def _get_session(cls) -> requests.Session:
         """Get or create a thread-local requests session with retry strategy"""
@@ -136,6 +138,39 @@ class NetworkUtilities:
             return response.status_code == 200
         except Exception as e:
             logging.warning(f"Network check failed: {e}")
+            return False
+        
+    def verify_network_connection(cls,url:str,timeout:int) -> bool:
+        """
+        Verifies that the network is available
+
+        Returns:
+            bool: True if network is available, False otherwise
+        """
+
+        try:
+            if "nightly.link" in url:
+                response=requests.get(url, timeout=timeout, allow_redirects=True, verify=True,stream=True)
+            else:
+                response = requests.head(url, timeout=timeout, allow_redirects=True, verify=False)
+            
+            print("Checking network connection...")
+            if response.status_code == 200:
+                print("Network connection verified")
+                return True
+            if response.status_code == 404:
+                print("Network connection is 404")
+                return False
+            print(f"Status Co: {response.status_code}")
+            return True
+        except (
+            requests.exceptions.Timeout,
+            requests.exceptions.TooManyRedirects,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.HTTPError,
+            requests.exceptions.SSLError
+        ) as e:
+            print(f"Error:{e}")
             return False
 
     @classmethod

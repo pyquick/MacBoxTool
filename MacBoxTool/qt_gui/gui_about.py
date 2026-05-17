@@ -103,12 +103,19 @@ class AboutInterface(ScrollArea):
             f"Version {self.constants.macboxtool_version}",
             self
         )
+        nbuild_card=SettingCard(
+            FIF.DEVELOPER_TOOLS,
+            "Nightly Build",
+            f"{self.constants.nightly_build}",
+            self
+        )
         pversion_card=SettingCard(
             FIF.ZIP_FOLDER,
             "PatcherSupportPkg Version",
             f"Version {self.constants.patcher_support_pkg_version}",
             self
         )
+        
         path_card=SettingCard(
             FIF.PASTE,
             "Luancher Path",
@@ -121,9 +128,11 @@ class AboutInterface(ScrollArea):
             f"{self.constants.payload_path}"
         )
         expandLayout.addWidget(version_card)
+        expandLayout.addWidget(nbuild_card)
         expandLayout.addWidget(pversion_card)
         expandLayout.addWidget(path_card)
         expandLayout.addWidget(mount_card)
+        
         return widgets
     
     

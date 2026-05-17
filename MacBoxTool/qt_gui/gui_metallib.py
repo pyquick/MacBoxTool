@@ -321,8 +321,14 @@ class MetallibList(ScrollArea):
     def _on_latest_toggle(self, checked: bool):
         """Handle latest-only toggle"""
         self.show_latest_only = checked
+        while self.expandLayout.count():
+            item = self.expandLayout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        self._init_loading()
+        self._show_loading(True)
         if self.available_metallibs:
-            self._display_metallibs()
+            QTimer.singleShot(800,lambda:self._display_metallibs())
 
     def _show_loading(self, show: bool):
         if show:
