@@ -38,7 +38,7 @@ class Window(FluentWindow):
         super().__init__(parent=parent)
         self.constants = global_constants
         self.settings=global_settings
-        self.gui_support=DefGUI(self.constants)
+        
         logging.info("######################")
         logging.info("###gui_main_menu:OK###")
         logging.info("######################")
@@ -46,8 +46,10 @@ class Window(FluentWindow):
         self.themeListener.start()
         self.theme_manager=ThemeManager(self.constants)
         self.theme_manager.start()
+        self.gui_support=DefGUI(self.constants)
         self._init_state()
         self._setup_window()
+
         self._init_ui()
         setTheme(Theme.AUTO)
        

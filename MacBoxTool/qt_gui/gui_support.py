@@ -77,7 +77,10 @@ class ProgressStatusHelper:
 class DefGUI():
     def __init__(self,global_constants:Constants):
         self.constants:Constants=global_constants
-        self.update_theme()
+        if qconfig.theme == Theme.DARK:
+            self.card_styles = self.card_styles_dark()
+        else:
+            self.card_styles = self.card_styles_light()
         qconfig.themeChanged.connect(self.update_theme)
 
     def build_icon_label(self, icon: FluentIcon, color: str, size: int = 32) -> QLabel:
@@ -86,6 +89,7 @@ class DefGUI():
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         label.setFixedSize(size + 12, size + 12)
         return label
+    
     
 
     
@@ -211,7 +215,8 @@ class DefGUI():
 
         if title:
             title_label = StrongBodyLabel(title)
-            title_label.setStyleSheet("color: {}; font-size: 16px;".format(get_style()["text"]))
+            style=get_style()["text"]
+            QTimer.singleShot(40,lambda: title_label.setStyleSheet("color: {}; font-size: 16px;".format(style)))
             qconfig.themeChanged.connect(lambda: title_label.setStyleSheet("color: {}; font-size: 16px;".format(get_style()["text"])))
             text_layout.addWidget(title_label)
 
@@ -219,7 +224,7 @@ class DefGUI():
             body_label = BodyLabel(body)
             body_label.setWordWrap(True)
             body_label.setOpenExternalLinks(True)
-            body_label.setStyleSheet("color: #424242; line-height: 1.6;")
+            QTimer.singleShot(40,lambda: body_label.setStyleSheet("line-height: 1.6;"))
             text_layout.addWidget(body_label)
 
         if custom_widget:
