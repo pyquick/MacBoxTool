@@ -6,10 +6,6 @@ gui_support.py: Give custom looks
 from ..include import *
 
 
-if TYPE_CHECKING:
-    from ..UIkit import GroupHeaderCardWidget, CardGroupWidget
-
-
 class ThemeAwareCard(CardWidget):
     def __init__(self, get_style_fn, parent=None):
         super().__init__(parent)
@@ -30,9 +26,9 @@ class ThemeAwareCard(CardWidget):
 class ProgressStatusHelper:
     def __init__(self, status_icon_label, progress_label, progress_bar, progress_container):
         
-        logging.info("########################")
-        logging.info("#####gui_support:OK#####")
-        logging.info("########################") 
+
+        logging.info("init gui_support")
+
         
         self.status_icon_label = status_icon_label
         self.progress_label = progress_label
@@ -215,9 +211,15 @@ class DefGUI():
 
         if title:
             title_label = StrongBodyLabel(title)
-            style=get_style()["text"]
-            QTimer.singleShot(40,lambda: title_label.setStyleSheet("color: {}; font-size: 16px;".format(style)))
-            qconfig.themeChanged.connect(lambda: title_label.setStyleSheet("color: {}; font-size: 16px;".format(get_style()["text"])))
+            QTimer.singleShot(40,lambda: title_label.setStyleSheet("color: {}; font-size: 16px;".format(get_style()["text"])))
+            title_label.setStyleSheet("color: {}; font-size: 16px;".format(get_style()["text"]))
+
+            # Create proper callback function for theme changes
+            def update_title_with_delay():
+                QTimer.singleShot(40, lambda: title_label.setStyleSheet("color: {}; font-size: 16px;".format(get_style()["text"])))
+
+            qconfig.themeChanged.connect(update_title_with_delay)
+            title_label.setStyleSheet("color: {}; font-size: 16px;".format(get_style()["text"]))
             text_layout.addWidget(title_label)
 
         if body:
@@ -225,6 +227,7 @@ class DefGUI():
             body_label.setWordWrap(True)
             body_label.setOpenExternalLinks(True)
             QTimer.singleShot(40,lambda: body_label.setStyleSheet("line-height: 1.6;"))
+            body_label.setStyleSheet("line-height: 1.6;")
             text_layout.addWidget(body_label)
 
         if custom_widget:

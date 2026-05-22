@@ -42,8 +42,7 @@ class HelperInstallWorker(QThread):
     install_privileged_helper = None
     is_root = None
 
-# Import MessageBox for dialogs
-from ..UIkit.components.dialog_box.dialog import MessageBox
+
 
 
 class Introduction(ScrollArea):
@@ -58,9 +57,8 @@ class Introduction(ScrollArea):
         super().__init__(parent=parent)
         self.setObjectName("Introduction")
 
-        logging.info("#############################")
-        logging.info("#####gui_introduction:OK#####")
-        logging.info("#############################")
+        logging.info("init introduction")
+
 
         self.global_constants = global_constants
         self.navigation_callback = None  # For page navigation

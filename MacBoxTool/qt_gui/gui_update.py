@@ -7,9 +7,9 @@ from .gui_support import DefGUI
 class Model(ScrollArea):
     def __init__(self, global_constants:Constants,ui_support:DefGUI=None,global_settings:GlobalSettings=None,parent=None):
         super().__init__(parent)
-        logging.info("######################")
-        logging.info("#####gui_update:OK#####")
-        logging.info("######################") 
+
+        logging.info("init gui_update")
+
 
         self.setObjectName("Update")
 

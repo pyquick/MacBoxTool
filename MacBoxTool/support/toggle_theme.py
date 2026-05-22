@@ -11,10 +11,9 @@ from ..UIWindow.utils import getSystemAccentColor
 class ThemeManager(QObject):
     def __init__(self,global_constants:Constants=None):
         super().__init__()
-        logging.info("######################")
-        logging.info("###Theme Manager:OK###")
-        logging.info("######################")
-        setTheme(Theme.AUTO)
+
+        logging.info("init Theme Manager")
+
         setThemeColor(getSystemAccentColor(), save=False)
         self.constants = global_constants
         self.current_theme = "dark"

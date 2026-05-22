@@ -39,9 +39,9 @@ class Window(FluentWindow):
         self.constants = global_constants
         self.settings=global_settings
         
-        logging.info("######################")
-        logging.info("###gui_main_menu:OK###")
-        logging.info("######################")
+
+        logging.info("init gui")
+
         self.themeListener= SystemThemeListener(self)
         self.themeListener.start()
         self.theme_manager=ThemeManager(self.constants)
@@ -49,11 +49,15 @@ class Window(FluentWindow):
         self.gui_support=DefGUI(self.constants)
         self._init_state()
         self._setup_window()
-
-        self._init_ui()
         setTheme(Theme.AUTO)
+        self._init_ui()
+        
+        
+        qconfig.themeChanged.connect(self.update_theme)
        
-       
+    def update_theme(self):
+        setTheme(Theme.AUTO)
+        self.update()
 
    
 

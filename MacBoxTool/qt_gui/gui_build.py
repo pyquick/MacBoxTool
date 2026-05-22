@@ -16,9 +16,7 @@ if sys.platform == "darwin":
 else:
     check_helper_installed = None
 
-from ..UIkit.components.dialog_box.message_box_base import MessageBoxBase
-from ..UIkit.components.widgets.button import RadioButton
-from ..UIkit.components.widgets.progress_ring import IndeterminateProgressRing
+
 from ..support.scan_disk_efi import get_efi_partitions, list_disks, list_partitions
 
 
@@ -433,9 +431,9 @@ class BuildOCPage(ScrollArea):
                  global_settings: GlobalSettings = None, parent=None):
         super().__init__(parent=parent)
 
-        logging.info("######################")
-        logging.info("#####gui_build:OK#####")
-        logging.info("######################")
+
+        logging.info("init gui_build")
+
 
         self.setObjectName("Build_For_Mac")
         self.constants = global_constants

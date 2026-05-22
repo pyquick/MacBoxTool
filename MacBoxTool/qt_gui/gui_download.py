@@ -4,12 +4,6 @@ gui_download.py: Download card widget
 
 from ..include import *
 from ..support.network_handler import DownloadObject, DownloadStatus
-from ..UIkit.components.widgets.card_widget import CardWidget
-from ..UIkit.components.widgets.label import BodyLabel, CaptionLabel, ImageLabel
-from ..UIkit.components.widgets.button import TransparentToolButton
-from ..UIkit.components.widgets.menu import RoundMenu
-from ..UIkit.components.widgets.progress_bar import ProgressBar, IndeterminateProgressBar
-from ..UIkit.common.icon import FluentIcon, Action
 
 
 class DownloadCard(CardWidget):

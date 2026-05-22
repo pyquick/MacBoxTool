@@ -12,6 +12,7 @@ class SettingsInterface(QWidget):
     def __init__(self, global_constants: Constants, ui_support: DefGUI = None, global_settings: GlobalSettings = None, parent=None):
         super().__init__(parent)
         self.setObjectName("Settings")
+        logging.info("init gui_settings")
         self.constants = global_constants
         self.gui_support = ui_support
         self.settings = global_settings

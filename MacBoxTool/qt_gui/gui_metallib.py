@@ -4,12 +4,6 @@ gui_metallib.py: Metallib Support Package download interface
 
 from ..include import *
 from .gui_support import DefGUI
-from ..UIkit.components.widgets.label import BodyLabel, CaptionLabel
-from ..UIkit.components.widgets.button import PrimaryPushButton, TransparentToolButton
-from ..UIkit.components.widgets.label import ImageLabel
-from ..UIkit.components.widgets.progress_ring import IndeterminateProgressRing
-from ..UIkit.components.widgets.switch_button import SwitchButton
-from ..UIkit.common.style_sheet import isDarkTheme
 from ..support.network_handler import DownloadObject
 from .gui_task import TaskManager
 from PySide6.QtWidgets import QFrame
@@ -221,6 +215,7 @@ class MetallibList(ScrollArea):
         self.available_metallibs = []
         self.available_metallibs_latest = []
         self.show_latest_only = True
+        self.is_loading = False
         self._data_worker = None  # Multi-process data worker
 
         self.scrollWidget = QWidget()
@@ -321,6 +316,7 @@ class MetallibList(ScrollArea):
     def _on_latest_toggle(self, checked: bool):
         """Handle latest-only toggle"""
         self.show_latest_only = checked
+        self.is_loading = False
         while self.expandLayout.count():
             item = self.expandLayout.takeAt(0)
             if item.widget():
@@ -342,6 +338,7 @@ class MetallibList(ScrollArea):
 
     def _display_metallibs(self):
         # Clear all widgets from layout
+        self.is_loading = True
         while self.expandLayout.count():
             item = self.expandLayout.takeAt(0)
             if item.widget():
@@ -369,24 +366,35 @@ class MetallibList(ScrollArea):
 
     def _render_batch(self, start_index: int, metallibs: list, batch_size: int = 10):
         """Batch render cards to avoid UI freeze"""
+        
         end_index = min(start_index + batch_size, len(metallibs))
+        if self.is_loading:
+            # Show loading progress
+            total = len(metallibs)
+            if hasattr(self, 'loading_label'):
+                self.loading_label.setText(f"Loading Metallibs... ({end_index}/{total})")
 
-        # Show loading progress
-        total = len(metallibs)
-        if hasattr(self, 'loading_label'):
-            self.loading_label.setText(f"Loading Metallibs... ({end_index}/{total})")
+            for i in range(start_index, end_index):
+                metallib = metallibs[i]
+                card = MetallibCard(metallib, self.constants, self)
+                card.download_clicked.connect(self._on_download)
+                self.expandLayout.addWidget(card)
 
-        for i in range(start_index, end_index):
-            metallib = metallibs[i]
-            card = MetallibCard(metallib, self.constants, self)
-            card.download_clicked.connect(self._on_download)
-            self.expandLayout.addWidget(card)
-
-        if end_index < len(metallibs):
-            QTimer.singleShot(50, lambda: self._render_batch(end_index, metallibs, batch_size))
+            if end_index < len(metallibs):
+                QTimer.singleShot(50, lambda: self._render_batch(end_index, metallibs, batch_size))
+            else:
+                self.expandLayout.addStretch()
+                self._show_loading(False)
         else:
-            self.expandLayout.addStretch()
-            self._show_loading(False)
+            # Clear all widgets from layout
+            while self.expandLayout.count():
+                item = self.expandLayout.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+            self._init_loading()
+            self._show_loading(True)
+            if self.available_metallibs:
+                QTimer.singleShot(800, lambda: self._display_metallibs())
 
     def get_package_icon_path(self, major_version: int) -> str:
         """

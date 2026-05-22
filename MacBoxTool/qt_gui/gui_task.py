@@ -307,9 +307,9 @@ class TaskInterface(ScrollArea):
                  global_settings: GlobalSettings = None, parent=None):
         super().__init__(parent)
 
-        logging.info("######################")
-        logging.info("#####gui_task:OK#####")
-        logging.info("######################")
+
+        logging.info("init gui_task")
+
 
         self.setObjectName("Task")
 

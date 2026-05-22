@@ -9,7 +9,7 @@ class OpenGUI:
     def __init__(self,global_constants:Constants,global_settings:GlobalSettings):
         self.constants:Constants = global_constants
         self.settings=global_settings
-        logging.info("Opening GUI...")
+        logging.info("Init GuiBase")
 
     def gui_main_menu(self):
         import sys as _sys
