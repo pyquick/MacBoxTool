@@ -192,10 +192,6 @@ class MacOSInstallerList(ScrollArea):
 
         logging.info("[MacOSInstallerList] Initialized")
 
-        # Register this instance to TaskManager for validation/extraction callbacks
-        from .gui_task import TaskManager
-        TaskManager.register_installer_list(self)
-
         # Data
         self.available_installers = []
         self.available_installers_latest = []
@@ -454,7 +450,6 @@ class MacOSInstallerList(ScrollArea):
 
         install_assistant = installer_data.get("InstallAssistant") or {}
         url = install_assistant.get("URL")
-        chunklist_link = install_assistant.get("IntegrityDataURL")
         if not url:
             logging.warning(f"[MacOSInstallerList] No download URL for {title}")
             InfoBar.error(
@@ -486,164 +481,18 @@ class MacOSInstallerList(ScrollArea):
 
         # macOS installers must be downloaded to payload_path for validation to work
         save_path = str(self.constants.payload_path)
-        filename = f"InstallAssistant-macOS_{version}-{build}.pkg"
+        filename = f"InstallAssistant.pkg"
         download_obj = DownloadObject(url, save_path, filename)
 
-        TaskManager.start_download(download_obj, icon=png_path, macos_install=True, chunklist_url=chunklist_link, installer_data=installer_data)
+        TaskManager.start_download(download_obj, icon=png_path)
 
         InfoBar.success(
             "Download Started",
-            f"{title} ({version} - {build}) is downloading. Check Tasks for progress.",
-            duration=5000,
+            f"{title} ({version} - {build}) is downloading.",
+            duration=2000,
             position=InfoBarPosition.TOP_RIGHT,
-            parent=self,
+            parent=self.window(),
         )
-
-    def validate_installer(self, installer_data: dict):
-        """Validate downloaded installer"""
-        from ..support import integrity_verification, network_handler
-
-        version = installer_data.get("Version", "Unknown")
-        build = installer_data.get("Build", "Unknown")
-        install_assistant = installer_data.get("InstallAssistant") or {}
-
-        # macOS installers must be in payload_path for validation to work
-        save_path = str(self.constants.payload_path)
-        filename = f"InstallAssistant-macOS_{version}-{build}.pkg"
-        file_path = Path(save_path) / filename
-
-        if not file_path.exists():
-            InfoBar.error("File Not Found", f"Installer not found: {filename}", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
-            return
-
-        chunklist_url = install_assistant.get("IntegrityDataURL")
-        if not chunklist_url:
-            InfoBar.error("No Chunklist", "No integrity data URL available", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
-            return
-
-        # Download chunklist
-        try:
-            chunklist_data = network_handler.NetworkUtilities.custom_get(chunklist_url).content
-        except Exception as e:
-            InfoBar.error("Download Failed", f"Failed to download chunklist: {e}", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
-            return
-
-        # Validate in thread
-        self._validate_in_thread(file_path, chunklist_data, installer_data)
-
-    def extract_installer(self, installer_data: dict):
-        """Extract installer package"""
-        from ..support import macos_installer_handler
-
-        version = installer_data.get("Version", "Unknown")
-        build = installer_data.get("Build", "Unknown")
-
-        # macOS installers must be in payload_path for extraction to work
-        save_path = str(self.constants.payload_path)
-        filename = f"InstallAssistant-macOS_{version}-{build}.pkg"
-        file_path = Path(save_path) / filename
-
-        if not file_path.exists():
-            InfoBar.error("File Not Found", f"Installer not found: {filename}", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
-            return
-
-        # Extract in thread
-        self._extract_in_thread(file_path, installer_data)
-
-    def _validate_in_thread(self, file_path: Path, chunklist_data: bytes, installer_data: dict):
-        """Validate installer in background thread"""
-        from ..support import integrity_verification
-
-        class ValidationWorker(QThread):
-            finished = Signal(bool, str)
-            progress = Signal(int, int)
-
-            def __init__(self, file_path, chunklist_data):
-                super().__init__()
-                self.file_path = file_path
-                self.chunklist_data = chunklist_data
-
-            def run(self):
-                try:
-                    chunk_obj = integrity_verification.ChunklistVerification(self.file_path, self.chunklist_data)
-                    chunk_obj.validate()
-
-                    while chunk_obj.status == integrity_verification.ChunklistStatus.IN_PROGRESS:
-                        self.progress.emit(chunk_obj.current_chunk, chunk_obj.total_chunks)
-                        QThread.msleep(100)
-
-                    if chunk_obj.status == integrity_verification.ChunklistStatus.FAILURE:
-                        self.finished.emit(False, f"Hash mismatch on chunk {chunk_obj.current_chunk}")
-                    else:
-                        self.finished.emit(True, "Validation successful")
-                except Exception as e:
-                    self.finished.emit(False, str(e))
-
-        # Store worker as instance variable to prevent premature garbage collection
-        self._validation_worker = ValidationWorker(file_path, chunklist_data)
-        self._validation_worker.finished.connect(lambda success, msg: self._on_validation_finished(success, msg, installer_data))
-        self._validation_worker.start()
-
-        InfoBar.info("Validating", "Validating installer integrity...", duration=2000, position=InfoBarPosition.TOP_RIGHT, parent=self)
-
-    def _extract_in_thread(self, file_path: Path, installer_data: dict):
-        """Extract installer in background thread"""
-        from ..support import macos_installer_handler
-
-        class ExtractionWorker(QThread):
-            finished = Signal(bool, str)
-
-            def __init__(self, file_path, constants):
-                super().__init__()
-                self.file_path = file_path
-                self.constants = constants
-
-            def run(self):
-                try:
-                    handler = macos_installer_handler.InstallerCreation(self.constants)
-                    result = handler.install_macOS_installer(str(self.file_path.parent))
-                    if result:
-                        self.finished.emit(True, "Extraction successful")
-                    else:
-                        self.finished.emit(False, "Extraction failed")
-                except Exception as e:
-                    self.finished.emit(False, str(e))
-
-        # Store worker as instance variable to prevent premature garbage collection
-        self._extraction_worker = ExtractionWorker(file_path, self.constants)
-        self._extraction_worker.finished.connect(lambda success, msg: self._on_extraction_finished(success, msg, installer_data))
-        self._extraction_worker.start()
-
-        InfoBar.info("Extracting", "Extracting installer...", duration=2000, position=InfoBarPosition.TOP_RIGHT, parent=self)
-
-    def _on_validation_finished(self, success: bool, message: str, installer_data: dict):
-        """Handle validation completion"""
-        # Clean up worker reference
-        if self._validation_worker is not None:
-            self._validation_worker.quit()
-            self._validation_worker.wait()
-            self._validation_worker = None
-
-        if success:
-            InfoBar.success("Validation Complete", message, duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
-            # 自动调用提取
-            logging.info("Validation successful, starting extraction...")
-            self.extract_installer(installer_data)
-        else:
-            InfoBar.error("Validation Failed", message, duration=5000, position=InfoBarPosition.TOP_RIGHT, parent=self)
-
-    def _on_extraction_finished(self, success: bool, message: str, installer_data: dict):
-        """Handle extraction completion"""
-        # Clean up worker reference
-        if self._extraction_worker is not None:
-            self._extraction_worker.quit()
-            self._extraction_worker.wait()
-            self._extraction_worker = None
-
-        if success:
-            InfoBar.success("Extraction Complete", message, duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
-        else:
-            InfoBar.error("Extraction Failed", message, duration=5000, position=InfoBarPosition.TOP_RIGHT, parent=self)
 
     def cleanup_workers(self):
         """Clean up any running worker threads"""

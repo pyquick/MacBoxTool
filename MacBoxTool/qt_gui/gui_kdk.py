@@ -96,8 +96,19 @@ class KDKCard(NoAnimCardWidget):
 
         self.icon_widget = ImageLabel(icon_path, self)
         self.icon_widget.setFixedSize(48, 48)
+        self.name=""
 
-        self.title_label = BodyLabel("Kernel Debug Kit")
+        def check_macos_veersion():
+            build = kdk_data.get("build", "Unknown")[:2]
+            if build=="25": self.name="Tahoe"
+            if build=="24": self.name="Sequoia"
+            if build=="23": self.name="Sonoma"
+            if build=="22": self.name= "Ventura"
+            else: self.name==""
+
+        check_macos_veersion()
+
+        self.title_label = BodyLabel(f"macOS {self.name}")
         self.title_label.setStyleSheet("font-weight: 600;")
 
         date_str = kdk_data.get("date", "Unknown")
@@ -105,8 +116,7 @@ class KDKCard(NoAnimCardWidget):
 
         version = kdk_data.get("version", "Unknown")
         build = kdk_data.get("build", "Unknown")
-        if build=="24A5279h":
-            version = "15.0"
+        
         file_size = kdk_data.get("fileSize", 0)
         size_mb = file_size / (1024 * 1024) if file_size else 0
         self.version_label = CaptionLabel(f"Version: {version} | Build: {build} | Size: {size_mb:.0f} MB")
@@ -426,7 +436,7 @@ class KDKList(ScrollArea):
 
         TaskManager.start_download(download_obj, icon=icon_path)
 
-        InfoBar.success("Download Started", f"{filename} is downloading. Check Tasks for progress.", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
+        InfoBar.success("Download Started", f"{filename} is downloading.", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
 
     def closeEvent(self, event):
         """Clean up resources when window closes."""

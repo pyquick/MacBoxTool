@@ -129,7 +129,7 @@ class MetallibCard(NoAnimCardWidget):
         self.icon_widget = ImageLabel(icon_path, self)
         self.icon_widget.setFixedSize(48, 48)
 
-        self.title_label = BodyLabel("Metallib Package")
+        self.title_label = BodyLabel("macOS Sequoia")
         self.title_label.setStyleSheet("font-weight: 600;")
 
         date_str = metallib_data.get("date", "Unknown")
@@ -448,7 +448,7 @@ class MetallibList(ScrollArea):
 
         TaskManager.start_download(download_obj, icon=icon_path)
 
-        InfoBar.success("Download Started", f"{filename} is downloading. Check Tasks for progress.", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
+        InfoBar.success("Download Started", f"{filename} is downloading.", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
 
     def closeEvent(self, event):
         """Clean up resources when window closes."""

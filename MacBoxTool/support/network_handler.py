@@ -27,6 +27,8 @@ class DownloadStatus:
     PENDING = "pending"
     DOWNLOADING = "downloading"
     PAUSED = "paused"
+    VALIDATING = "validating"
+    EXTRACTING = "extracting"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -45,7 +47,7 @@ class DownloadObject:
         self.thread_count = 16
         self.error_message = ""
         self.created_at = QDateTime.currentDateTime()
-        self.completed_at = None
+        self.completed_at: Optional[QDateTime] = None
         self.last_update_time = QDateTime.currentDateTime()
         self.last_downloaded_size = 0
         self.download_speed = 0

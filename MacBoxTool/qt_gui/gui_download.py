@@ -18,7 +18,6 @@ class DownloadCard(CardWidget):
     def __init__(self, download_object: DownloadObject, icon=None, parent=None):
         super().__init__(parent)
         self.download = download_object
-        self.is_validating = False  # Track if showing validate/extract progress
 
         self.setFixedHeight(73)
         self._init_widgets(icon)
@@ -157,48 +156,14 @@ class DownloadCard(CardWidget):
     # ── Public Methods ──
 
     def update_progress(self):
-        # Don't update progress if in validate/extract mode
-        if not self.is_validating:
-            self.progressBar.setValue(self.download.get_progress_percentage())
-            self.speedLabel.setText(self.download.get_speed_display())
-            self.sizeLabel.setText(self.download.get_size_display())
-            self.percentLabel.setText(f"{self.download.get_progress_percentage()}%")
-            self.contentLabel.setText(self._get_status_text())
-            self._update_button_state()
-
-    def set_status(self, status: DownloadStatus):
-        self.download.status = status
+        self.progressBar.setValue(self.download.get_progress_percentage())
+        self.speedLabel.setText(self.download.get_speed_display())
+        self.sizeLabel.setText(self.download.get_size_display())
+        self.percentLabel.setText(f"{self.download.get_progress_percentage()}%")
         self.contentLabel.setText(self._get_status_text())
         self._update_button_state()
 
-    def show_validate_progress(self, message: str = "Validating..."):
-        """Switch to validation/extraction mode with indeterminate progress bar"""
-        self.is_validating = True
-        self.contentLabel.setText(message)
-        self.progressBar.hide()
-        self.indeterminateProgressBar.show()
-        self.indeterminateProgressBar.start()
-
-        # Hide download-specific labels during validation
-        self.speedLabel.hide()
-        self.percentLabel.hide()
-
-    def update_validate_status(self, message: str):
-        """Update validation status text"""
-        if self.is_validating:
-            self.contentLabel.setText(message)
-
-    def hide_validate_progress(self):
-        """Return to normal download mode"""
-        self.is_validating = False
-        self.indeterminateProgressBar.stop()
-        self.indeterminateProgressBar.hide()
-        self.progressBar.show()
-
-        # Show download-specific labels again
-        self.speedLabel.show()
-        self.percentLabel.show()
-
-        # Update to current download status
+    def set_status(self, status: DownloadStatus):
+        self.download.status = status
         self.contentLabel.setText(self._get_status_text())
         self._update_button_state()

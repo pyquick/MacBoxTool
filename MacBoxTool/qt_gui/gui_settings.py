@@ -587,7 +587,8 @@ class SettingsInterface(QWidget):
         self.settings_key_input = SearchLineEdit(self)
         self.settings_key_input.setPlaceholderText("Enter key to search...")
         settings_key_card = SettingCard(FIF.SEARCH, "Search Key", parent=settings_group)
-        settings_key_card.hBoxLayout.addWidget(self.settings_key_input, 0, Qt.AlignmentFlag.AlignLeft)
+        self.settings_key_input.setFixedWidth(250)
+        settings_key_card.hBoxLayout.addWidget(self.settings_key_input)
         settings_key_card.hBoxLayout.addStretch(1)
 
         # Result display using ExpandGroupSettingCard with addGroup
