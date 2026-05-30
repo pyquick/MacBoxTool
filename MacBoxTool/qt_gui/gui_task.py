@@ -514,7 +514,7 @@ class TaskInterface(ScrollArea):
             f"{download.filename} is downloading again.",
             duration=3000,
             position=InfoBarPosition.TOP_RIGHT,
-            parent=self,
+            parent=self.window(),
         )
 
     def _on_clear_all_history(self):

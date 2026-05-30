@@ -448,7 +448,7 @@ class MetallibList(ScrollArea):
 
         TaskManager.start_download(download_obj, icon=icon_path)
 
-        InfoBar.success("Download Started", f"{filename} is downloading.", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
+        InfoBar.success("Download Started", f"{filename} is downloading.", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self.window())
 
     def closeEvent(self, event):
         """Clean up resources when window closes."""
