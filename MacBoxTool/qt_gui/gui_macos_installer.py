@@ -450,6 +450,8 @@ class MacOSInstallerList(ScrollArea):
 
         install_assistant = installer_data.get("InstallAssistant") or {}
         url = install_assistant.get("URL")
+        integrity_data_url = install_assistant.get("IntegrityDataURL")  # Get chunklist URL
+
         if not url:
             logging.warning(f"[MacOSInstallerList] No download URL for {title}")
             InfoBar.error(
@@ -460,6 +462,9 @@ class MacOSInstallerList(ScrollArea):
                 parent=self,
             )
             return
+
+        if not integrity_data_url:
+            logging.warning(f"[MacOSInstallerList] No IntegrityDataURL for {title}")
 
         logging.info(f"[MacOSInstaller] Starting download: {title} ({version} - {build})")
         logging.info(f"[MacOSInstaller] URL: {url}")
@@ -483,6 +488,9 @@ class MacOSInstallerList(ScrollArea):
         save_path = str(self.constants.payload_path)
         filename = f"InstallAssistant.pkg"
         download_obj = DownloadObject(url, save_path, filename)
+
+        # Store chunklist URL for validation
+        download_obj.chunklist_url = integrity_data_url
 
         TaskManager.start_download(download_obj, icon=png_path)
 

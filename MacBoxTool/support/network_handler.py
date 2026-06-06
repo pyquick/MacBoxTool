@@ -53,6 +53,11 @@ class DownloadObject:
         self.download_speed = 0
         self.icon_path = None
 
+        # Validation progress tracking
+        self.current_validation_chunk = 0
+        self.total_validation_chunks = 0
+        self.chunklist_url = None  # URL to download chunklist for validation
+
     def update_progress(self, downloaded: int, total: int):
         """Update download progress and calculate speed"""
         current_time = QDateTime.currentDateTime()

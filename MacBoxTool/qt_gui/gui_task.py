@@ -10,6 +10,8 @@ from ..support.network_handler import (
     DownloadObject, DownloadWorker, DownloadStatus,
     NetworkUtilities, DownloadHistory
 )
+from ..support.workers.validation_worker import ValidationWorker
+from ..support.workers.extraction_worker import ExtractionWorker
 
 
 class NetworkCheckWorker(QThread):
@@ -40,6 +42,8 @@ class TaskManager:
     _instance = None
     _downloads: list[DownloadObject] = []
     _workers: dict[int, DownloadWorker] = {}
+    _validation_workers: dict[int, ValidationWorker] = {}
+    _extraction_workers: dict[int, ExtractionWorker] = {}
     _icons: dict[int, object] = {}  # download id -> icon for DownloadCard
     aconstants :Constants = Constants()
 
@@ -98,17 +102,137 @@ class TaskManager:
 
     @classmethod
     def _on_download_finished(cls, download: DownloadObject, success: bool, message: str):
-        """Handle download completion — cleanup worker"""
+        """Handle download completion — auto-start validation if successful"""
         worker = cls._workers.pop(id(download), None)
 
         # 清理 worker
         if worker:
             worker.deleteLater()
         cls._icons.pop(id(download), None)
+
         if success:
             logging.info(f"Download completed: {download.filename}")
+            # Automatically start validation for macOS installers
+            if download.filename == "InstallAssistant.pkg":
+                # Use the stored chunklist URL from download object
+                chunklist_url = download.chunklist_url
+                if not chunklist_url:
+                    logging.error(f"No chunklist URL available for {download.filename}")
+                    download.status = DownloadStatus.FAILED
+                    download.error_message = "No chunklist URL available"
+                else:
+                    # Switch to VALIDATING so DownloadCard shows indeterminate progress bar
+                    download.status = DownloadStatus.VALIDATING
+                    cls.start_validation(download, chunklist_url)
         else:
             logging.warning(f"Download failed: {download.filename} - {message}")
+
+    @classmethod
+    def start_validation(cls, download: DownloadObject, chunklist_url: str) -> ValidationWorker:
+        """Start validation worker for downloaded installer
+
+        Args:
+            download: DownloadObject with completed installer
+            chunklist_url: URL to download chunklist from
+
+        Returns:
+            ValidationWorker instance
+        """
+        from pathlib import Path
+
+        pkg_path = Path(download.save_path) / download.filename
+        worker = ValidationWorker(pkg_path, chunklist_url)
+        cls._validation_workers[id(download)] = worker
+
+        worker.finished_signal.connect(
+            lambda success, msg: cls._on_validation_finished(download, success, msg)
+        )
+        worker.progress_signal.connect(
+            lambda current, total: cls._on_validation_progress(download, current, total)
+        )
+        worker.status_changed_signal.connect(
+            lambda status: cls._on_status_changed(download, status)
+        )
+        worker.start()
+        return worker
+
+    @classmethod
+    def _on_validation_progress(cls, download: DownloadObject, current_chunk: int, total_chunks: int):
+        """Handle validation progress updates"""
+        # Update download object with chunk progress
+        download.current_validation_chunk = current_chunk
+        download.total_validation_chunks = total_chunks
+
+    @classmethod
+    def _on_status_changed(cls, download: DownloadObject, status: str):
+        """Handle status changes during validation/extraction"""
+        # Map string status to DownloadStatus enum
+        status_map = {
+            "validating": DownloadStatus.VALIDATING,
+            "extracting": DownloadStatus.EXTRACTING,
+            "validation_complete": DownloadStatus.COMPLETED,
+        }
+        download.status = status_map.get(status, download.status)
+
+    @classmethod
+    def _on_validation_finished(cls, download: DownloadObject, success: bool, message: str):
+        """Handle validation completion - auto-start extraction on success"""
+        worker = cls._validation_workers.pop(id(download), None)
+
+        if worker:
+            worker.deleteLater()
+
+        if success:
+            logging.info(f"Validation completed: {download.filename}")
+            # Automatically start extraction
+            download.status = DownloadStatus.EXTRACTING
+            from pathlib import Path
+            pkg_path = Path(download.save_path) / download.filename
+            cls.start_extraction(download, pkg_path)
+        else:
+            logging.error(f"Validation failed: {download.filename} - {message}")
+            download.status = DownloadStatus.FAILED
+            # Show error dialog in GUI (handled by DownloadCard)
+
+    @classmethod
+    def start_extraction(cls, download: DownloadObject, pkg_path: Path) -> ExtractionWorker:
+        """Start extraction worker for validated installer
+
+        Args:
+            download: DownloadObject with validated installer
+            pkg_path: Path to InstallAssistant.pkg
+
+        Returns:
+            ExtractionWorker instance
+        """
+        from pathlib import Path
+
+        worker = ExtractionWorker(pkg_path, cls.aconstants)
+        cls._extraction_workers[id(download)] = worker
+
+        worker.finished_signal.connect(
+            lambda success, msg: cls._on_extraction_finished(download, success, msg)
+        )
+        worker.status_changed_signal.connect(
+            lambda status: cls._on_status_changed(download, status)
+        )
+        worker.start()
+        return worker
+
+    @classmethod
+    def _on_extraction_finished(cls, download: DownloadObject, success: bool, message: str):
+        """Handle extraction completion"""
+        worker = cls._extraction_workers.pop(id(download), None)
+
+        if worker:
+            worker.deleteLater()
+
+        if success:
+            logging.info(f"Extraction completed: {download.filename}")
+            download.status = DownloadStatus.COMPLETED
+        else:
+            logging.error(f"Extraction failed: {download.filename} - {message}")
+            download.status = DownloadStatus.FAILED
 
 
     @classmethod
@@ -123,6 +247,9 @@ class TaskManager:
         if download in cls._downloads:
             cls._downloads.remove(download)
         cls._workers.pop(id(download), None)
+        # Also cleanup validation and extraction workers
+        cls._validation_workers.pop(id(download), None)
+        cls._extraction_workers.pop(id(download), None)
 
     @classmethod
     def get_downloads(cls) -> list[DownloadObject]:
@@ -134,6 +261,8 @@ class TaskManager:
         """Clear all registered downloads"""
         cls._downloads.clear()
         cls._workers.clear()
+        cls._validation_workers.clear()
+        cls._extraction_workers.clear()
 
 
 class TaskInterface(ScrollArea):
@@ -315,6 +444,7 @@ class TaskInterface(ScrollArea):
                 card.resume_signal.connect(self._on_resume_download)
                 card.open_file_signal.connect(self._on_open_file)
                 card.open_folder_signal.connect(self._on_open_folder)
+                card.retry_download_signal.connect(self._on_retry_download)
 
                 self.download_cards[download_id] = card
 
@@ -330,6 +460,9 @@ class TaskInterface(ScrollArea):
         for download_id, card in list(self.download_cards.items()):
             card.update_progress()
             if card.download.status in (DownloadStatus.COMPLETED, DownloadStatus.FAILED):
+                # Don't move to history if validation or extraction workers are still active
+                if download_id in self.task_manager._validation_workers or download_id in self.task_manager._extraction_workers:
+                    continue
                 completed.append(card.download)
 
         for download in completed:
@@ -396,6 +529,38 @@ class TaskInterface(ScrollArea):
     def _on_resume_download(self, download: DownloadObject):
         """Handle resume download action"""
         self.task_manager.resume_download(download)
+
+    def _on_retry_download(self, download: DownloadObject):
+        """Handle retry download after validation failure"""
+        from pathlib import Path
+
+        logging.info(f"Retrying download: {download.filename}")
+
+        # Delete corrupted file
+        file_path = Path(download.save_path) / download.filename
+        if file_path.exists():
+            try:
+                file_path.unlink()
+                logging.info(f"Deleted corrupted file: {file_path}")
+            except Exception as e:
+                logging.error(f"Failed to delete corrupted file: {e}")
+
+        # Reset download status
+        download.status = DownloadStatus.PENDING
+        download.downloaded_size = 0
+        download.error_message = ""
+
+        # Restart download
+        icon = self.task_manager._icons.get(id(download))
+        self.task_manager.start_download(download, icon=icon)
+
+        InfoBar.info(
+            "Download Restarted",
+            f"Restarting download for {download.filename}",
+            duration=3000,
+            position=InfoBarPosition.TOP_RIGHT,
+            parent=self,
+        )
 
     def _on_remove_download(self, download: DownloadObject):
         """Handle remove download action"""

@@ -14,6 +14,7 @@ class DownloadCard(CardWidget):
     cancel_signal = Signal(object)
     pause_signal = Signal(object)
     resume_signal = Signal(object)
+    retry_download_signal = Signal(object)  # New signal for retry on validation failure
 
     def __init__(self, download_object: DownloadObject, icon=None, parent=None):
         super().__init__(parent)
@@ -135,14 +136,17 @@ class DownloadCard(CardWidget):
     # ── Helpers ──
 
     def _get_status_text(self) -> str:
-        return {
+        status_map = {
             DownloadStatus.PENDING: "Waiting...",
             DownloadStatus.DOWNLOADING: "Downloading...",
             DownloadStatus.PAUSED: "Paused",
+            DownloadStatus.VALIDATING: f"Validating chunk {self.download.current_validation_chunk}/{self.download.total_validation_chunks}" if self.download.total_validation_chunks > 0 else "Validating...",
+            DownloadStatus.EXTRACTING: "Extracting installer...",
             DownloadStatus.COMPLETED: "Completed",
             DownloadStatus.FAILED: f"Failed: {self.download.error_message}",
             DownloadStatus.CANCELLED: "Cancelled",
-        }.get(self.download.status, "Unknown")
+        }
+        return status_map.get(self.download.status, "Unknown")
 
     def _update_button_state(self):
         is_downloading = self.download.status == DownloadStatus.DOWNLOADING
@@ -156,14 +160,67 @@ class DownloadCard(CardWidget):
     # ── Public Methods ──
 
     def update_progress(self):
-        self.progressBar.setValue(self.download.get_progress_percentage())
-        self.speedLabel.setText(self.download.get_speed_display())
-        self.sizeLabel.setText(self.download.get_size_display())
-        self.percentLabel.setText(f"{self.download.get_progress_percentage()}%")
+        """Update progress display based on download status"""
+        current_status = self.download.status
+
+        if current_status == DownloadStatus.DOWNLOADING:
+            # Regular download progress
+            self.progressBar.setValue(self.download.get_progress_percentage())
+            self.speedLabel.setText(self.download.get_speed_display())
+            self.sizeLabel.setText(self.download.get_size_display())
+            self.percentLabel.setText(f"{self.download.get_progress_percentage()}%")
+
+            # Show regular progress bar, hide indeterminate
+            self.progressBar.show()
+            self.indeterminateProgressBar.hide()
+        elif current_status == DownloadStatus.VALIDATING:
+            # Show indeterminate progress for validation
+            self.progressBar.hide()
+            self.indeterminateProgressBar.show()
+            self.speedLabel.setText("")
+            self.sizeLabel.setText("")
+            self.percentLabel.setText("")
+        elif current_status == DownloadStatus.EXTRACTING:
+            # Show indeterminate progress for extraction
+            self.progressBar.hide()
+            self.indeterminateProgressBar.show()
+            self.speedLabel.setText("")
+            self.sizeLabel.setText("")
+            self.percentLabel.setText("")
+        elif current_status == DownloadStatus.COMPLETED:
+            # Show 100% progress
+            self.progressBar.setValue(100)
+            self.speedLabel.setText("")
+            self.sizeLabel.setText(self.download.get_size_display())
+            self.percentLabel.setText("100%")
+            self.progressBar.show()
+            self.indeterminateProgressBar.hide()
+        elif current_status == DownloadStatus.FAILED:
+            # Check if this is a validation failure
+            if "Hash mismatch" in self.download.error_message or "checksum" in self.download.error_message.lower():
+                # This is a validation failure, show retry dialog
+                self.handle_validation_failure(self.download.error_message)
+                return
+
         self.contentLabel.setText(self._get_status_text())
         self._update_button_state()
 
     def set_status(self, status: DownloadStatus):
+        """Set download status and update UI accordingly"""
         self.download.status = status
+
+        # Handle progress bar switching
+        if status in (DownloadStatus.VALIDATING, DownloadStatus.EXTRACTING):
+            # Show indeterminate progress bar
+            self.progressBar.hide()
+            self.indeterminateProgressBar.start()
+            self.indeterminateProgressBar.show()
+        else:
+            # Show regular progress bar
+            self.progressBar.show()
+            self.indeterminateProgressBar.hide()
+            if status == DownloadStatus.DOWNLOADING:
+                self.progressBar.setValue(self.download.get_progress_percentage())
+
         self.contentLabel.setText(self._get_status_text())
         self._update_button_state()

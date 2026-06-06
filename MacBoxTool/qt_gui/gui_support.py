@@ -434,25 +434,15 @@ class GenerateMenubar:
     def __init__(self, window: QMainWindow, global_constants: Constants) -> None:
         self.window: QMainWindow = window
         self.constants: Constants = global_constants
-        self.trans = self._get_translations()
-
-    def _get_translations(self):
-        """Get translation dictionary for gui_support"""
-        # TODO: Integrate with actual translation system
-        return {
-            "&About OCLP-R": "&About OCLP-R",
-            "&Reveal Log File": "&Reveal Log File",
-            "Internal Error occurred!": "Internal Error occurred!",
-        }
 
     def generate(self) -> QMenuBar:
         """Generate and attach menu bar to window"""
         menubar = self.window.menuBar()
         fileMenu = menubar.addMenu("&File")
 
-        aboutAction = fileMenu.addAction(self.trans["&About OCLP-R"])
+        aboutAction = fileMenu.addAction("&About OCLP-R")
         fileMenu.addSeparator()
-        revealLogAction = fileMenu.addAction(self.trans["&Reveal Log File"])
+        revealLogAction = fileMenu.addAction("&Reveal Log File")
 
         aboutAction.triggered.connect(lambda: self._show_about())
         revealLogAction.triggered.connect(
@@ -555,8 +545,8 @@ class PayloadMount:
         # Show error dialog
         QMessageBox.critical(
             self.parent,
-            self.trans["Internal Error occurred!"],
-            self.trans["During unpacking of our internal files, we seemed to have encountered an error.\n\nIf you keep seeing this error, please try rebooting and redownloading the application."]
+            "Internal Error occurred!",
+            "During unpacking of our internal files, we seemed to have encountered an error.\n\nIf you keep seeing this error, please try rebooting and redownloading the application."
         )
         sys.exit(1)
 
@@ -606,7 +596,7 @@ class RestartHost:
         """Prompt user for restart confirmation"""
         reply = QMessageBox.question(
             self.parent,
-            self.trans["Reboot to apply?"],
+            "Reboot to apply?",
             message,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes
@@ -619,5 +609,5 @@ class RestartHost:
                 import applescript
                 applescript.AppleScript('tell app "loginwindow" to «event aevtrrst»').run()
             except Exception as e:
-                logging.error(f"{self.trans['Error while trying to reboot:']} {e}")
+                logging.error(f"{'Error while trying to reboot:'} {e}")
             sys.exit(0)
