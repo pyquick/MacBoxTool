@@ -2,8 +2,20 @@
 gui_support.py: Give custom looks
 """
 
-
 from ..include import *
+
+# Additional imports for converted wxPython classes
+from PySide6.QtWidgets import QMenuBar, QMenu, QMessageBox, QProgressBar, QPlainTextEdit, QMainWindow, QWidget
+from PySide6.QtCore import QMetaObject, Qt, Q_ARG, QTimer, QObject
+from PySide6.QtGui import QFont
+import subprocess
+import sys
+import logging
+import threading
+import time
+import plistlib
+import packaging.version
+from pathlib import Path
 
 
 class ThemeAwareCard(CardWidget):
@@ -275,3 +287,337 @@ def wait_for_thread(thread: threading.Thread, sleep_interval=None):
     while thread.is_alive():
         QApplication.processEvents()  # Process Qt events instead of wx.Yield()
         thread.join(timeout=interval)
+
+
+# =============================================================================
+# Converted wxPython Classes from nd.py
+# =============================================================================
+
+class AutoUpdateStages:
+    """Auto-update stage constants"""
+    INACTIVE = 0
+    CHECKING = 1
+    BUILDING = 2
+    INSTALLING = 3
+    ROOT_PATCHING = 4
+    FINISHED = 5
+
+
+class CheckModernAudio:
+    """Check if modern audio (AppleALC) is in use"""
+    def __init__(self):
+        self.constants: Constants = Constants()
+
+    def audio_check(self):
+        """Returns True if AppleALC, False if VoodooHDA"""
+        if self.constants.audio_type == "VoodooHDA":
+            return False
+        if self.constants.audio_type == "AppleALC":
+            return True
+        return False
+
+
+class CheckProperties:
+    """Property checking utilities for host system"""
+
+    def __init__(self, global_constants: Constants) -> None:
+        self.constants: Constants = global_constants
+
+    def host_can_build(self):
+        """
+        Check if host supports building OpenCore configs
+        """
+        if self.constants.custom_model:
+            return True
+        if self.constants.host_is_hackintosh is True:
+            return False
+        if self.constants.allow_oc_everywhere is True:
+            return True
+        if self.constants.computer.real_model in model_array.SupportedSMBIOS:
+            return True
+
+        return False
+
+    def host_is_non_metal(self, general_check: bool = False):
+        """
+        Check if host is non-metal
+        Primarily for QProgressBar workaround on macOS
+        """
+        if self.constants.detected_os < os_data.os_data.monterey and general_check is False:
+            return False
+        if self.constants.detected_os < os_data.os_data.big_sur and general_check is True:
+            return False
+        if not Path("/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/SkyLightOld.dylib").exists():
+            # SkyLight stubs are only used on non-Metal
+            return False
+
+        return True
+
+    def host_is_solarium(self) -> bool:
+        """Check if host is Solarium or later"""
+        if self.constants.detected_os < os_data.os_data.tahoe:
+            return False
+        return True
+
+    def host_has_cpu_gen(self, gen: int) -> bool:
+        """
+        Check if host has a CPU generation equal to or greater than the specified generation
+        """
+        model = self.constants.custom_model if self.constants.custom_model else self.constants.computer.real_model
+        if model in smbios_data.smbios_dictionary:
+            if smbios_data.smbios_dictionary[model]["CPU Generation"] >= gen:
+                return True
+        return False
+
+    def host_psp_version(self) -> packaging.version.Version:
+        """
+        Grab PatcherSupportPkg version from OCLP-R.plist
+        """
+        oclp_plist_path = "/System/Library/CoreServices/OCLP-R.plist"
+        if not Path(oclp_plist_path).exists():
+            return packaging.version.Version("0.0.0")
+
+        oclp_plist = plistlib.load(open(oclp_plist_path, "rb"))
+        if "PatcherSupportPkg" not in oclp_plist:
+            return packaging.version.Version("0.0.0")
+
+        if oclp_plist["PatcherSupportPkg"].startswith("v"):
+            oclp_plist["PatcherSupportPkg"] = oclp_plist["PatcherSupportPkg"][1:]
+
+        return packaging.version.parse(oclp_plist["PatcherSupportPkg"])
+
+    def host_has_3802_gpu(self) -> bool:
+        """
+        Check if either host, or override model, has a 3802 GPU
+        """
+        gpu_archs = []
+        if self.constants.custom_model:
+            model = self.constants.custom_model
+        else:
+            model = self.constants.computer.real_model
+            gpu_archs = [gpu.arch for gpu in self.constants.computer.gpus]
+
+        if not gpu_archs:
+            gpu_archs = smbios_data.smbios_dictionary.get(model, {}).get("Stock GPUs", [])
+
+        for arch in gpu_archs:
+            if arch in [
+                device_probe.Intel.Archs.Ivy_Bridge,
+                device_probe.Intel.Archs.Haswell,
+                device_probe.NVIDIA.Archs.Kepler,
+            ]:
+                return True
+
+        return False
+
+
+def get_font_face():
+    """Get system default font family name"""
+    if not get_font_face.font_face:
+        default_font = QApplication.font()
+        get_font_face.font_face = default_font.family() or "SF Pro Display"
+    return get_font_face.font_face
+
+get_font_face.font_face = None
+
+
+def font_factory(size: int, weight: QFont.Weight) -> QFont:
+    """Create QFont with specified size and weight"""
+    font = QFont(get_font_face(), size)
+    font.setWeight(weight)
+    return font
+
+
+class GenerateMenubar:
+    """Generate menu bar for Qt windows"""
+
+    def __init__(self, window: QMainWindow, global_constants: Constants) -> None:
+        self.window: QMainWindow = window
+        self.constants: Constants = global_constants
+        self.trans = self._get_translations()
+
+    def _get_translations(self):
+        """Get translation dictionary for gui_support"""
+        # TODO: Integrate with actual translation system
+        return {
+            "&About OCLP-R": "&About OCLP-R",
+            "&Reveal Log File": "&Reveal Log File",
+            "Internal Error occurred!": "Internal Error occurred!",
+        }
+
+    def generate(self) -> QMenuBar:
+        """Generate and attach menu bar to window"""
+        menubar = self.window.menuBar()
+        fileMenu = menubar.addMenu("&File")
+
+        aboutAction = fileMenu.addAction(self.trans["&About OCLP-R"])
+        fileMenu.addSeparator()
+        revealLogAction = fileMenu.addAction(self.trans["&Reveal Log File"])
+
+        aboutAction.triggered.connect(lambda: self._show_about())
+        revealLogAction.triggered.connect(
+            lambda: subprocess.run(["/usr/bin/open", "--reveal", self.constants.log_filepath])
+        )
+
+        return menubar
+
+    def _show_about(self):
+        """Launch about dialog"""
+        try:
+            from .gui_about import AboutInterface
+            about_dialog = AboutInterface(self.constants)
+            about_dialog.exec()
+        except Exception as e:
+            logging.error(f"Failed to show about dialog: {e}")
+
+
+class GaugePulseCallback(QObject):
+    """
+    Uses QTimer for smooth progress bar animation on macOS
+    Alternative to setRange(0, 0) for indeterminate progress
+
+    Note: This work-around is no longer needed on hosts using PatcherSupportPkg 1.1.2 or newer
+    """
+
+    def __init__(self, global_constants: Constants, progress_bar: QProgressBar) -> None:
+        super().__init__()
+        self.progress_bar: QProgressBar = progress_bar
+        self.timer = QTimer()
+        self.timer.timeout.connect(self._pulse)
+
+        self.gauge_value: int = 0
+        self.pulse_forward: bool = True
+        self.max_value: int = 100
+
+        # Check if we need the workaround
+        self.non_metal_alternative: bool = CheckProperties(global_constants).host_is_non_metal()
+        if self.non_metal_alternative:
+            if CheckProperties(global_constants).host_psp_version() >= packaging.version.Version("1.1.2"):
+                self.non_metal_alternative = False
+
+    def start_pulse(self) -> None:
+        """Start the pulse animation"""
+        if not self.non_metal_alternative:
+            # Use Qt's built-in indeterminate progress
+            self.progress_bar.setRange(0, 0)
+            return
+
+        # Use custom pulse animation
+        self.progress_bar.setRange(0, self.max_value)
+        self.timer.start(5)  # 5ms interval for smooth animation
+
+    def stop_pulse(self) -> None:
+        """Stop the pulse animation"""
+        if not self.non_metal_alternative:
+            self.progress_bar.setRange(0, 100)  # Reset to determinate
+            return
+
+        self.timer.stop()
+
+    def _pulse(self) -> None:
+        """Update progress bar value"""
+        if self.gauge_value == 0:
+            self.pulse_forward = True
+        elif self.gauge_value == self.max_value:
+            self.pulse_forward = False
+
+        if self.pulse_forward:
+            self.gauge_value += 1
+        else:
+            self.gauge_value -= 1
+
+        self.progress_bar.setValue(self.gauge_value)
+
+
+class PayloadMount:
+    """Check if payload unpacking is complete"""
+
+    def __init__(self, global_constants: Constants, parent: QWidget) -> None:
+        self.constants: Constants = global_constants
+        self.trans = self._get_translations()
+        self.parent: QWidget = parent
+
+    def _get_translations(self):
+        """Get translation dictionary"""
+        return {
+            "During unpacking of our internal files, we seemed to have encountered an error.\n\nIf you keep seeing this error, please try rebooting and redownloading the application.": "During unpacking of our internal files, we seemed to have encountered an error.\n\nIf you keep seeing this error, please try rebooting and redownloading the application.",
+            "Internal Error occurred!": "Internal Error occurred!"
+        }
+
+    def is_unpack_finished(self):
+        """Check if payload unpacking is complete"""
+        if self.constants.unpack_thread.is_alive():
+            return False
+
+        if Path(self.constants.payload_kexts_path).exists():
+            return True
+
+        # Show error dialog
+        QMessageBox.critical(
+            self.parent,
+            self.trans["Internal Error occurred!"],
+            self.trans["During unpacking of our internal files, we seemed to have encountered an error.\n\nIf you keep seeing this error, please try rebooting and redownloading the application."]
+        )
+        sys.exit(1)
+
+
+class ThreadHandler(logging.Handler):
+    """
+    Reroutes logging output to a QPlainTextEdit using UI callbacks
+    Thread-safe for Qt GUI updates
+    """
+
+    def __init__(self, text_edit: QPlainTextEdit):
+        logging.Handler.__init__(self)
+        self.text_edit = text_edit
+
+    def emit(self, record: logging.LogRecord):
+        """Thread-safe emit using Qt's signal/slot mechanism"""
+        msg = self.format(record) + '\n'
+        # Use QMetaObject.invokeMethod for thread-safe GUI updates
+        QMetaObject.invokeMethod(
+            self.text_edit,
+            "appendPlainText",
+            Qt.ConnectionType.QueuedConnection,
+            Q_ARG(str, msg)
+        )
+
+
+class RestartHost:
+    """
+    Restarts the host machine with user confirmation
+    """
+
+    def __init__(self, parent: QWidget) -> None:
+        self.parent: QWidget = parent
+        self.constants: Constants = Constants()
+        self.trans = self._get_translations()
+
+    def _get_translations(self):
+        """Get translation dictionary"""
+        return {
+            "Reboot to apply?": "Reboot to apply?",
+            "Reboot": "Reboot",
+            "Ignore": "Ignore",
+            "Error while trying to reboot:": "Error while trying to reboot:"
+        }
+
+    def restart(self, message: str = ""):
+        """Prompt user for restart confirmation"""
+        reply = QMessageBox.question(
+            self.parent,
+            self.trans["Reboot to apply?"],
+            message,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            self.parent.hide()
+            QApplication.processEvents()
+            try:
+                import applescript
+                applescript.AppleScript('tell app "loginwindow" to «event aevtrrst»').run()
+            except Exception as e:
+                logging.error(f"{self.trans['Error while trying to reboot:']} {e}")
+            sys.exit(0)
