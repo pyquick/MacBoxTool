@@ -63,6 +63,45 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# Testing - Test Reports and Coverage
+test_reports/
+coverage_reports/
+xmlcov/
+test_results/
+testing_artifacts/
+
+# Testing - Screenshots and recordings (GUI tests)
+test_screenshots/
+gui_test_recordings/
+
+# Testing - Mock data and temporary files
+test_mock_data/
+test_temp/
+
+# Testing - Logs and debugging
+test_logs/
+debug_logs/
+
+# Testing - Coverage and profiling
+test_profiling/
+benchmarks/
+
+# Testing - Virtual environments for testing
+test_venv/
+.venv_test/
+testing_env/
+
+# Testing - Build artifacts for testing
+test_builds/
+test_dist/
+test_efi_builds/
+mock_efi/
+
+# Testing - Test runner configuration
+test_config.local.*
+pytest.local.ini
+tox.local.ini
+
 # Translations
 *.mo
 *.pot
@@ -239,3 +278,12 @@ part_16
 InstallAssistant-*.pkg
 *.pkg
 watch_logs.sh
+# Testing - Testing standards documentation (local development only)
+docs/TESTING-STANDARDS.md
+docs/TESTING.md
+
+# Testing - Test requirements (local development only)
+requirements_test.txt
+
+# Testing - Test suite (local development only)
+tests/

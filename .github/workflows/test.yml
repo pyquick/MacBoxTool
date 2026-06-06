@@ -1,0 +1,231 @@
+name: MacBoxTool Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }} - ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest]
+        arch: [x86_64, arm64]
+        python-version: ['3.14']
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Install system dependencies
+      if: runner.os == 'macOS'
+      run: |
+        brew install python@3.14
+
+    - name: Install dependencies
+      run: |
+        python3.14 -m pip install --upgrade pip
+        pip3.14 install -r requirements_macOS.txt
+        pip3.14 install pytest pytest-qt pytest-cov pytest-mock pytest-timeout pytest-xdist
+
+    - name: Lint with ruff
+      run: |
+        pip3.14 install ruff
+        ruff check MacBoxTool/ --output-format=github --select=E9,F63,F7,F82 --show-source
+
+    - name: Run unit tests
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        pytest tests/unit/ -v --cov=MacBoxTool --cov-report=xml --cov-report=term-missing
+
+    - name: Run integration tests
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        pytest tests/integration/ -v --cov=MacBoxTool --cov-append --cov-report=xml
+
+    - name: Run GUI tests with headless display
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        pytest tests/gui/ -v --cov=MacBoxTool --cov-append --cov-report=xml
+
+    - name: Run CLI tests
+      run: |
+        pytest tests/cli/ -v --cov=MacBoxTool --cov-append --cov-report=xml
+
+    - name: Run end-to-end tests
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        pytest tests/e2e/ -v --cov=MacBoxTool --cov-append --cov-report=xml
+
+    - name: Run error handling tests
+      run: |
+        pytest tests/error_handling/ -v --cov=MacBoxTool --cov-append --cov-report=xml
+
+    - name: Test application launch (critical)
+      run: |
+        python3.14 MaxBoxTool_GUI.command --version
+        python3.14 MaxBoxTool_GUI.command --help
+
+    - name: Generate coverage report
+      run: |
+        pytest tests/ --cov=MacBoxTool --cov-report=html --cov-report=xml --cov-report=term
+
+    - name: Check coverage thresholds
+      run: |
+        pytest tests/ --cov=MacBoxTool --cov-fail-under=60
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-${{ matrix.os }}-${{ matrix.arch }}
+        fail_ci_if_error: false
+
+    - name: Archive test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.os }}-${{ matrix.arch }}
+        path: |
+          htmlcov/
+          coverage.xml
+          .pytest_cache/
+
+  test-performance:
+    name: Performance Tests
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.14
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.14'
+
+    - name: Install dependencies
+      run: |
+        python3.14 -m pip install --upgrade pip
+        pip3.14 install pytest pytest-benchmark
+
+    - name: Run performance benchmarks
+      run: |
+        pytest tests/ -k "benchmark" --benchmark-only --benchmark-json=benchmark.json
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: benchmark.json
+
+  test-security:
+    name: Security Scan
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.14
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.14'
+
+    - name: Install dependencies
+      run: |
+        python3.14 -m pip install --upgrade pip
+        pip3.14 install bandit safety
+
+    - name: Run security scan with bandit
+      run: |
+        bandit -r MacBoxTool/ -f json -o bandit-report.json || true
+
+    - name: Check dependencies for security issues
+      run: |
+        pip3.14 install -r requirements_macOS.txt
+        safety check --json > safety-report.json || true
+
+    - name: Upload security reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-reports
+        path: |
+          bandit-report.json
+          safety-report.json
+
+  test-integration:
+    name: Integration Tests - Multiple Platforms
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.14
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.14'
+
+    - name: Install dependencies
+      run: |
+        python3.14 -m pip install --upgrade pip
+        pip3.14 install -r requirements_macOS.txt
+        pip3.14 install pytest pytest-qt pytest-cov
+
+    - name: Run cross-platform integration tests
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        pytest tests/integration/ -v --tb=short
+
+    - name: Test EFI building with multiple hardware profiles
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        pytest tests/integration/test_efi_build_workflow.py -v
+
+  report:
+    name: Test Report
+    runs-on: macos-latest
+    needs: [test, test-performance, test-security]
+    if: always()
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Generate test summary
+      run: |
+        echo "# MacBoxTool Test Results" > test-summary.md
+        echo "" >> test-summary.md
+        echo "## Test Matrix" >> test-summary.md
+        echo "- All tests completed: ${{ needs.test.result }}" >> test-summary.md
+        echo "- Performance tests: ${{ needs.test-performance.result }}" >> test-summary.md
+        echo "- Security scan: ${{ needs.test-security.result }}" >> test-summary.md
+
+    - name: Upload test summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-summary
+        path: test-summary.md
