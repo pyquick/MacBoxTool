@@ -172,7 +172,9 @@ class TaskManager:
             "extracting": DownloadStatus.EXTRACTING,
             "validation_complete": DownloadStatus.COMPLETED,
         }
-        download.status = status_map.get(status, download.status)
+        new_status = status_map.get(status)
+        if new_status and download.status != new_status:
+            download.status = new_status
 
     @classmethod
     def _on_validation_finished(cls, download: DownloadObject, success: bool, message: str):

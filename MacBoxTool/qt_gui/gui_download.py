@@ -19,6 +19,7 @@ class DownloadCard(CardWidget):
     def __init__(self, download_object: DownloadObject, icon=None, parent=None):
         super().__init__(parent)
         self.download = download_object
+        self._displayed_status = None
 
         self.setFixedHeight(73)
         self._init_widgets(icon)
@@ -157,11 +158,30 @@ class DownloadCard(CardWidget):
         self.pause_action.setEnabled(is_downloading)
         self.resume_action.setEnabled(is_paused)
 
+    def _apply_progress_mode(self, status: DownloadStatus):
+        if status == self._displayed_status:
+            return
+
+        self._displayed_status = status
+
+        if status == DownloadStatus.EXTRACTING:
+            self.progressBar.hide()
+            if not self.indeterminateProgressBar.isStarted():
+                self.indeterminateProgressBar.start()
+            self.indeterminateProgressBar.show()
+            return
+
+        self.progressBar.show()
+        if self.indeterminateProgressBar.isStarted():
+            self.indeterminateProgressBar.stop()
+        self.indeterminateProgressBar.hide()
+
     # ── Public Methods ──
 
     def update_progress(self):
         """Update progress display based on download status"""
         current_status = self.download.status
+        self._apply_progress_mode(current_status)
 
         if current_status == DownloadStatus.DOWNLOADING:
             # Regular download progress
@@ -169,22 +189,12 @@ class DownloadCard(CardWidget):
             self.speedLabel.setText(self.download.get_speed_display())
             self.sizeLabel.setText(self.download.get_size_display())
             self.percentLabel.setText(f"{self.download.get_progress_percentage()}%")
-
-            # Show regular progress bar, hide indeterminate
-            self.progressBar.show()
-            self.indeterminateProgressBar.hide()
         elif current_status == DownloadStatus.VALIDATING:
             self.progressBar.setValue(self.download.get_progress_percentage())
-            self.progressBar.show()
-            self.indeterminateProgressBar.hide()
             self.speedLabel.setText("")
             self.sizeLabel.setText("")
             self.percentLabel.setText(f"{self.download.get_progress_percentage()}%")
         elif current_status == DownloadStatus.EXTRACTING:
-            # Show indeterminate progress for extraction
-            self.progressBar.hide()
-            self.indeterminateProgressBar.start()
-            self.indeterminateProgressBar.show()
             self.speedLabel.setText("")
             self.sizeLabel.setText("")
             self.percentLabel.setText("")
@@ -194,8 +204,6 @@ class DownloadCard(CardWidget):
             self.speedLabel.setText("")
             self.sizeLabel.setText(self.download.get_size_display())
             self.percentLabel.setText("100%")
-            self.progressBar.show()
-            self.indeterminateProgressBar.hide()
         elif current_status == DownloadStatus.FAILED:
             # Check if this is a validation failure
             if "Hash mismatch" in self.download.error_message or "checksum" in self.download.error_message.lower():
@@ -209,19 +217,12 @@ class DownloadCard(CardWidget):
     def set_status(self, status: DownloadStatus):
         """Set download status and update UI accordingly"""
         self.download.status = status
+        self._apply_progress_mode(status)
 
-        # Handle progress bar switching
-        if status == DownloadStatus.EXTRACTING:
-            # Show indeterminate progress bar
-            self.progressBar.hide()
-            self.indeterminateProgressBar.start()
-            self.indeterminateProgressBar.show()
-        else:
-            # Show regular progress bar
-            self.progressBar.show()
-            self.indeterminateProgressBar.hide()
-            if status in (DownloadStatus.DOWNLOADING, DownloadStatus.VALIDATING):
-                self.progressBar.setValue(self.download.get_progress_percentage())
+        if status in (DownloadStatus.DOWNLOADING, DownloadStatus.VALIDATING):
+            self.progressBar.setValue(self.download.get_progress_percentage())
+        elif status == DownloadStatus.COMPLETED:
+            self.progressBar.setValue(100)
 
         self.contentLabel.setText(self._get_status_text())
         self._update_button_state()
