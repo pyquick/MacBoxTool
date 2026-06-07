@@ -355,7 +355,7 @@ class Introduction(ScrollArea):
         except version.InvalidVersion:
             return None
     def _create_note_card(self):
-        self.oclp_version=self.find_oclp_version() or "3.1.3"
+        self.oclp_version=self.find_oclp_version() or "3.1.4"
         return self.ui_support.custom_card(
             card_type="note",
             title="OCLP-R: - Now Supports macOS Tahoe 26!",
