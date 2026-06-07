@@ -80,6 +80,8 @@ class DownloadObject:
 
     def get_progress_percentage(self) -> int:
         """Get download progress percentage"""
+        if self.status == DownloadStatus.VALIDATING and self.total_validation_chunks > 0:
+            return int((self.current_validation_chunk / self.total_validation_chunks) * 100)
         if self.total_size == 0:
             return 0
         return int((self.downloaded_size / self.total_size) * 100)

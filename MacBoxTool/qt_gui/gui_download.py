@@ -52,7 +52,7 @@ class DownloadCard(CardWidget):
         self.progressBar.setRange(0, 100)
         self.progressBar.setValue(self.download.get_progress_percentage())
 
-        # Indeterminate progress bar for validation/extraction (initially hidden)
+        # Indeterminate progress bar for extraction (initially hidden)
         self.indeterminateProgressBar = IndeterminateProgressBar(self, start=False)
         self.indeterminateProgressBar.setFixedWidth(200)
         self.indeterminateProgressBar.setFixedHeight(4)
@@ -174,15 +174,16 @@ class DownloadCard(CardWidget):
             self.progressBar.show()
             self.indeterminateProgressBar.hide()
         elif current_status == DownloadStatus.VALIDATING:
-            # Show indeterminate progress for validation
-            self.progressBar.hide()
-            self.indeterminateProgressBar.show()
+            self.progressBar.setValue(self.download.get_progress_percentage())
+            self.progressBar.show()
+            self.indeterminateProgressBar.hide()
             self.speedLabel.setText("")
             self.sizeLabel.setText("")
-            self.percentLabel.setText("")
+            self.percentLabel.setText(f"{self.download.get_progress_percentage()}%")
         elif current_status == DownloadStatus.EXTRACTING:
             # Show indeterminate progress for extraction
             self.progressBar.hide()
+            self.indeterminateProgressBar.start()
             self.indeterminateProgressBar.show()
             self.speedLabel.setText("")
             self.sizeLabel.setText("")
@@ -210,7 +211,7 @@ class DownloadCard(CardWidget):
         self.download.status = status
 
         # Handle progress bar switching
-        if status in (DownloadStatus.VALIDATING, DownloadStatus.EXTRACTING):
+        if status == DownloadStatus.EXTRACTING:
             # Show indeterminate progress bar
             self.progressBar.hide()
             self.indeterminateProgressBar.start()
@@ -219,7 +220,7 @@ class DownloadCard(CardWidget):
             # Show regular progress bar
             self.progressBar.show()
             self.indeterminateProgressBar.hide()
-            if status == DownloadStatus.DOWNLOADING:
+            if status in (DownloadStatus.DOWNLOADING, DownloadStatus.VALIDATING):
                 self.progressBar.setValue(self.download.get_progress_percentage())
 
         self.contentLabel.setText(self._get_status_text())
