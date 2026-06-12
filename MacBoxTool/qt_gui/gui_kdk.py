@@ -100,6 +100,7 @@ class KDKCard(NoAnimCardWidget):
 
         def check_macos_veersion():
             build = kdk_data.get("build", "Unknown")[:2]
+            if build=="26": self.name="Golden Gate"
             if build=="25": self.name="Tahoe"
             if build=="24": self.name="Sequoia"
             if build=="23": self.name="Sonoma"

@@ -61,6 +61,7 @@ class InstallerBackup:
             os_data.os_data.sonoma:   Path(self._directory, "14 Sonoma"),
             os_data.os_data.sequoia:  Path(self._directory, "15 Sequoia"),
             os_data.os_data.tahoe:    Path(self._directory, "26 Tahoe"),
+            os_data.os_data.golden_gate:    Path(self._directory, "27 Golden Gate"),
         }
 
         for os_version in self._supported_oses:

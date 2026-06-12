@@ -37,7 +37,8 @@ class os_data(enum.IntEnum):
     sonoma =        23
     sequoia =       24
     tahoe =         25
-    macos_next=     26 # Unknown macOS
+    golden_gate=    26
+    macos_next=     27 # Unknown macOS
     max_os =        99
 
 
