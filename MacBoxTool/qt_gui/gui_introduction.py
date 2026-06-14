@@ -272,7 +272,7 @@ class Introduction(ScrollArea):
                 )
 
                 # Refresh UI
-                self._init_ui()
+                self.update()
             else:
                 # User cancelled or error
                 error_msg = result.stderr or "Installation was cancelled or failed."
