@@ -175,10 +175,10 @@ class MetallibCard(NoAnimCardWidget):
             if index is not None and index < len(self.constants.package_icns_paths):
                 icns_path = self.constants.package_icns_paths[index]
                 # Convert .icns to .png
-                return icns_path.rsplit('.', 1)[0] + '.png'
+                return str(Path(icns_path).with_suffix(".png"))
 
         # Fallback to generic Package.png
-        return str(self.constants.package_icns_path_generic.rsplit('.', 1)[0] + '.png')
+        return str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
 
     def _init_layout(self):
         layout = QHBoxLayout(self)
@@ -421,10 +421,10 @@ class MetallibList(ScrollArea):
             if index is not None and index < len(self.constants.package_icns_paths):
                 icns_path = self.constants.package_icns_paths[index]
                 # Convert .icns to .png
-                return icns_path.rsplit('.', 1)[0] + '.png'
+                return str(Path(icns_path).with_suffix(".png"))
 
         # Fallback to generic Package.png
-        return str(self.constants.package_icns_path_generic.rsplit('.', 1)[0] + '.png')
+        return str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
 
     def _on_download(self, metallib_data: dict):
         url = metallib_data.get("url")

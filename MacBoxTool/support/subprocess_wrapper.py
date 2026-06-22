@@ -8,11 +8,8 @@ import logging
 import subprocess
 
 from pathlib import Path
-from ..constants import Constants
 
 MBT_PRIVILEGED_HELPER = "/Library/PrivilegedHelperTools/com.pyquick.macboxtool.privileged-helper"
-
-constants: Constants = Constants()
 
 
 class PrivilegedHelperErrorCodes(enum.IntEnum):

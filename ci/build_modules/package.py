@@ -29,6 +29,8 @@ class GeneratePackage:
         }
         self._autopkg_files.update(self._files)
 
+        self._constants = constants.Constants()
+
         # Detect architecture for pkg naming
         self._arch = platform.machine()
         self._pkg_suffix = f"-{self._arch}" if self._arch in ["x86_64", "arm64"] else ""
@@ -41,7 +43,7 @@ class GeneratePackage:
         _welcome = ""
 
         _welcome += "# Overview\n"
-        _welcome += f"This package will install the MacBoxTool application (v{constants.Constants().macboxtool_version}, {self._arch}) on your system."
+        _welcome += f"This package will install the MacBoxTool application (v{self._constants.macboxtool_version}, {self._arch}) on your system."
 
         _welcome += "\n\nAdditionally, a shortcut for MacBoxTool will be added in the '/Applications' folder."
         _welcome += "\n\nThis package will not 'Build and Install OpenCore' or install any 'Root Patches' on your machine. If required, you can run MacBoxTool to install any patches you may need."
@@ -66,7 +68,7 @@ class GeneratePackage:
         _welcome += "\n\n"
         _welcome += "This will not remove any root patches or OpenCore configurations that you may have installed using MacBoxTool."
         _welcome += "\n\n"
-        _welcome += f"For more information on MacBoxTool, see our [documentation]({constants.Constants().guide_link}) and [GitHub repository]({constants.Constants().repo_link})."
+        _welcome += f"For more information on MacBoxTool, see our [documentation]({self._constants.guide_link}) and [GitHub repository]({self._constants.repo_link})."
 
         return _welcome
 
@@ -80,7 +82,7 @@ class GeneratePackage:
         _welcome += "# DO NOT RUN AUTOPKG-ASSETS MANUALLY!\n\n"
         _welcome += "## THIS CAN BREAK YOUR SYSTEM'S INSTALL!\n\n"
         _welcome += "This package should only ever be invoked by the Patcher itself, never downloaded or run by the user. Download the MacBoxTool.pkg on the Github Repository.\n\n"
-        _welcome += f"[MacBoxTool GitHub Release]({constants.Constants().repo_link})"
+        _welcome += f"[MacBoxTool GitHub Release]({self._constants.repo_link})"
 
         return _welcome
 
@@ -97,7 +99,7 @@ class GeneratePackage:
         assert macos_pkg_builder.Packages(
             pkg_output=f"./dist/MacBoxTool-Uninstaller{self._pkg_suffix}.pkg",
             pkg_bundle_id="com.pyquick.macboxtool-uninstaller",
-            pkg_version=constants.Constants().macboxtool_version,
+            pkg_version=self._constants.macboxtool_version,
             pkg_background="./ci/pkg_assets/PkgBackground-Uninstaller.png",
             pkg_preinstall_script=_tmp_uninstall.name,
             pkg_as_distribution=True,
@@ -117,7 +119,7 @@ class GeneratePackage:
         assert macos_pkg_builder.Packages(
             pkg_output=f"./dist/MacBoxTool{self._pkg_suffix}.pkg",
             pkg_bundle_id="com.pyquick.macboxtool",
-            pkg_version=constants.Constants().macboxtool_version,
+            pkg_version=self._constants.macboxtool_version,
             pkg_allow_relocation=False,
             pkg_as_distribution=True,
             pkg_background="./ci/pkg_assets/PkgBackground-Installer.png",
@@ -141,7 +143,7 @@ class GeneratePackage:
         # assert macos_pkg_builder.Packages(
         #     pkg_output="./dist/AutoPkg-Assets.pkg",
         #     pkg_bundle_id="com.pyquick.pkg.AutoPkg-Assets",
-        #     pkg_version=constants.Constants().macboxtool_version,
+        #     pkg_version=self._constants.macboxtool_version,
         #     pkg_allow_relocation=False,
         #     pkg_as_distribution=True,
         #     pkg_background="./ci/pkg_assets/PkgBackground-AutoPkg.png",

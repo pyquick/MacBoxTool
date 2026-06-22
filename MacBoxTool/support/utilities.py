@@ -286,7 +286,7 @@ def check_ap_security_policy():
     return 0
 
 def check_secure_boot_level():
-    if check_secure_boot_model() in constants.Constants().sbm_values:
+    if check_secure_boot_model() in constants.Constants.sbm_values:
         # OpenCorePkg logic:
         #   - If a T2 Unit is used with ApECID, will return 2
         #   - Either x86legacy or T2 without ApECID, returns 1

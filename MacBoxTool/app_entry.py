@@ -98,17 +98,8 @@ class MacBoxTool:
         super().__init__()
         self.constants: Constants = Constants()
         LoggingHandler(self.constants)
-        self.computer= device_probe.Computer().probe()
-
         self._generate_base_data()
         self.install_requirements()
-        
-        os_data = os_probe.OSProbe()
-        self.constants.detected_os = os_data.detect_kernel_major()
-        self.constants.detected_os_minor = os_data.detect_kernel_minor()
-        self.constants.detected_os_build = os_data.detect_os_build()
-        self.constants.detected_os_version = os_data.detect_os_version()
-        self.constants.computer = self.computer
 
         self.settings=GlobalSettings(self.constants)
         self.target_model = self.settings.find_key("MODEL") or "MacPro7,1"

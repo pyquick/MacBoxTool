@@ -117,7 +117,11 @@ class Window(FluentWindow):
                 worker.wait(1000)
 
         self._save_window_geometry()
-        self.themeListener.terminate()
+        self.theme_manager.stop()
+        self.themeListener.requestInterruption()
+        if not self.themeListener.wait(2500):
+            self.themeListener.terminate()
+            self.themeListener.wait(1000)
         self.themeListener.deleteLater()
         super().closeEvent(event)
 

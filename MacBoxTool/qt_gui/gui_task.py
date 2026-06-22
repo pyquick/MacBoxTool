@@ -45,7 +45,7 @@ class TaskManager:
     _validation_workers: dict[int, ValidationWorker] = {}
     _extraction_workers: dict[int, ExtractionWorker] = {}
     _icons: dict[int, object] = {}  # download id -> icon for DownloadCard
-    aconstants :Constants = Constants()
+    aconstants: Constants = None
 
 
 
@@ -53,6 +53,11 @@ class TaskManager:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
+
+    @classmethod
+    def set_constants(cls, global_constants: Constants):
+        """Set the shared constants object used by download follow-up workers."""
+        cls.aconstants = global_constants
 
     @classmethod
     def start_download(cls, download: DownloadObject, icon=None) -> DownloadWorker:
@@ -209,7 +214,7 @@ class TaskManager:
         """
         from pathlib import Path
 
-        worker = ExtractionWorker(pkg_path, cls.aconstants)
+        worker = ExtractionWorker(pkg_path, cls.aconstants or Constants())
         cls._extraction_workers[id(download)] = worker
 
         worker.finished_signal.connect(
@@ -286,6 +291,7 @@ class TaskInterface(ScrollArea):
 
         # Task manager instance
         self.task_manager = TaskManager
+        self.task_manager.set_constants(self.constants)
 
         # Download cards (key: download object id)
         self.download_cards: dict[int, DownloadCard] = {}

@@ -158,10 +158,10 @@ class KDKCard(NoAnimCardWidget):
             if index is not None and index < len(self.constants.package_icns_paths):
                 icns_path = self.constants.package_icns_paths[index]
                 # Convert .icns to .png
-                return icns_path.rsplit('.', 1)[0] + '.png'
+                return str(Path(icns_path).with_suffix(".png"))
 
         # Fallback to generic Package.png
-        return str(self.constants.package_icns_path_generic.rsplit('.', 1)[0] + '.png')
+        return str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
 
     def _init_layout(self):
         layout = QHBoxLayout(self)
@@ -243,10 +243,10 @@ class KDKList(ScrollArea):
             if index is not None and index < len(self.constants.package_icns_paths):
                 icns_path = self.constants.package_icns_paths[index]
                 # Convert .icns to .png
-                return icns_path.rsplit('.', 1)[0] + '.png'
+                return str(Path(icns_path).with_suffix(".png"))
 
         # Fallback to generic Package.png
-        return str(self.constants.package_icns_path_generic.rsplit('.', 1)[0] + '.png')
+        return str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
 
     def _init_header(self):
         """Initialize header with latest-only toggle"""

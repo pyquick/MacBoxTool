@@ -19,6 +19,7 @@ class GenerateDiskImages:
         Initialize
         """
         self.reset_dmg_cache = reset_dmg_cache
+        self._constants = constants.Constants()
 
 
     def _delete_extra_binaries(self):
@@ -98,7 +99,7 @@ class GenerateDiskImages:
         Download required dependencies
         """
 
-        patcher_support_pkg_version = constants.Constants().patcher_support_pkg_version
+        patcher_support_pkg_version = self._constants.patcher_support_pkg_version
         required_resources = [
             "Universal-Binaries.dmg"
         ]

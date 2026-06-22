@@ -279,10 +279,9 @@ def wait_for_thread(thread: threading.Thread, sleep_interval=None):
 
     Args:
         thread: The thread to wait for
-        sleep_interval: Optional sleep interval in seconds, defaults to Constants.thread_sleep_interval
+        sleep_interval: Optional sleep interval in seconds, defaults to 0.01
     """
-    # Use the passed sleep_interval, or get from global_constants
-    interval = sleep_interval if sleep_interval is not None else Constants().thread_sleep_interval
+    interval = sleep_interval if sleep_interval is not None else 0.01
 
     while thread.is_alive():
         QApplication.processEvents()  # Process Qt events instead of wx.Yield()
@@ -305,14 +304,15 @@ class AutoUpdateStages:
 
 class CheckModernAudio:
     """Check if modern audio (AppleALC) is in use"""
-    def __init__(self):
-        self.constants: Constants = Constants()
+    def __init__(self, global_constants: Constants = None):
+        self.constants: Constants = global_constants
 
     def audio_check(self):
         """Returns True if AppleALC, False if VoodooHDA"""
-        if self.constants.audio_type == "VoodooHDA":
+        audio_type = self.constants.audio_type if self.constants else "AppleALC"
+        if audio_type == "VoodooHDA":
             return False
-        if self.constants.audio_type == "AppleALC":
+        if audio_type == "AppleALC":
             return True
         return False
 
@@ -578,9 +578,9 @@ class RestartHost:
     Restarts the host machine with user confirmation
     """
 
-    def __init__(self, parent: QWidget) -> None:
+    def __init__(self, parent: QWidget, global_constants: Constants = None) -> None:
         self.parent: QWidget = parent
-        self.constants: Constants = Constants()
+        self.constants: Constants = global_constants
         self.trans = self._get_translations()
 
     def _get_translations(self):

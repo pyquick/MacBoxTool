@@ -20,6 +20,7 @@ class DownloadInterface(QWidget):
         self.constants = global_constants
         self.ui_support = ui_support
         self.settings = global_settings
+        self._installers_loaded = False
 
         # Initialize UI
         self.init_ui()
@@ -56,9 +57,6 @@ class DownloadInterface(QWidget):
         # Set default tab
         self.pivot.setCurrentItem("installer")
 
-        # Auto-load installers
-        self.fetch_installers()
-
         # Add to layout (Pivot on top, content below)
         self.mainLayout.addWidget(self.pivot)
         self.mainLayout.addWidget(self.stack, 1)
@@ -75,7 +73,9 @@ class DownloadInterface(QWidget):
 
     def _on_tab_clicked(self, key: str):
         """Handle tab click with lazy loading"""
-        if key == "kdk" and self.tab_kdk is None:
+        if key == "installer":
+            self.fetch_installers()
+        elif key == "kdk" and self.tab_kdk is None:
             self.tab_kdk = KDKList(self.constants, self.ui_support, self.settings, self)
             self.stack.addWidget(self.tab_kdk)
         elif key == "metallib" and self.tab_metallib is None:
@@ -87,5 +87,12 @@ class DownloadInterface(QWidget):
             self.stack.setCurrentWidget(widget)
 
     def fetch_installers(self):
-        """Fetch available installers from Apple catalog"""
+        """Fetch available installers from Apple catalog once on first use."""
+        if self._installers_loaded:
+            return
+        self._installers_loaded = True
         self.tab_installer.load_installers()
+
+    def refresh(self):
+        """Load the default installer tab when the Downloads page is first shown."""
+        self.fetch_installers()
