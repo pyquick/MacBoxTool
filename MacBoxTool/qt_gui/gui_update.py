@@ -4,7 +4,7 @@ gui_update.py: Model File
 from ..include import *
 from .gui_support import DefGUI
 
-class Model(ScrollArea):
+class Updater(ScrollArea):
     def __init__(self, global_constants:Constants,ui_support:DefGUI=None,global_settings:GlobalSettings=None,parent=None):
         super().__init__(parent)
 

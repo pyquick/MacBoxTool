@@ -45,6 +45,7 @@ class TaskManager:
     _validation_workers: dict[int, ValidationWorker] = {}
     _extraction_workers: dict[int, ExtractionWorker] = {}
     _icons: dict[int, object] = {}  # download id -> icon for DownloadCard
+    _shutting_down = False
     aconstants: Constants = None
 
 
@@ -67,6 +68,7 @@ class TaskManager:
             download = DownloadObject(url, save_path, filename)
             TaskManager.start_download(download, icon="/path/to/icon.png")
         """
+        cls._shutting_down = False
         cls.register_download(download)
         if icon is not None:
             cls._icons[id(download)] = icon
@@ -83,13 +85,60 @@ class TaskManager:
 
 
     @classmethod
+    def _stop_worker(cls, worker, timeout: int = 5000) -> bool:
+        """Cancel and wait for a QThread worker before it can be destroyed."""
+        if not worker:
+            return True
+
+        try:
+            if hasattr(worker, "cancel"):
+                worker.cancel()
+            if hasattr(worker, "requestInterruption"):
+                worker.requestInterruption()
+            if worker.isRunning() and not worker.wait(timeout):
+                logging.warning(f"Worker {worker.__class__.__name__} did not stop in {timeout}ms; terminating")
+                worker.terminate()
+                worker.wait(1000)
+            if not worker.isRunning():
+                worker.deleteLater()
+                return True
+        except RuntimeError:
+            return True
+        except Exception as e:
+            logging.warning(f"Failed to stop worker {worker}: {e}")
+
+        return False
+
+    @classmethod
     def cancel_download(cls, download: DownloadObject):
-        """Cancel an active download"""
-        worker = cls._workers.get(id(download))
-        if worker and worker.isRunning():
-            worker.cancel()
-            # Wait for thread to finish before cleanup
-            worker.wait(3000)  # Wait up to 3 seconds
+        """Cancel active download, validation, and extraction workers for a download."""
+        worker = cls._workers.pop(id(download), None)
+        cls._stop_worker(worker, 5000)
+
+        validation_worker = cls._validation_workers.pop(id(download), None)
+        cls._stop_worker(validation_worker, 5000)
+
+        extraction_worker = cls._extraction_workers.pop(id(download), None)
+        cls._stop_worker(extraction_worker, 5000)
+
+    @classmethod
+    def shutdown_all(cls):
+        """Stop all task workers before application shutdown."""
+        cls._shutting_down = True
+        for download in cls.get_downloads():
+            cls.cancel_download(download)
+
+        for worker in list(cls._workers.values()):
+            cls._stop_worker(worker, 5000)
+        for worker in list(cls._validation_workers.values()):
+            cls._stop_worker(worker, 5000)
+        for worker in list(cls._extraction_workers.values()):
+            cls._stop_worker(worker, 5000)
+
+        cls._workers.clear()
+        cls._validation_workers.clear()
+        cls._extraction_workers.clear()
+        cls._icons.clear()
 
     @classmethod
     def pause_download(cls, download: DownloadObject):
@@ -115,7 +164,7 @@ class TaskManager:
             worker.deleteLater()
         cls._icons.pop(id(download), None)
 
-        if success:
+        if success and not cls._shutting_down:
             logging.info(f"Download completed: {download.filename}")
             # Automatically start validation for macOS installers
             if download.filename == "InstallAssistant.pkg":
@@ -189,7 +238,7 @@ class TaskManager:
         if worker:
             worker.deleteLater()
 
-        if success:
+        if success and not cls._shutting_down:
             logging.info(f"Validation completed: {download.filename}")
             # Automatically start extraction
             download.status = DownloadStatus.EXTRACTING
@@ -292,6 +341,10 @@ class TaskInterface(ScrollArea):
         # Task manager instance
         self.task_manager = TaskManager
         self.task_manager.set_constants(self.constants)
+        self.network_worker = None
+        self.network_timeout_timer = QTimer(self)
+        self.network_timeout_timer.setSingleShot(True)
+        self.network_timeout_timer.timeout.connect(self._on_network_check_timeout)
 
         # Download cards (key: download object id)
         self.download_cards: dict[int, DownloadCard] = {}
@@ -405,12 +458,29 @@ class TaskInterface(ScrollArea):
 
     def _check_network_status(self):
         """Check network connectivity using a worker thread"""
+        worker = self.network_worker
+        try:
+            if worker is not None and worker.isRunning():
+                return
+        except RuntimeError:
+            self.network_worker = None
+
         self.network_worker = NetworkCheckWorker(self)
         self.network_worker.finished_signal.connect(self._on_network_check_finished)
+        self.network_worker.finished.connect(self._on_network_worker_finished)
         self.network_worker.start()
 
         # Set timeout to show "Missing network connection" after 10s
-        QTimer.singleShot(10000, self._on_network_check_timeout)
+        self.network_timeout_timer.start(10000)
+
+    def _on_network_worker_finished(self):
+        """Clear the worker reference before Qt deletes the C++ object."""
+        worker = self.sender()
+        if worker is self.network_worker:
+            self.network_worker = None
+        if self.network_timeout_timer.isActive():
+            self.network_timeout_timer.stop()
+        worker.deleteLater()
 
     def _on_network_check_finished(self, connected: bool):
         """Handle network check result"""
@@ -419,12 +489,20 @@ class TaskInterface(ScrollArea):
             self.network_status_card.setContent("Connected")
         else:
             self.network_status_card.setContent("Disconnected - Cannot access network")
+        self.network_worker = None
 
     def _on_network_check_timeout(self):
         """Handle network check timeout after 10s"""
-        if hasattr(self, 'network_worker') and self.network_worker.isRunning():
-            self.network_status_card.setContent("Missing network connection")
-            self.network_worker.cancel()
+        worker = self.network_worker
+        if worker is None:
+            return
+
+        try:
+            if worker.isRunning():
+                self.network_status_card.setContent("Missing network connection")
+                worker.cancel()
+        except RuntimeError:
+            self.network_worker = None
 
     def _refresh_downloads(self):
         """Refresh the download list from task manager"""
@@ -710,15 +788,27 @@ class TaskInterface(ScrollArea):
         self._check_network_status()
         self._refresh_downloads()
 
+    def cleanup_workers(self):
+        """Stop timers and workers owned by this task page."""
+        if hasattr(self, 'refresh_timer'):
+            self.refresh_timer.stop()
+        if hasattr(self, 'network_timeout_timer'):
+            self.network_timeout_timer.stop()
+        worker = getattr(self, 'network_worker', None)
+        if worker is not None:
+            try:
+                worker.cancel()
+                if worker.isRunning() and not worker.wait(2000):
+                    logging.warning("NetworkCheckWorker did not stop in 2000ms; terminating")
+                    worker.terminate()
+                    worker.wait(1000)
+                worker.deleteLater()
+            except RuntimeError:
+                pass
+            self.network_worker = None
+        self.task_manager.shutdown_all()
+
     def closeEvent(self, event):
         """Handle close event - cancel all active downloads and network check"""
-        # Cancel network check worker
-        if hasattr(self, 'network_worker') and self.network_worker.isRunning():
-            self.network_worker.cancel()
-            self.network_worker.wait(1000)
-
-        # Cancel all active downloads
-        for download in self.task_manager.get_downloads():
-            if download.status in (DownloadStatus.DOWNLOADING, DownloadStatus.PAUSED):
-                self.task_manager.cancel_download(download)
-        event.accept()
+        self.cleanup_workers()
+        super().closeEvent(event)

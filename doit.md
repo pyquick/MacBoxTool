@@ -1,9 +1,0 @@
-- Goal: add progress UI for validating/extracting macOS installer.
-- Goal: add progress UI for validating/extracting macOS installer.
-- Found: validation worker already emits chunk progress; DownloadCard still forces indeterminate for VALIDATING.
-- Editing gui_download.py to make VALIDATING use determinate chunk-based progress and keep EXTRACTING indeterminate.
-- Verified diff for gui_download.py and network_handler.py.
-- Running py_compile on touched files.
-- Goal: stop indeterminateProgressBar flicker while extracting macOS installer.
-- Found: gui_download.py restarts and re-shows the indeterminate bar on every timer-driven update during DownloadStatus.EXTRACTING.
-- Editing gui_download.py to switch progress bar mode only when status changes; trimming duplicate status writes in gui_task.py.

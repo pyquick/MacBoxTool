@@ -103,27 +103,54 @@ class Window(FluentWindow):
         
 
     def _init_state(self):
-        pass
+        self._shutdown_in_progress = False
+        self._shutdown_cleanup_done = False
 
-    def closeEvent(self, event):
-        # Cancel all active downloads
-        task_manager = TaskManager
-        for download in task_manager.get_downloads():
-            task_manager.cancel_download(download)
+    def _stop_child_workers(self):
+        for page in (
+            getattr(self, "introduction", None),
+            getattr(self, "build", None),
+            getattr(self, "task_page", None),
+            getattr(self, "download_page", None),
+        ):
+            cleanup = getattr(page, "cleanup_workers", None)
+            if callable(cleanup):
+                cleanup()
 
-        # Wait for workers to finish
-        for worker in task_manager._workers.values():
-            if worker.isRunning():
-                worker.wait(1000)
+        TaskManager.shutdown_all()
 
-        self._save_window_geometry()
+    def _perform_shutdown_cleanup(self):
+        if self._shutdown_cleanup_done:
+            return
+
+        self._shutdown_cleanup_done = True
+        logging.info("Clean-up")
+        self._stop_child_workers()
+
         self.theme_manager.stop()
         self.themeListener.requestInterruption()
         if not self.themeListener.wait(2500):
             self.themeListener.terminate()
             self.themeListener.wait(1000)
         self.themeListener.deleteLater()
-        super().closeEvent(event)
+
+        app = QApplication.instance()
+        if app:
+            app.quit()
+
+    def closeEvent(self, event):
+        if self._shutdown_in_progress:
+            event.accept()
+            return
+
+        self._shutdown_in_progress = True
+        self._save_window_geometry()
+
+        # Let the window disappear first, then process blocking cleanup work.
+        event.accept()
+        self.hide()
+        QApplication.processEvents()
+        QTimer.singleShot(0, self._perform_shutdown_cleanup)
 
     def update_status(self, message, status_type="INFO"):
         if status_type == "success":

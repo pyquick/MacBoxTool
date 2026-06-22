@@ -96,3 +96,14 @@ class DownloadInterface(QWidget):
     def refresh(self):
         """Load the default installer tab when the Downloads page is first shown."""
         self.fetch_installers()
+
+    def cleanup_workers(self):
+        """Stop workers owned by lazily-created download tabs."""
+        for tab in (self.tab_installer, self.tab_kdk, self.tab_metallib):
+            cleanup = getattr(tab, "cleanup_workers", None)
+            if callable(cleanup):
+                cleanup()
+
+    def closeEvent(self, event):
+        self.cleanup_workers()
+        super().closeEvent(event)

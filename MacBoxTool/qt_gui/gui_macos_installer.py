@@ -512,14 +512,24 @@ class MacOSInstallerList(ScrollArea):
 
         if self._validation_worker is not None:
             if self._validation_worker.isRunning():
-                self._validation_worker.quit()
-                self._validation_worker.wait()
+                self._validation_worker.cancel()
+                self._validation_worker.requestInterruption()
+                if not self._validation_worker.wait(5000):
+                    logging.warning("ValidationWorker did not stop in 5000ms; terminating")
+                    self._validation_worker.terminate()
+                    self._validation_worker.wait(1000)
+            self._validation_worker.deleteLater()
             self._validation_worker = None
 
         if self._extraction_worker is not None:
             if self._extraction_worker.isRunning():
-                self._extraction_worker.quit()
-                self._extraction_worker.wait()
+                self._extraction_worker.cancel()
+                self._extraction_worker.requestInterruption()
+                if not self._extraction_worker.wait(5000):
+                    logging.warning("ExtractionWorker did not stop in 5000ms; terminating")
+                    self._extraction_worker.terminate()
+                    self._extraction_worker.wait(1000)
+            self._extraction_worker.deleteLater()
             self._extraction_worker = None
 
     def closeEvent(self, event):

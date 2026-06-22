@@ -302,8 +302,9 @@ class EFIDiskSelectionMessageBox(MessageBoxBase):
 
         # Start scan
         self.progressRing.start()
-        self.scanner_thread = DiskListScannerThread()
+        self.scanner_thread = DiskListScannerThread(self)
         self.scanner_thread.finished_signal.connect(self._on_disks_scanned)
+        self.scanner_thread.finished.connect(self.scanner_thread.deleteLater)
         self.scanner_thread.start()
 
     def _on_disks_scanned(self, disks):
@@ -440,6 +441,7 @@ class BuildOCPage(ScrollArea):
         self.gui_support = ui_support
         self.settings = global_settings
         self.worker = None
+        self.install_worker = None
         self.last_output_path = None  # Store last build output path
 
         self.scrollWidget = QWidget()
@@ -650,6 +652,32 @@ class BuildOCPage(ScrollArea):
 
     def _update_theme(self):
         pass
+
+    def _stop_worker(self, worker, timeout: int = 5000):
+        if not worker:
+            return
+        try:
+            if hasattr(worker, "requestInterruption"):
+                worker.requestInterruption()
+            if worker.isRunning() and not worker.wait(timeout):
+                logging.warning(f"{worker.__class__.__name__} did not stop in {timeout}ms; terminating")
+                worker.terminate()
+                worker.wait(1000)
+            if not worker.isRunning():
+                worker.deleteLater()
+        except RuntimeError:
+            pass
+
+    def cleanup_workers(self):
+        """Stop build/install workers before this page is destroyed."""
+        self._stop_worker(self.worker, 10000)
+        self.worker = None
+        self._stop_worker(self.install_worker, 10000)
+        self.install_worker = None
+
+    def closeEvent(self, event):
+        self.cleanup_workers()
+        super().closeEvent(event)
 
     def refresh(self):
         target = self.settings.find_key("MODEL") or "Not Selected"

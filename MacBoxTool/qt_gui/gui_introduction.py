@@ -160,7 +160,21 @@ class Introduction(ScrollArea):
             button = self._create_helper_install_button()
             self.expandLayout.insertWidget(4, button)
 
+    def cleanup_workers(self):
+        """Stop helper installation worker before this page is destroyed."""
+        worker = getattr(self, "_install_worker", None)
+        if worker and worker.isRunning():
+            worker.requestInterruption()
+            if not worker.wait(5000):
+                logging.warning("HelperInstallWorker did not stop in 5000ms; terminating")
+                worker.terminate()
+                worker.wait(1000)
+        if worker:
+            worker.deleteLater()
+            self._install_worker = None
+
     def closeEvent(self, event):
+        self.cleanup_workers()
         super().closeEvent(event)
 
     def _show_helper_install_dialog(self):
