@@ -8,6 +8,7 @@ from .gui_about import AboutInterface
 from .gui_settings import SettingsInterface
 from .gui_task import TaskInterface, TaskManager
 from .gui_all_download import DownloadInterface
+from .gui_update import Updater
 from ..support import on_nightly
 
 WINDOW_MIN_SIZE = (1000, 700)
@@ -112,6 +113,7 @@ class Window(FluentWindow):
             getattr(self, "build", None),
             getattr(self, "task_page", None),
             getattr(self, "download_page", None),
+            getattr(self, "updater", None),
         ):
             cleanup = getattr(page, "cleanup_workers", None)
             if callable(cleanup):
@@ -239,6 +241,14 @@ class Window(FluentWindow):
             self.settings_page,
             FluentIcon.SETTING,
             "Settings",
+            NavigationItemPosition.BOTTOM
+        )
+
+        self.updater=Updater(self.constants,self.gui_support,self.settings,self)
+        self.addSubInterface(
+            self.updater,
+            FluentIcon.DOWNLOAD,
+            "Updater",
             NavigationItemPosition.BOTTOM
         )
 

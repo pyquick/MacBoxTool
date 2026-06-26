@@ -469,9 +469,9 @@ class GaugePulseCallback(QObject):
     Note: This work-around is no longer needed on hosts using PatcherSupportPkg 1.1.2 or newer
     """
 
-    def __init__(self, global_constants: Constants, progress_bar: QProgressBar) -> None:
+    def __init__(self, global_constants: Constants, progress_bar: IndeterminateProgressRing|ProgressBar|QProgressBar|IndeterminateProgressBar) -> None:
         super().__init__()
-        self.progress_bar: QProgressBar = progress_bar
+        self.progress_bar: IndeterminateProgressRing|ProgressBar|QProgressBar|IndeterminateProgressBar = progress_bar
         self.timer = QTimer()
         self.timer.timeout.connect(self._pulse)
 

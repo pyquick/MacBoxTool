@@ -12,31 +12,88 @@ import re
 
 
 def parse_build_version(build_string):
-    """
-    解析 Apple build 版本号（如 24G90、24G711）
-    返回可排序的元组 (major, letter, minor)
+    build_string = str(build_string or "")
+    match = re.match(r'^(\d+)([A-Za-z])?(\d*)([A-Za-z]*)', build_string)
+    if not match:
+        return (0, -1, 0, ())
 
-    Args:
-        build_string: 版本号字符串，如 "24G90"、"24G711"
+    kernel_major = int(match.group(1)) if match.group(1) else 0
+    letter = match.group(2) or ""
+    letter_index = build_letter_to_minor(letter) if letter else -1
+    build_digits = match.group(3) or ""
+    build_number_parts = tuple(int(char) for char in build_digits) + (-1,)
+    suffix = tuple(ord(char.lower()) for char in (match.group(4) or ""))
+    return (kernel_major, letter_index, build_number_parts, suffix)
 
-    Returns:
-        tuple: (major数字, letter字母, minor数字)
-               例如: "24G90" -> (24, "G", 90)
-                    "24G711" -> (24, "G", 711)
-    """
-    if not build_string:
-        return (0, "", 0)
 
-    # 匹配格式：数字 + 字母 + 数字（如 24G90）
-    match = re.match(r'^(\d+)([A-Za-z]+)?(\d+)?$', build_string)
+def build_to_kernel(build_string):
+    match = re.match(r'^(\d+)[A-Za-z]', str(build_string or ""))
     if match:
-        major = int(match.group(1)) if match.group(1) else 0
-        letter = match.group(2) if match.group(2) else ""
-        minor = int(match.group(3)) if match.group(3) else 0
-        return (major, letter, minor)
+        return int(match.group(1))
+    return None
 
-    # 如果无法匹配，返回原始字符串（用于降级处理）
-    return (0, "", 0)
+
+def build_letter_to_minor(letter):
+    letter_index = ord(letter.upper()) - ord("A")
+    if letter.upper() > "I":
+        letter_index -= 1
+    return letter_index
+
+
+def version_major_minor(version):
+    match = re.match(r'^(\d+)\.(\d+)', str(version or ""))
+    if not match:
+        return None
+    return (int(match.group(1)), int(match.group(2)))
+
+
+def build_to_display_version(item):
+    build = item.get("build", "")
+    kernel_major = build_to_kernel(build)
+    match = re.match(r'^\d+([A-Za-z])', str(build or ""))
+    if kernel_major is None or not match:
+        return item.get("version", "Unknown")
+
+    major_version = os_data.os_conversion.kernel_to_os(kernel_major)
+    minor_version = build_letter_to_minor(match.group(1))
+    expected_version = f"{major_version}.{minor_version}"
+    upstream_version = item.get("version", "Unknown")
+    upstream_major_minor = version_major_minor(upstream_version)
+
+    if kernel_major == 24 and match.group(1).upper() == "G" and upstream_major_minor:
+        upstream_major, upstream_minor = upstream_major_minor
+        if upstream_major == 15 and 6 <= upstream_minor <= 99:
+            return upstream_version
+
+    if upstream_major_minor == (int(major_version), minor_version):
+        return upstream_version
+    return expected_version
+
+
+def build_to_marketing_name(item):
+    kernel_major = build_to_kernel(item.get("build", ""))
+    if kernel_major is None:
+        try:
+            kernel_major = os_data.os_conversion.os_to_kernel(str(item.get("version", "0")))
+        except (ValueError, IndexError):
+            return ""
+    return os_data.os_conversion.convert_kernel_to_marketing_name(kernel_major)
+
+
+def display_version_major(item):
+    try:
+        return int(str(build_to_display_version(item)).split('.')[0])
+    except (ValueError, IndexError):
+        return 0
+
+
+def sort_by_build(items):
+    return sorted(
+        items,
+        key=lambda item: (parse_build_version(item.get("build", "")), str(item.get("version", ""))),
+        reverse=True
+    )
+
 
 
 class NoAnimCardWidget(QFrame):
@@ -118,24 +175,21 @@ class MetallibCard(NoAnimCardWidget):
         self.setFixedHeight(80)
         self.setBorderRadius(8)
 
-        # Use version-specific Package icon (Packagexx.png where 11<=xx<=26)
-        version = metallib_data.get("version", "Unknown")
-        try:
-            major_version = int(str(version).split('.')[0])
-            icon_path = self.get_package_icon_path(major_version)
-        except (ValueError, IndexError):
-            icon_path = str(constants.payload_path / "Icon/AppIcons/Package.png")
+        # 使用 build 推断显示版本，避免上游 beta version 错误。
+        major_version = display_version_major(metallib_data)
+        icon_path = self.get_package_icon_path(major_version)
 
         self.icon_widget = ImageLabel(icon_path, self)
         self.icon_widget.setFixedSize(48, 48)
 
-        self.title_label = BodyLabel("macOS Sequoia")
+        name = build_to_marketing_name(metallib_data)
+        self.title_label = BodyLabel(f"macOS {name}" if name else "macOS")
         self.title_label.setStyleSheet("font-weight: 600;")
 
         date_str = metallib_data.get("date", "Unknown")
         self.date_label = CaptionLabel(f"Release: {date_str}")
 
-        version = metallib_data.get("version", "Unknown")
+        version = build_to_display_version(metallib_data)
         build = metallib_data.get("build", "Unknown")
         self.version_label = CaptionLabel(f"Version: {version} | Build: {build}")
 
@@ -161,23 +215,20 @@ class MetallibCard(NoAnimCardWidget):
         Returns:
             str: Path to package icon PNG file
         """
-        # Map version to package icon index (11-26)
-        if 11 <= major_version <= 26:
-            version_to_index = {
-                11: 1,  # Big Sur -> Package11
-                12: 2,  # Monterey -> Package12
-                13: 3,  # Ventura -> Package13
-                14: 4,  # Sonoma -> Package14
-                15: 5,  # Sequoia -> Package15
-                26: 6,  # Tahoe -> Package26
-            }
-            index = version_to_index.get(major_version)
-            if index is not None and index < len(self.constants.package_icns_paths):
-                icns_path = self.constants.package_icns_paths[index]
-                # Convert .icns to .png
-                return str(Path(icns_path).with_suffix(".png"))
+        # 将显示用 macOS major version 映射到已有或预留的 package 图标。
+        if major_version == 27:
+            return str(Path(self.constants.package_icns_path_tahoe).with_name("Package27.icns").with_suffix(".png"))
+        if major_version == 26:
+            index = 6
+        elif 11 <= major_version <= 15:
+            index = major_version - 10
+        else:
+            return str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
 
-        # Fallback to generic Package.png
+        if index < len(self.constants.package_icns_paths):
+            icns_path = self.constants.package_icns_paths[index]
+            return str(Path(icns_path).with_suffix(".png"))
+
         return str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
 
     def _init_layout(self):
@@ -293,8 +344,12 @@ class MetallibList(ScrollArea):
 
     def _on_data_ready(self, data: dict):
         """Callback when data processing completes."""
-        self.available_metallibs = data.get("all", [])
-        self.available_metallibs_latest = data.get("latest", [])
+        metallibs = sort_by_build(data.get("all", []))
+        if not metallibs:
+            metallibs = sort_by_build(data.get("latest", []))
+
+        self.available_metallibs = metallibs
+        self.available_metallibs_latest = metallibs[:4]
         self._display_metallibs()
 
     def _on_data_error(self, error_msg: str):
@@ -303,7 +358,7 @@ class MetallibList(ScrollArea):
         self._show_loading(False)
 
         # Show error notification
-        from qfluentwidgets import InfoBar, InfoBarPosition
+        from ..UIkit import InfoBar, InfoBarPosition
 
         InfoBar.error(
             "Loading Failed",
@@ -407,28 +462,25 @@ class MetallibList(ScrollArea):
         Returns:
             str: Path to package icon PNG file
         """
-        # Map version to package icon index (11-26)
-        if 11 <= major_version <= 26:
-            version_to_index = {
-                11: 1,  # Big Sur -> Package11
-                12: 2,  # Monterey -> Package12
-                13: 3,  # Ventura -> Package13
-                14: 4,  # Sonoma -> Package14
-                15: 5,  # Sequoia -> Package15
-                26: 6,  # Tahoe -> Package26
-            }
-            index = version_to_index.get(major_version)
-            if index is not None and index < len(self.constants.package_icns_paths):
-                icns_path = self.constants.package_icns_paths[index]
-                # Convert .icns to .png
-                return str(Path(icns_path).with_suffix(".png"))
+        # 将显示用 macOS major version 映射到已有或预留的 package 图标。
+        if major_version == 27:
+            return str(Path(self.constants.package_icns_path_tahoe).with_name("Package27.icns").with_suffix(".png"))
+        if major_version == 26:
+            index = 6
+        elif 11 <= major_version <= 15:
+            index = major_version - 10
+        else:
+            return str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
 
-        # Fallback to generic Package.png
+        if index < len(self.constants.package_icns_paths):
+            icns_path = self.constants.package_icns_paths[index]
+            return str(Path(icns_path).with_suffix(".png"))
+
         return str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
 
     def _on_download(self, metallib_data: dict):
         url = metallib_data.get("url")
-        version = metallib_data.get("version")
+        version = build_to_display_version(metallib_data)
         build = metallib_data.get("build")
 
         # Unified logging style
@@ -439,12 +491,9 @@ class MetallibList(ScrollArea):
         filename = f"MetallibSupportPkg-{version}-{build}.pkg"
         download_obj = DownloadObject(url, save_path, filename)
 
-        # Use version-specific Package icon (Packagexx.png where 11<=xx<=26)
-        try:
-            major_version = int(str(version).split('.')[0])
-            icon_path = self.get_package_icon_path(major_version)
-        except (ValueError, IndexError):
-            icon_path = str(self.constants.payload_path / "Icon/AppIcons/Package.png")
+        # 使用 build 推断显示版本，避免上游 beta version 错误。
+        major_version = display_version_major(metallib_data)
+        icon_path = self.get_package_icon_path(major_version)
 
         TaskManager.start_download(download_obj, icon=icon_path)
 

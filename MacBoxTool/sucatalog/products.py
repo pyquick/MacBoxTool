@@ -29,7 +29,7 @@ class CatalogProducts:
                  catalog: dict,
                  install_assistants_only: bool = True,
                  only_vmm_install_assistants: bool = True,
-                 max_install_assistant_version: CatalogVersion = CatalogVersion.TAHOE
+                 max_install_assistant_version: CatalogVersion = CatalogVersion.GOLDEN_GATE
                 ) -> None:
         self.catalog:             dict = catalog
         self.ia_only:             bool = install_assistants_only
@@ -53,9 +53,9 @@ class CatalogProducts:
             return {}
 
         # Ensure Apple Silicon specific Installers are not listed
-        if "VMM-x86_64" not in data["MobileAssetProperties"]["SupportedDeviceModels"]:
-            if self.vmm_only:
-                return {"Missing VMM Support": True}
+        #if "VMM-x86_64" not in data["MobileAssetProperties"]["SupportedDeviceModels"]:
+         #   if self.vmm_only:
+          #      return {"Missing VMM Support": True}
 
         version = data["MobileAssetProperties"]["OSVersion"]
         build   = data["MobileAssetProperties"]["Build"]
@@ -90,9 +90,9 @@ class CatalogProducts:
                 continue
             if "Build" not in entry:
                 continue
-            if "VMM-x86_64" not in entry["SupportedDeviceModels"]:
-                if self.vmm_only:
-                    continue
+            #if "VMM-x86_64" not in entry["SupportedDeviceModels"]:
+             #   if self.vmm_only:
+              #      continue
 
             _does_support_vmm = True
 

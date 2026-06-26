@@ -6,6 +6,103 @@ from ..include import *
 from .gui_support import DefGUI
 from .gui_task import TaskManager
 
+
+def parse_build_version(build_string):
+    build_string = str(build_string or "")
+    match = re.match(r'^(\d+)([A-Za-z])?(\d*)([A-Za-z]*)', build_string)
+    if not match:
+        return (0, -1, 0, ())
+
+    kernel_major = int(match.group(1)) if match.group(1) else 0
+    letter = match.group(2) or ""
+    letter_index = build_letter_to_minor(letter) if letter else -1
+    build_number = int(match.group(3)) if match.group(3) else 0
+    suffix = tuple(ord(char.lower()) for char in (match.group(4) or ""))
+    return (kernel_major, letter_index, build_number, suffix)
+
+
+def build_to_kernel(build_string):
+    match = re.match(r'^(\d+)[A-Za-z]', str(build_string or ""))
+    if match:
+        return int(match.group(1))
+    return None
+
+
+def build_letter_to_minor(letter):
+    letter_index = ord(letter.upper()) - ord("A")
+    if letter.upper() > "I":
+        letter_index -= 1
+    return letter_index
+
+
+def version_major_minor(version):
+    match = re.match(r'^(\d+)\.(\d+)', str(version or ""))
+    if not match:
+        return None
+    return (int(match.group(1)), int(match.group(2)))
+
+
+def build_to_display_version(item):
+    build = item.get("build", "")
+    kernel_major = build_to_kernel(build)
+    match = re.match(r'^\d+([A-Za-z])', str(build or ""))
+    if kernel_major is None or not match:
+        return item.get("version", "Unknown")
+
+    major_version = os_data.os_conversion.kernel_to_os(kernel_major)
+    minor_version = build_letter_to_minor(match.group(1))
+    expected_version = f"{major_version}.{minor_version}"
+    upstream_version = item.get("version", "Unknown")
+    upstream_major_minor = version_major_minor(upstream_version)
+
+    if kernel_major == 24 and match.group(1).upper() == "G" and upstream_major_minor:
+        upstream_major, upstream_minor = upstream_major_minor
+        if upstream_major == 15 and 6 <= upstream_minor <= 99:
+            return upstream_version
+
+    if upstream_major_minor == (int(major_version), minor_version):
+        return upstream_version
+    return expected_version
+
+
+def build_to_marketing_name(item):
+    kernel_major = build_to_kernel(item.get("build", ""))
+    if kernel_major is None:
+        try:
+            kernel_major = os_data.os_conversion.os_to_kernel(str(item.get("version", "0")))
+        except (ValueError, IndexError):
+            return ""
+    return os_data.os_conversion.convert_kernel_to_marketing_name(kernel_major)
+
+
+def display_version_major(item):
+    try:
+        return int(str(build_to_display_version(item)).split('.')[0])
+    except (ValueError, IndexError):
+        return 0
+
+
+def sort_by_build(items):
+    return sorted(
+        items,
+        key=lambda item: (parse_build_version(item.get("build", "")), str(item.get("version", ""))),
+        reverse=True
+    )
+
+
+def latest_by_build_major(items, limit=4):
+    latest = []
+    seen = set()
+    for item in items:
+        group = build_to_kernel(item.get("build", "")) or str(item.get("version", "")).split(".")[0]
+        if group in seen:
+            continue
+        seen.add(group)
+        latest.append(item)
+        if len(latest) >= limit:
+            break
+    return latest
+
 class NoAnimCardWidget(QFrame):
     """Simple card widget without hover animation"""
 
@@ -86,38 +183,23 @@ class KDKCard(NoAnimCardWidget):
         self.setFixedHeight(80)
         self.setBorderRadius(8)
 
-        # Use version-specific Package icon (Packagexx.png where 11<=xx<=26)
-        version = kdk_data.get("version", "Unknown")
-        try:
-            major_version = int(str(version).split('.')[0])
-            icon_path = self.get_package_icon_path(major_version)
-        except (ValueError, IndexError):
-            icon_path = str(constants.payload_path / "Icon/AppIcons/Package.png")
+        # 使用 build 推断显示版本，避免上游 beta version 错误。
+        major_version = display_version_major(kdk_data)
+        icon_path = self.get_package_icon_path(major_version)
 
         self.icon_widget = ImageLabel(icon_path, self)
         self.icon_widget.setFixedSize(48, 48)
-        self.name=""
+        self.name = build_to_marketing_name(kdk_data)
 
-        def check_macos_veersion():
-            build = kdk_data.get("build", "Unknown")[:2]
-            if build=="26": self.name="Golden Gate"
-            if build=="25": self.name="Tahoe"
-            if build=="24": self.name="Sequoia"
-            if build=="23": self.name="Sonoma"
-            if build=="22": self.name= "Ventura"
-            else: self.name==""
-
-        check_macos_veersion()
-
-        self.title_label = BodyLabel(f"macOS {self.name}")
+        self.title_label = BodyLabel(f"macOS {self.name}" if self.name else "macOS")
         self.title_label.setStyleSheet("font-weight: 600;")
 
         date_str = kdk_data.get("date", "Unknown")
         self.date_label = CaptionLabel(f"Release: {date_str}")
 
-        version = kdk_data.get("version", "Unknown")
+        version = build_to_display_version(kdk_data)
         build = kdk_data.get("build", "Unknown")
-        
+
         file_size = kdk_data.get("fileSize", 0)
         size_mb = file_size / (1024 * 1024) if file_size else 0
         self.version_label = CaptionLabel(f"Version: {version} | Build: {build} | Size: {size_mb:.0f} MB")
@@ -144,24 +226,24 @@ class KDKCard(NoAnimCardWidget):
         Returns:
             str: Path to package icon PNG file
         """
-        # Map version to package icon index (11-26)
-        if 11 <= major_version <= 26:
-            version_to_index = {
-                11: 1,  # Big Sur -> Package11
-                12: 2,  # Monterey -> Package12
-                13: 3,  # Ventura -> Package13
-                14: 4,  # Sonoma -> Package14
-                15: 5,  # Sequoia -> Package15
-                26: 6,  # Tahoe -> Package26
-            }
-            index = version_to_index.get(major_version)
-            if index is not None and index < len(self.constants.package_icns_paths):
-                icns_path = self.constants.package_icns_paths[index]
-                # Convert .icns to .png
-                return str(Path(icns_path).with_suffix(".png"))
+        generic_icon_path = str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
 
-        # Fallback to generic Package.png
-        return str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
+        # 将显示用 macOS major version 映射到已有或预留的 package 图标。
+        if major_version == 27:
+            icon_path = Path(self.constants.package_icns_path_tahoe).with_name("Package27.icns").with_suffix(".png")
+            return str(icon_path) if icon_path.exists() else generic_icon_path
+        if major_version == 26:
+            index = 6
+        elif 11 <= major_version <= 15:
+            index = major_version - 10
+        else:
+            return generic_icon_path
+
+        if index < len(self.constants.package_icns_paths):
+            icon_path = Path(self.constants.package_icns_paths[index]).with_suffix(".png")
+            return str(icon_path) if icon_path.exists() else generic_icon_path
+
+        return generic_icon_path
 
     def _init_layout(self):
         layout = QHBoxLayout(self)
@@ -229,24 +311,24 @@ class KDKList(ScrollArea):
         Returns:
             str: Path to package icon PNG file
         """
-        # Map version to package icon index (11-26)
-        if 11 <= major_version <= 26:
-            version_to_index = {
-                11: 1,  # Big Sur -> Package11
-                12: 2,  # Monterey -> Package12
-                13: 3,  # Ventura -> Package13
-                14: 4,  # Sonoma -> Package14
-                15: 5,  # Sequoia -> Package15
-                26: 6,  # Tahoe -> Package26
-            }
-            index = version_to_index.get(major_version)
-            if index is not None and index < len(self.constants.package_icns_paths):
-                icns_path = self.constants.package_icns_paths[index]
-                # Convert .icns to .png
-                return str(Path(icns_path).with_suffix(".png"))
+        generic_icon_path = str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
 
-        # Fallback to generic Package.png
-        return str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
+        # 将显示用 macOS major version 映射到已有或预留的 package 图标。
+        if major_version == 27:
+            icon_path = Path(self.constants.package_icns_path_tahoe).with_name("Package27.icns").with_suffix(".png")
+            return str(icon_path) if icon_path.exists() else generic_icon_path
+        if major_version == 26:
+            index = 6
+        elif 11 <= major_version <= 15:
+            index = major_version - 10
+        else:
+            return generic_icon_path
+
+        if index < len(self.constants.package_icns_paths):
+            icon_path = Path(self.constants.package_icns_paths[index]).with_suffix(".png")
+            return str(icon_path) if icon_path.exists() else generic_icon_path
+
+        return generic_icon_path
 
     def _init_header(self):
         """Initialize header with latest-only toggle"""
@@ -307,8 +389,12 @@ class KDKList(ScrollArea):
 
     def _on_data_ready(self, data: dict):
         """Callback when data processing completes."""
-        self.available_kdks = data.get("all", [])
-        self.available_kdks_latest = data.get("latest", [])
+        kdks = sort_by_build(data.get("all", []))
+        if not kdks:
+            kdks = sort_by_build(data.get("latest", []))
+
+        self.available_kdks = kdks
+        self.available_kdks_latest = latest_by_build_major(kdks)
         self._display_kdks()
 
     def _on_data_error(self, error_msg: str):
@@ -317,7 +403,7 @@ class KDKList(ScrollArea):
         self._show_loading(False)
 
         # Show error notification
-        from qfluentwidgets import InfoBar, InfoBarPosition
+        from ..UIkit import InfoBar, InfoBarPosition
 
         InfoBar.error(
             "Loading Failed",
@@ -417,7 +503,7 @@ class KDKList(ScrollArea):
 
     def _on_download(self, kdk_data: dict):
         url = kdk_data.get("url")
-        version = kdk_data.get("version")
+        version = build_to_display_version(kdk_data)
         build = kdk_data.get("build")
 
         # Unified logging style
@@ -428,12 +514,9 @@ class KDKList(ScrollArea):
         filename = f"KDK_{version}_{build}.dmg"
         download_obj = DownloadObject(url, save_path, filename)
 
-        # Use version-specific Package icon (Packagexx.png where 11<=xx<=26)
-        try:
-            major_version = int(str(version).split('.')[0])
-            icon_path = self.get_package_icon_path(major_version)
-        except (ValueError, IndexError):
-            icon_path = str(self.constants.payload_path / "Icon/AppIcons/Package.png")
+        # 使用 build 推断显示版本，避免上游 beta version 错误。
+        major_version = display_version_major(kdk_data)
+        icon_path = self.get_package_icon_path(major_version)
 
         TaskManager.start_download(download_obj, icon=icon_path)
 

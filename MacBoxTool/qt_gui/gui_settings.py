@@ -571,74 +571,32 @@ class SettingsInterface(QWidget):
 
         self.sw_oc_debug = SwitchSettingCard(FIF.COMMAND_PROMPT, "OpenCore Debug", "Enable OpenCore debug mode", parent=group)
         self.sw_kext_debug = SwitchSettingCard(FIF.CODE, "Kext Debug", "Enable Lilu debug + DebugEnhancer", parent=group)
+        self.trigger_exception_card = PushSettingCard(
+            "Trigger",
+            FIF.CODE,
+            "Trigger Exception",
+            "Show the crash dialog through the logging handler",
+            parent=group
+        )
+        self.export_constants_card = PushSettingCard(
+            "Export",
+            FIF.SAVE,
+            "Export Constants",
+            "Export Constants values to a txt file",
+            parent=group
+        )
 
         group.addSettingCard(self.sw_oc_debug)
         group.addSettingCard(self.sw_kext_debug)
+        group.addSettingCard(self.trigger_exception_card)
+        group.addSettingCard(self.export_constants_card)
 
         self.sw_oc_debug.checkedChanged.connect(lambda v: self._save("opencore_debug", v))
         self.sw_kext_debug.checkedChanged.connect(lambda v: self._save("kext_debug", v))
+        self.trigger_exception_card.clicked.connect(self._on_trigger_exception_clicked)
+        self.export_constants_card.clicked.connect(self._on_export_constants_clicked)
 
         self.tab_debug._layout.addWidget(group)
-
-        # Add Global Settings viewer
-        settings_group = SettingCardGroup("Global Settings", self.tab_debug._container)
-
-        # Key input field using SearchLineEdit - placed more to the left
-        self.settings_key_input = SearchLineEdit(self)
-        self.settings_key_input.setPlaceholderText("Enter key to search...")
-        settings_key_card = SettingCard(FIF.SEARCH, "Search Key", parent=settings_group)
-        self.settings_key_input.setFixedWidth(250)
-        settings_key_card.hBoxLayout.addWidget(self.settings_key_input)
-        settings_key_card.hBoxLayout.addStretch(1)
-
-        # Result display using ExpandGroupSettingCard with addGroup
-        self.settings_expand_card = ExpandGroupSettingCard(
-            FIF.INFO,
-            "Search Result",
-            "Click to expand",
-            parent=settings_group
-        )
-        self.settings_key_label = BodyLabel("No key searched yet")
-        self.settings_value_label = BodyLabel("Enter a key above and press Enter or click search button")
-        self.settings_key_label.setWordWrap(True)
-        self.settings_value_label.setWordWrap(True)
-
-        # Use addGroup to add key-value pairs
-        self.settings_expand_card.addGroup(FIF.INFO, "Key", "", self.settings_key_label)
-        self.settings_expand_card.addGroup(FIF.CODE, "Value", "", self.settings_value_label)
-
-        settings_group.addSettingCard(settings_key_card)
-        settings_group.addSettingCard(self.settings_expand_card)
-
-        # Connect search on Enter key or search button click
-        self.settings_key_input.searchSignal.connect(lambda text: self._search_settings_key(text))
-
-        self.tab_debug._layout.addWidget(settings_group)
-
-    def _search_settings_key(self, key: str):
-        """Search for a key in global settings and display its value"""
-        if not key:
-            self.settings_key_label.setText("No key searched yet")
-            self.settings_value_label.setText("Enter a key above and press Enter or click search button")
-            return
-
-        value = self.settings.find_key(key)
-        if value is not None:
-            # Format the value for display
-            if isinstance(value, dict):
-                value_str = json.dumps(value, indent=2)
-            elif isinstance(value, list):
-                value_str = str(value)
-            else:
-                value_str = str(value)
-            self.settings_key_label.setText(key)
-            self.settings_value_label.setText(value_str)
-        else:
-            self.settings_key_label.setText("Not found")
-            self.settings_value_label.setText("N/A")
-
-        # Expand the card to show results
-        self.settings_expand_card.setExpand(True)
 
     # ── Persistence ──
 
@@ -651,6 +609,54 @@ class SettingsInterface(QWidget):
         if folder:
             self._save("download_path", folder)
             self.download_path_card.setContent(folder)
+
+    def _on_trigger_exception_clicked(self):
+        try:
+            raise RuntimeError("Debug trigger exception")
+        except RuntimeError:
+            exc_type, exc_value, exc_tb = sys.exc_info()
+            sys.excepthook(exc_type, exc_value, exc_tb)
+
+    def _on_export_constants_clicked(self):
+        default_path = str(Path.home() / "Desktop" / "MacBoxTool_Constants.txt")
+        file_path, _ = QFileDialog.getSaveFileName(self, "Export Constants", default_path, "Text Files (*.txt)")
+        if not file_path:
+            return
+
+        try:
+            constants_data = {}
+            for name in sorted(dir(self.constants)):
+                if name.startswith("_"):
+                    continue
+                try:
+                    value = getattr(self.constants, name)
+                except Exception as e:
+                    value = f"<error: {e}>"
+                if callable(value):
+                    continue
+                try:
+                    json.dumps(value)
+                    constants_data[name] = value
+                except TypeError:
+                    constants_data[name] = str(value)
+
+            Path(file_path).write_text(json.dumps(constants_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            InfoBar.success(
+                "Export Complete",
+                f"Constants exported to {file_path}",
+                duration=3000,
+                position=InfoBarPosition.TOP_RIGHT,
+                parent=self.window(),
+            )
+        except Exception as e:
+            logging.error(f"Failed to export constants: {e}")
+            InfoBar.error(
+                "Export Failed",
+                str(e),
+                duration=3000,
+                position=InfoBarPosition.TOP_RIGHT,
+                parent=self.window(),
+            )
 
     def _save(self, key: str, value):
         setattr(self.constants, key, value)

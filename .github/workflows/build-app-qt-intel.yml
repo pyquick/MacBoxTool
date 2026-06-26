@@ -95,6 +95,5 @@ jobs:
           name: ${{env.tag}}
           prerelease: false
           files: |
-
             ./dist/MacBoxTool-x86_64.pkg
             ./dist/MacBoxTool-Uninstaller-x86_64.pkg

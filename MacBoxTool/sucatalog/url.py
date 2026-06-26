@@ -29,7 +29,7 @@ class CatalogURL:
         extension (CatalogExtension):  Extension for the catalog URL
     """
     def __init__(self,
-                 version: CatalogVersion = CatalogVersion.TAHOE,
+                 version: CatalogVersion = CatalogVersion.GOLDEN_GATE,
                  seed: SeedType = SeedType.PublicRelease,
                  extension: CatalogExtension = CatalogExtension.PLIST
                  ) -> None:
