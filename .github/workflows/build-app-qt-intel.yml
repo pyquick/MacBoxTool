@@ -68,11 +68,16 @@ jobs:
           --run-as-individual-steps
           --prepare-application
 
+
       - name: Prepare Package (--prepare-package)
         run: >
           /Library/Frameworks/Python.framework/Versions/3.12/bin/python3 Build-Project.command
           --run-as-individual-steps
           --prepare-package
+
+      - name: Prepare manifest (gen.py)
+        run: >
+         /Library/Frameworks/Python.framework/Versions/3.12/bin/python3 gen.py
      
 
       - name: Upload Installation Package to Artifacts
@@ -87,6 +92,12 @@ jobs:
           name: MacBoxTool-Uninstaller-x86_64.pkg
           path: ./dist/MacBoxTool-Uninstaller-x86_64.pkg
 
+      - name: Upload manifest.json to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: manifest.json
+          path: ./deploy/manifest.json
+
       - name: Create Release on Push
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
@@ -97,3 +108,16 @@ jobs:
           files: |
             ./dist/MacBoxTool-x86_64.pkg
             ./dist/MacBoxTool-Uninstaller-x86_64.pkg
+
+      - name: Sync GitHub Pages
+        if: ${{ github.ref == 'refs/heads/main' }}
+        uses: JamesIves/github-pages-deploy-action@v4.8.0
+        with:
+          token: ${{ secrets.ACCESS_TOKEN }}
+          branch: gh-pages
+          folder: deploy/
+          clean: true
+          git-config-name: GitHub Actions
+          git-config-email: github-actions[bot]@users.noreply.github.com
+
+      
