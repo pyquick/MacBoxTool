@@ -104,26 +104,9 @@ class Updater(ScrollArea):
         
         self.expandLayout.addWidget(self.update_group)
 
-        progress_container = QWidget()
-        progress_layout = QHBoxLayout(progress_container)
-        progress_layout.setContentsMargins(0, 0, 0, 0)
-        progress_layout.setSpacing(SPACING["medium"])
-        self.check_ring = IndeterminateProgressRing(self)
-        self.check_ring.setFixedSize(80, 80)
-        self.check_ring.setVisible(False)
-        self.progress_ring = ProgressRing(self)
-        self.progress_ring.setRange(0, 100)
-        self.progress_ring.setValue(0)
-        self.progress_ring.setTextVisible(True)
-        self.progress_ring.setFixedSize(80, 80)
-        self.progress_ring.setStrokeWidth(4)
-        self.progress_ring.setVisible(False)
-        self.progress_label = BodyLabel("Ready")
-        progress_layout.addWidget(self.check_ring, 0, Qt.AlignmentFlag.AlignVCenter)
-        progress_layout.addWidget(self.progress_ring, 0, Qt.AlignmentFlag.AlignVCenter)
-        progress_layout.addWidget(self.progress_label, 1, Qt.AlignmentFlag.AlignVCenter)
-        self.expandLayout.addWidget(progress_container)
         
+        
+        self.expandLayout.addWidget(self.progress_widgets(),1)
         self.expandLayout.addWidget(self.changelog(),1)
         self.expandLayout.addStretch()
 
@@ -131,6 +114,36 @@ class Updater(ScrollArea):
         self.download_card.clicked.connect(self.download_update)
         self.install_card.clicked.connect(self.install_update)
         self.auto_card.checkedChanged.connect(self._on_auto_download_install_changed)
+
+    def progress_widgets(self):
+
+        self.progress_container = CardWidget()
+        self.progress_layout = QHBoxLayout(self.progress_container)
+
+        self.progress_layout.setContentsMargins(SPACING["xxlarge"], SPACING["xxlarge"],
+                                  SPACING["xxlarge"], SPACING["xxlarge"])
+
+
+        self.check_ring = IndeterminateProgressRing(self)
+        self.check_ring.setFixedSize(80, 80)
+        self.check_ring.setVisible(False)
+
+        self.progress_ring = ProgressRing(self)
+        self.progress_ring.setRange(0, 100)
+        self.progress_ring.setValue(0)
+        self.progress_ring.setTextVisible(True)
+        self.progress_ring.setFixedSize(80, 80)
+        self.progress_ring.setStrokeWidth(4)
+        self.progress_ring.setVisible(False)
+
+        self.progress_label = SubtitleLabel("")
+        self.progress_layout.addWidget(self.check_ring, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.progress_layout.addWidget(self.progress_ring, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.progress_layout.addWidget(self.progress_label, 1, Qt.AlignmentFlag.AlignVCenter)
+        self.progress_container.setVisible(False)
+
+        return self.progress_container
+    
     def changelog(self):
         card=CardWidget()
         layout = QVBoxLayout(card)
@@ -175,7 +188,9 @@ class Updater(ScrollArea):
         self.log_box.append(text)
 
     def check_for_update(self):
+        self.progress_container.setVisible(True)
         self._set_busy(True, "Checking for updates...", "checking")
+        
         self.log_box.clear()
 
         def _check():
@@ -194,7 +209,10 @@ class Updater(ScrollArea):
                 QTimer.singleShot(100, _finish_check)
                 return
 
-            self._set_busy(False, "Check complete")
+            #self._set_busy(False, "You're up to date")
+            self.progress_container.setVisible(False)
+            self.status_card.setEnabled(True)
+            self.auto_card.setEnabled(True)
             if self.update_result.get("error"):
                 self._append_log(self.update_result.get("update_log", "Failed to check update"))
                 InfoBar.error("Update", "Failed to check update", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self.window())
