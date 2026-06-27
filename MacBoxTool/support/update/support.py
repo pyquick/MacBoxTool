@@ -8,13 +8,22 @@ import platform
 class VisitGithubAPI:
     def __init__(self,constants:constants.Constants,repo_name:str="MacBoxTool",token:str="",user:str="pyquick"):
         self.constants:constants.Constants= constants
-        self.token:str = token
+        self.token:str = token or getattr(self.constants, "github_token", "") or ""
         self.url=f"https://api.github.com/repos/{user}/{repo_name}/releases/latest"
         self.find_latest_release_stable()
 
+    def _github_headers(self) -> dict:
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        return headers
+
     # TODO:TOKEN Use
     def find_latest_release_stable(self)->None:
-        r=requests.get(self.url,verify=False)
+        r=requests.get(self.url, headers=self._github_headers(), verify=False)
         self.information:dict= r.json()
         self.latest_tag_name:str=self.information["tag_name"]
         self.tag_name_list:list=self.latest_tag_name.split(".")
@@ -26,6 +35,23 @@ class VisitGithubAPI:
         self.release_name:str=self.information["name"] # in MBT, same as MBT tag
         self.publish_time:str=self.information["published_at"] # like 2026-05-04T12:21:37Z
         self.changelog:str=self.information["body"] # need markdown decode
+
+    def arch_check(self) -> list:
+        import platform
+        if platform.machine()=="x86_64": return ["build-app-qt-intel","MacBoxTool-x86_64.pkg"]
+        elif platform.machine()=="arm64":return ["build-app-qt-arm","MacBoxTool-arm64.pkg"]
+
+    def find_and_compare_latest_release_nightly(self) -> list[bool,str,str]:
+        self.nightly_url = f"https://nightly.link/pyquick/MacBoxTool/workflows/{self.arch_check()[0]}/main/{self.arch_check()[1]}.zip"
+        self.check_url="https://pyquick.github.io/MacBoxTool/manifest.json"
+        self.local_version_ni=self.constants.nightly_build.split(".")
+        request=requests.get(self.check_url,verify=False)
+        manifest:dict=request.json()
+        self.remote_version_ni = str(manifest["build"]).split(".")
+        for ma in range(2):
+            if self.remote_version_ni[ma] > self.local_version_ni[ma]:
+                return True,self.nightly_url,self.arch_check()[1]
+        return False,"",""
 
     def compare_tags(self)->bool:
         self.local_version:list=self.constants.macboxtool_version.split(".")
@@ -62,6 +88,8 @@ class VisitGithubAPI:
                 install ["arch"] = "arm64" 
             else:
                 continue
-            self.datas.append(install) 
+            self.datas.append(install)
+
         print(self.datas)  
+
         return self.datas[0]

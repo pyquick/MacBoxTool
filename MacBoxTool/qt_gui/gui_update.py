@@ -2,20 +2,21 @@
 gui_update.py: MacBoxTool update interface
 """
 from ..include import *
-from .gui_support import DefGUI
+from .gui_support import DefGUI,wait_for_thread
 from ..support.update import check_update, fetch_update, install_update, launch
-
+from ..support.on_nightly import CheckNightly
 
 class InstallUpdateWorker(QThread):
     finished_signal = Signal(bool, str)
 
-    def __init__(self, pkg_path: Path, parent=None):
+    def __init__(self, pkg_path: Path, parent=None,constants=constants.Constants):
         super().__init__(parent)
         self.pkg_path = pkg_path
+        self.constants=constants
 
     def run(self):
         try:
-            success = install_update.InstallUpdate(self.pkg_path).install_update()
+            success = install_update.InstallUpdate(self.pkg_path,self.constants).install_update()
             if success:
                 self.finished_signal.emit(True, "Update installed successfully")
             else:
@@ -97,10 +98,21 @@ class Updater(ScrollArea):
             parent=self.update_group
         )
 
+        self.nightly_card = SwitchSettingCard(
+            icon=FluentIcon.CODE,
+            title = "Allow Install Nightly Build",
+            content = "Explore the latest build and give feedback.",
+            parent= self.update_group
+        )
+        
+
         self.update_group.addSettingCard(self.status_card)
         self.update_group.addSettingCard(self.download_card)
         self.update_group.addSettingCard(self.auto_card)
+        self.update_group.addSettingCard(self.nightly_card)
         self.update_group.addSettingCard(self.install_card)
+        if self.constants.allow_nightly_check:
+            self.nightly_card.setVisible(False)
         
         self.expandLayout.addWidget(self.update_group)
 
@@ -113,6 +125,7 @@ class Updater(ScrollArea):
         self.status_card.clicked.connect(self.check_for_update)
         self.download_card.clicked.connect(self.download_update)
         self.install_card.clicked.connect(self.install_update)
+        self.nightly_card.checkedChanged.connect(self._on_check_nightly_changed)
         self.auto_card.checkedChanged.connect(self._on_auto_download_install_changed)
 
     def progress_widgets(self):
@@ -164,6 +177,7 @@ class Updater(ScrollArea):
 
     def _set_busy(self, busy: bool, message: str, mode: str = "idle"):
         self.progress_label.setText(message)
+        self.progress_container.setVisible(busy)
         self.check_ring.setVisible(mode in ("checking", "installing"))
         self.progress_ring.setVisible(mode == "downloading")
         if mode in ("checking", "installing"):
@@ -187,6 +201,9 @@ class Updater(ScrollArea):
     def _append_log(self, text: str):
         self.log_box.append(text)
 
+    def _on_check_nightly_changed(self,checked:bool):
+        self.constants.allow_nightly_check = checked
+
     def check_for_update(self):
         self.progress_container.setVisible(True)
         self._set_busy(True, "Checking for updates...", "checking")
@@ -205,29 +222,28 @@ class Updater(ScrollArea):
         thread.start()
 
         def _finish_check():
-            if thread.is_alive():
-                QTimer.singleShot(100, _finish_check)
-                return
+            wait_for_thread(thread)
 
-            #self._set_busy(False, "You're up to date")
-            self.progress_container.setVisible(False)
+            self._set_busy(False, "Check complete")
             self.status_card.setEnabled(True)
             self.auto_card.setEnabled(True)
             if self.update_result.get("error"):
                 self._append_log(self.update_result.get("update_log", "Failed to check update"))
-                InfoBar.error("Update", "Failed to check update", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self.window())
+                InfoBar.error("Update", "Failed to check update", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self.scrollWidget)
                 return
 
             if self.update_result.get("if_update"):
                 self.status_card.setContent("Update available")
+                self.download_card.setEnabled(True)
+                self.download_card.button.setText("Download")
                 self.log_box.setMarkdown(self.update_result.get("update_log", ""))
-                InfoBar.info("Update", "Update available", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self.window())
+                InfoBar.info("Update", "Update available", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self.scrollWidget)
                 if self.auto_download_install:
                     QTimer.singleShot(0, self.download_update)
             else:
                 self.status_card.setContent(f"You're on the latest version: {self.constants.macboxtool_version}")
                 self._append_log("You're up to date")
-                InfoBar.success("Update", "You're up to date", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self.window())
+                InfoBar.success("Update", "You're up to date", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self.scrollWidget)
 
         QTimer.singleShot(100, _finish_check)
 
@@ -244,7 +260,7 @@ class Updater(ScrollArea):
         self.is_downloading_update = True
         self.progress_ring.setValue(0)
         self.download_card.button.setText("Cancel")
-        self._set_busy(True, f"Downloading {self.pkg_download_path.name}...", "downloading")
+        self._set_busy(True, f"Preparing downloading update...", "downloading")
         self._append_log(f"Downloading: {self.pkg_download_path.name}")
 
         self.update_worker.progress_signal.connect(self._on_download_progress)
@@ -300,7 +316,7 @@ class Updater(ScrollArea):
 
         self._set_busy(True, "Installing update...", "installing")
         self._append_log(f"Installing: {self.pkg_download_path}")
-        self.install_worker = InstallUpdateWorker(self.pkg_download_path, self)
+        self.install_worker = InstallUpdateWorker(self.pkg_download_path, self,self.constants)
         self.install_worker.finished_signal.connect(self._on_install_finished)
         self.install_worker.start()
 

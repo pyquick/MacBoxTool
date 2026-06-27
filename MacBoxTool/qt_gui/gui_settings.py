@@ -586,13 +586,29 @@ class SettingsInterface(QWidget):
             parent=group
         )
 
+        self.github_token_card = SettingCard(
+            FIF.GITHUB,
+            "GitHub Token",
+            "Global token for GitHub API requests",
+            parent=group
+        )
+        self.github_token_edit = LineEdit(self.github_token_card)
+        self.github_token_edit.setPlaceholderText("ghp_... / fine-grained token")
+        self.github_token_edit.setClearButtonEnabled(True)
+        self.github_token_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.github_token_edit.setFixedWidth(320)
+        self.github_token_card.hBoxLayout.addWidget(self.github_token_edit, 0, Qt.AlignmentFlag.AlignRight)
+        self.github_token_card.hBoxLayout.addSpacing(16)
+
         group.addSettingCard(self.sw_oc_debug)
         group.addSettingCard(self.sw_kext_debug)
+        group.addSettingCard(self.github_token_card)
         group.addSettingCard(self.trigger_exception_card)
         group.addSettingCard(self.export_constants_card)
 
         self.sw_oc_debug.checkedChanged.connect(lambda v: self._save("opencore_debug", v))
         self.sw_kext_debug.checkedChanged.connect(lambda v: self._save("kext_debug", v))
+        self.github_token_edit.editingFinished.connect(self._on_github_token_changed)
         self.trigger_exception_card.clicked.connect(self._on_trigger_exception_clicked)
         self.export_constants_card.clicked.connect(self._on_export_constants_clicked)
 
@@ -610,6 +626,11 @@ class SettingsInterface(QWidget):
             self._save("download_path", folder)
             self.download_path_card.setContent(folder)
 
+    def _on_github_token_changed(self):
+        token = self.github_token_edit.text().strip()
+        self.constants.github_token = token
+        self._save("github_token", token)
+
     def _on_trigger_exception_clicked(self):
         try:
             raise RuntimeError("Debug trigger exception")
@@ -626,7 +647,7 @@ class SettingsInterface(QWidget):
         try:
             constants_data = {}
             for name in sorted(dir(self.constants)):
-                if name.startswith("_"):
+                if name.startswith("_") or "token" in name.lower():
                     continue
                 try:
                     value = getattr(self.constants, name)
@@ -722,6 +743,8 @@ class SettingsInterface(QWidget):
 
         self.sw_oc_debug.setChecked(_get("opencore_debug", False))
         self.sw_kext_debug.setChecked(_get("kext_debug", False))
+        self.constants.github_token = _get("github_token", "")
+        self.github_token_edit.setText(_get("github_token", ""))
 
         # Advanced Boot
         self.oc_timeout_spin.setValue(_get("oc_timeout", 5))

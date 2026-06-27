@@ -112,7 +112,7 @@ class KernelDebugKitObject:
 
         try:
             KDK_API_LINK=self.KDK_API_LINK_ORG
-            results = network_handler.NetworkUtilities().get(
+            results = network_handler.NetworkUtilities(self.constants).get(
                 KDK_API_LINK,
                 headers={
                     "User-Agent": f"OCLP/{self.constants.macboxtool_version}"

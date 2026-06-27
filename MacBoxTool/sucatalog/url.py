@@ -169,7 +169,7 @@ class CatalogURL:
         Return URL contents
         """
         try:
-            response = network_handler.NetworkUtilities.get(self.url, timeout=60)
+            response = network_handler.NetworkUtilities().get(self.url, timeout=60)
             return plistlib.loads(response.content)
         except Exception as e:
             logging.error(f"Failed to fetch catalog from {self.url}: {e}")

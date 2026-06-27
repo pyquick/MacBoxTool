@@ -142,6 +142,7 @@ class MacBoxTool:
         self.constants.detected_os_build = os_data.detect_os_build()
         self.constants.detected_os_version = os_data.detect_os_version()
 
+        
         # Generate computer data
         self.constants.computer = device_probe.Computer.probe()
         self.computer = self.constants.computer
@@ -180,6 +181,10 @@ class MacBoxTool:
 
        
         threading.Thread(target=analytics_handler.Analytics(self.constants).send_analytics).start()
+
+        from .support.on_nightly import CheckNightly
+        if CheckNightly(self.constants).check() is True:
+            self.constants.allow_nightly_check = True  
 
        
 

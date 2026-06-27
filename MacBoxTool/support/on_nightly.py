@@ -11,6 +11,8 @@ class CheckNightly:
     def check(self):
         if self.commit_info[0].startswith("refs/tags"):
             return False
+        
+        
         return True
     
     def warning(self):

@@ -60,7 +60,7 @@ class Introduction(ScrollArea):
         logging.info("init introduction")
 
 
-        self.global_constants = global_constants
+        self.constants = global_constants
         self.navigation_callback = None  # For page navigation
 
         self.scrollWidget = QWidget()
@@ -78,6 +78,15 @@ class Introduction(ScrollArea):
 
         self._init_ui()
 
+    def _github_headers(self) -> dict:
+        self.token = self.constants.github_token
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        return headers
 
     def set_navigation_callback(self, callback):
         """Set callback for page navigation."""
@@ -105,7 +114,7 @@ class Introduction(ScrollArea):
 
         self.expandLayout.addWidget(self._create_warning_card())
 
-        if CheckNightly(self.global_constants).check():
+        if CheckNightly(self.constants).check():
             self.expandLayout.addWidget(self._create_nightly_warning_card())
 
         self.expandLayout.addWidget(self._create_guide_card())
@@ -356,10 +365,12 @@ class Introduction(ScrollArea):
         return title_label
 
     def find_oclp_version(self):
+        header=self._github_headers()
         REPO_LATEST_RELEASE_URL: str = "https://api.github.com/repos/hackdoc/OCLP-R/releases/latest"
-        if not NetworkUtilities().verify_network_connection(REPO_LATEST_RELEASE_URL,1):
+        network_utilities = NetworkUtilities(self.constants)
+        if not network_utilities.verify_network_connection(REPO_LATEST_RELEASE_URL,1):
             return None
-        response = NetworkUtilities().get(REPO_LATEST_RELEASE_URL)
+        response = network_utilities.get(REPO_LATEST_RELEASE_URL)
         data_set = response.json()
         if "tag_name" not in data_set:
             return None
@@ -369,7 +380,7 @@ class Introduction(ScrollArea):
         except version.InvalidVersion:
             return None
     def _create_note_card(self):
-        self.oclp_version=self.find_oclp_version() or "3.1.4"
+        self.oclp_version=self.find_oclp_version() or "3.1.5"
         return self.ui_support.custom_card(
             card_type="note",
             title="OCLP-R: - Now Supports macOS Tahoe 26!",
@@ -385,7 +396,7 @@ class Introduction(ScrollArea):
         return self.ui_support.custom_card(
             card_type="warning",
             title="For Nightly Users",
-            body=CheckNightly(self.global_constants).warning()
+            body=CheckNightly(self.constants).warning()
         )
 
     def _create_warning_card(self):

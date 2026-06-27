@@ -26,8 +26,8 @@ class Constants:
         self.launcher_script:           str = None
         # OpenCore Version
         self.opencore_version:           str = "1.0.6"
-        self.nightly_build:              str = "4429.1100"
-        self.support_version:            str = "1.0.23780083prefix"
+        self.nightly_build:              str = "4434.1100"
+        self.support_version:            str = "1.0.23780091prefix"
 
         # Kext Versioning
         ## Acidanthera
@@ -64,6 +64,7 @@ class Constants:
         self.installer_pkg_url:               str = f"{self.repo_link}/releases/download/{self.macboxtool_version}/AutoPkg-Assets.pkg"
         self.installer_pkg_url_nightly:       str = "http://nightly.link/hackdoc/OCLP-R/workflows/build-app-wxpython/main/AutoPkg-Assets.pkg.zip"
         self.user_download_file:              str = f"/Users/{getpass.getuser()}/Downloads"
+        self.github_token:                    str = ""
 
 
         ## Apple
@@ -281,6 +282,8 @@ class Constants:
         self.apfs_trim_timeout:      bool = True   #  Set APFS Trim timeout
         self.custom_sip_value:        int = None   #  Set custom SIP value
         self.allow_apfs_aligned_patch:           bool = True
+        self.allow_nightly_check:                bool = False
+        self.stable_available:                   bool = False
         
         ## Non-Metal OS support
         self.legacy_accel_support = [

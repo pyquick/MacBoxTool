@@ -24,7 +24,7 @@ class NetworkCheckWorker(QThread):
 
     def run(self):
         try:
-            result = NetworkUtilities.check_network()
+            result = NetworkUtilities().check_network()
             if not self._is_cancelled:
                 self.finished_signal.emit(result)
         except Exception as e:
@@ -74,7 +74,7 @@ class TaskManager:
             cls._icons[id(download)] = icon
             download.icon_path = icon
 
-        worker = DownloadWorker(download)
+        worker = DownloadWorker(download, cls.aconstants)
         cls._workers[id(download)] = worker
 
         worker.finished_signal.connect(

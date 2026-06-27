@@ -74,6 +74,8 @@ class DownloadObject:
         if total > 0:
             self.total_size = total
 
+    
+
     def get_speed_display(self) -> str:
         """Get formatted speed display"""
         return f"{self._format_size(int(self.download_speed))}/s"
@@ -120,48 +122,69 @@ class DownloadObject:
 class NetworkUtilities:
     """Network utility methods"""
 
-    _thread_local = threading.local()
+    def __init__(self, global_constants: constants.Constants = None):
+        self.constants = global_constants
+        self._session = None
+        self.headers=None
 
+    def _apply_github_headers(self, url: str, kwargs: dict) -> dict:
+        token = getattr(self.constants, "github_token", "") if self.constants else ""
+        if token and "api.github.com" in url:
+            headers = dict(kwargs.get("headers") or {})
+            headers.setdefault("Accept", "application/vnd.github+json")
+            headers.setdefault("X-GitHub-Api-Version", "2022-11-28")
+            headers.setdefault("Authorization", f"Bearer {token}")
+            kwargs["headers"] = headers
+        return kwargs
+    
+    def _github_headers(self) -> dict:
+        self.token = self.constants.github_token
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        return headers
 
-    @classmethod
-    def _get_session(cls) -> requests.Session:
-        """Get or create a thread-local requests session with retry strategy"""
-        if not hasattr(cls._thread_local, 'session'):
-            cls._thread_local.session = requests.Session()
+    def _get_session(self) -> requests.Session:
+        """Get or create a requests session with retry strategy"""
+        if self._session is None:
+            self._session = requests.Session()
             retry_strategy = Retry(
                 total=3,
                 backoff_factor=1,
                 status_forcelist=[429, 500, 502, 503, 504],
             )
             adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=20, pool_maxsize=20)
-            cls._thread_local.session.mount("http://", adapter)
-            cls._thread_local.session.mount("https://", adapter)
-        return cls._thread_local.session
+            self._session.mount("http://", adapter)
+            self._session.mount("https://", adapter)
+        return self._session
 
-    @classmethod
-    def check_network(cls) -> bool:
+    def check_network(self) -> bool:
         """Check network connectivity via HEAD request to GitHub.com"""
         try:
-            session = cls._get_session()
+            session = self._get_session()
             response = session.head("https://github.com", timeout=10)
             return response.status_code == 200
         except Exception as e:
             logging.warning(f"Network check failed: {e}")
             return False
-        
-    def verify_network_connection(cls,url:str,timeout:int) -> bool:
+
+
+    def verify_network_connection(self, url: str, timeout: int) -> bool:
         """
         Verifies that the network is available
 
         Returns:
             bool: True if network is available, False otherwise
         """
-
+        self.headers=self._github_headers()
         try:
             if "nightly.link" in url:
-                response=requests.get(url, timeout=timeout, allow_redirects=True, verify=True,stream=True)
+                response=requests.get(url, timeout=timeout, allow_redirects=True, verify=True,stream=True,headers=self.headers)
             else:
-                response = requests.head(url, timeout=timeout, allow_redirects=True, verify=False)
+                response = requests.head(url, timeout=timeout, allow_redirects=True, verify=False,headers=self.headers)
             
             print("Checking network connection...")
             if response.status_code == 200:
@@ -182,8 +205,7 @@ class NetworkUtilities:
             print(f"Error:{e}")
             return False
 
-    @classmethod
-    def get(cls, url: str, **kwargs) -> requests.Response:
+    def get(self, url: str, **kwargs) -> requests.Response:
         """
         Wrapper for requests's get method
         Implement additional error handling
@@ -195,14 +217,15 @@ class NetworkUtilities:
         Returns:
             requests.Response: Response object from requests.get
         """
-
+        
         result: requests.Response = None
 
         try:
             # Set default max redirects if not specified
             if 'allow_redirects' in kwargs and kwargs['allow_redirects']:
                 kwargs['max_redirects'] = kwargs.get('max_redirects', MAX_REDIRECTS)
-            result = SESSION.get(url, **kwargs)
+            kwargs = self._apply_github_headers(url, kwargs)
+            result = self._get_session().get(url, **kwargs)
         except (
             requests.exceptions.Timeout,
             requests.exceptions.TooManyRedirects,
@@ -216,25 +239,27 @@ class NetworkUtilities:
 
         return result
 
-    @classmethod
-    def custom_get(cls, url: str, **kwargs) -> requests.Response:
+    def custom_get(self, url: str, **kwargs) -> requests.Response:
         """Custom GET request wrapper"""
-        session = cls._get_session()
+        session = self._get_session()
         timeout = kwargs.pop('timeout', 30)
+        kwargs = self._apply_github_headers(url, kwargs)
         return session.get(url, timeout=timeout, **kwargs)
 
-    @classmethod
-    def custom_post(cls, url: str, **kwargs) -> requests.Response:
+    def custom_post(self, url: str, **kwargs) -> requests.Response:
         """Custom POST request wrapper"""
-        session = cls._get_session()
+        session = self._get_session()
         timeout = kwargs.pop('timeout', 30)
+        kwargs = self._apply_github_headers(url, kwargs)
         return session.post(url, timeout=timeout, **kwargs)
 
-    @classmethod
-    def get_file_size(cls, url: str) -> int:
+    def post(self, url: str, **kwargs) -> requests.Response:
+        return self.custom_post(url, **kwargs)
+
+    def get_file_size(self, url: str) -> int:
         """Get file size from URL without downloading"""
         try:
-            session = cls._get_session()
+            session = self._get_session()
             response = session.head(url, allow_redirects=True, timeout=10)
             return int(response.headers.get('content-length', 0))
         except Exception as e:
@@ -248,9 +273,11 @@ class DownloadWorker(QThread):
     finished_signal = Signal(bool, str)  # success, message
     status_changed_signal = Signal(str)  # DownloadStatus
 
-    def __init__(self, download_object: DownloadObject):
+    def __init__(self, download_object: DownloadObject, global_constants: constants.Constants = None):
         super().__init__()
         self.download = download_object
+        self.constants = global_constants
+        self.network_utilities = NetworkUtilities(self.constants)
         self._is_cancelled = False
         self._is_paused = False
         self._lock = threading.Lock()
@@ -277,7 +304,7 @@ class DownloadWorker(QThread):
                     # Continue with download even if deletion fails
 
             # Get file size
-            total_size = NetworkUtilities.get_file_size(self.download.url)
+            total_size = self.network_utilities.get_file_size(self.download.url)
             if total_size == 0:
                 # Fallback: download normally if HEAD request fails
                 self._download_single_thread(total_size)
@@ -364,7 +391,7 @@ class DownloadWorker(QThread):
         """Download a specific range of bytes"""
         try:
             headers = {'Range': f'bytes={start}-{end}'}
-            response = NetworkUtilities.custom_get(url, headers=headers, stream=True)
+            response = self.network_utilities.custom_get(url, headers=headers, stream=True)
 
             with open(part_file, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
@@ -394,7 +421,7 @@ class DownloadWorker(QThread):
             logging.info(f"[DownloadWorker] Starting (single-thread): {self.download.filename}")
 
             final_path = os.path.join(self.download.save_path, self.download.filename)
-            response = NetworkUtilities.custom_get(self.download.url, stream=True)
+            response = self.network_utilities.custom_get(self.download.url, stream=True)
 
             # Try to get total size from response headers if not known
             if total_size == 0:
