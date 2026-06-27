@@ -25,6 +25,8 @@ class VisitGithubAPI:
         self.constants: constants.Constants = constants
         self.token: str = token or getattr(self.constants, "github_token", "") or ""
         self.url = f"https://api.github.com/repos/{user}/{repo_name}/releases/latest"
+        
+        self.check_url = "https://pyquick.github.io/MacBoxTool/manifest.json"
 
         if fetch_latest:
             self.find_latest_release_stable()
@@ -44,7 +46,7 @@ class VisitGithubAPI:
         logging.info(f"[Update] Requesting latest release: {self.url}")
         response = requests.get(self.url, headers=self._github_headers(), verify=False, timeout=20)
         response.raise_for_status()
-
+        
         self.information: dict = response.json()
         for key in ("tag_name", "assets", "target_commitish", "name", "published_at", "body"):
             if key not in self.information:
@@ -70,25 +72,49 @@ class VisitGithubAPI:
         """Check the nightly manifest and return the nightly download URL."""
         workflow, artifact = self.arch_check()
         self.nightly_url = f"https://nightly.link/pyquick/MacBoxTool/workflows/{workflow}/main/{artifact}.zip"
-        self.check_url = "https://pyquick.github.io/MacBoxTool/manifest.json"
-
+        
         response = requests.get(self.check_url, verify=False, timeout=20)
         response.raise_for_status()
         manifest: dict = response.json()
-        if "build" not in manifest:
-            raise KeyError("nightly manifest missing 'build'")
+        if "build" not in manifest or "nightly" not in manifest or "version" not in manifest:
+            raise KeyError("nightly manifest missing key(s)")
 
         local_build = version.parse(str(self.constants.nightly_build))
         remote_build = version.parse(str(manifest["build"]))
-        if remote_build > local_build:
+        is_nightly_build = bool(manifest["nightly"])
+        if (remote_build > local_build) and is_nightly_build:
             return True, self.nightly_url, artifact
+        
         return False, "", ""
+    
+    def is_higher_stable_is_coming(self) -> bool:
+        """
+        Check stable is higher than nightly.
+        Manifest.json is always higher than stable (or same as stable)
+        """
+        response = requests.get(self.check_url, verify=False, timeout=20)
+        response.raise_for_status()
+        manifest: dict = response.json()
+        if "build" not in manifest or "nightly" not in manifest or "version" not in manifest:
+            raise KeyError("nightly manifest missing key.")
+        is_nightly_version=bool(manifest["nightly"])
+
+        return not is_nightly_version
+
 
     def compare_tags(self) -> bool:
         """Return True when the remote stable release is newer than local."""
+        response = requests.get(self.check_url, verify=False, timeout=20)
+        response.raise_for_status()
+        manifest: dict = response.json()
+        if "build" not in manifest or "nightly" not in manifest or "version" not in manifest:
+            raise KeyError("nightly manifest missing key(s)")
+        manifest_version = version.parse(str(manifest["version"]))
+
         local_version = version.parse(str(self.constants.macboxtool_version))
         remote_version = version.parse(str(self.latest_tag_name))
-        return remote_version > local_version
+        # We need update is not downloaded before releasing and building.
+        return (remote_version > local_version) and (manifest_version >= remote_version)
 
     def update_log(self) -> str:
         """Return the latest release changelog."""
@@ -101,6 +127,7 @@ class VisitGithubAPI:
     def assets_decode(self) -> dict:
         """Select the installer asset that matches the current architecture."""
         datas: list = []
+        #datas: list = [{"name":"MacBoxTool_xxx.pkg"}]
         for asset in self.assets:
             name = asset["name"]
             if "Uninstaller" in name or "uninstaller" in name:

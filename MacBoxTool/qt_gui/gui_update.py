@@ -52,7 +52,7 @@ class Updater(ScrollArea):
         self.settings = global_settings
 
         # Runtime update state.
-        self.update_result = None
+        self.update_result = check_update.UPDATE_RESULT_TEMPLATE.copy()
         self.update_worker = None
         self.install_worker = None
         self.pkg_download_path = None
@@ -285,7 +285,8 @@ class Updater(ScrollArea):
                 self.update_result = checker.check_update()
             except Exception as e:
                 logging.error(f"[Update] Check failed: {e}")
-                self.update_result = {"if_update": False, "update_log": str(e), "error": True}
+                self.update_result = check_update.UPDATE_RESULT_TEMPLATE.copy()
+                self.update_result.update({"update_log": str(e), "error": True})
 
         self._log_update("Checking for updates...")
         thread = threading.Thread(target=_check, daemon=True)

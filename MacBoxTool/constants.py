@@ -26,8 +26,8 @@ class Constants:
         self.launcher_script:           str = None
         # OpenCore Version
         self.opencore_version:           str = "1.0.6"
-        self.nightly_build:              str = "4436.1100"
-        self.support_version:            str = "1.0.23780091prefix"
+        self.nightly_build:              str = "4443.1000"
+        self.support_version:            str = "1.0.23780092" # prefix: unstable core.
 
         # Kext Versioning
         ## Acidanthera

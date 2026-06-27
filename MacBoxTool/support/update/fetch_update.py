@@ -7,6 +7,7 @@ from pathlib import Path
 from ...constants import Constants
 from ..network_handler import DownloadObject, DownloadWorker
 from .support import VisitGithubAPI
+from .check_update import UPDATE_RESULT_TEMPLATE
 
 
 class FetchUpdate(DownloadWorker):
@@ -15,7 +16,7 @@ class FetchUpdate(DownloadWorker):
     def __init__(self, constants: Constants, update_result: dict = None):
         """Create a download worker for the selected update asset."""
         self.constants = constants
-        update_result = update_result or {}
+        update_result = update_result or UPDATE_RESULT_TEMPLATE.copy()
 
         # Prefer the asset selected during check_for_update to avoid duplicate
         # network requests when the user clicks Download.

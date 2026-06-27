@@ -30,7 +30,7 @@ class InstallUpdate:
         self.extract_zip_files()
 
         result = subprocess_wrapper.run_as_root(
-            ["/usr/sbin/installer", "-pkg", str(self.pkg_download_path), "-target", "/"],
+            ["/usr/sbin/installer", "-pkg", str(self.pkg_download_path).strip(".zip"), "-target", "/"],
             capture_output=True,
         )
         if result.returncode == 0:
