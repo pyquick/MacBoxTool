@@ -365,13 +365,22 @@ class Introduction(ScrollArea):
         return title_label
 
     def find_oclp_version(self):
-        header=self._github_headers()
         REPO_LATEST_RELEASE_URL: str = "https://api.github.com/repos/hackdoc/OCLP-R/releases/latest"
         network_utilities = NetworkUtilities(self.constants)
-        if not network_utilities.verify_network_connection(REPO_LATEST_RELEASE_URL,1):
+        if not network_utilities.verify_network_connection(REPO_LATEST_RELEASE_URL, 1):
             return None
-        response = network_utilities.get(REPO_LATEST_RELEASE_URL)
-        data_set = response.json()
+
+        response = network_utilities.get(REPO_LATEST_RELEASE_URL, timeout=10)
+        if not response or response.status_code != 200 or not response.content:
+            logging.warning(f"[Introduction] Failed to fetch OCLP-R release: status={getattr(response, 'status_code', None)}")
+            return None
+
+        try:
+            data_set = response.json()
+        except Exception as e:
+            logging.warning(f"[Introduction] Invalid OCLP-R release response: {e}")
+            return None
+
         if "tag_name" not in data_set:
             return None
         try:

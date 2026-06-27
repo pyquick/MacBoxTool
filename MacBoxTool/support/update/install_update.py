@@ -1,31 +1,34 @@
 """
-install_update.py: Install MacBoxTool update package.
+install_update.py: Install downloaded MacBoxTool update packages.
 """
-
 import logging
 import subprocess
+import zipfile
 from pathlib import Path
-import os
+
 from ... import constants
 from .. import subprocess_wrapper
-import zipfile
+
 
 class InstallUpdate:
-    """Install downloaded PKG update."""
+    """Install a downloaded stable package or nightly archive."""
 
-    def __init__(self, pkg_download_path: Path, constants:constants.Constants):
+    def __init__(self, pkg_download_path: Path, constants: constants.Constants):
+        """Store the downloaded package path and constants."""
         self.pkg_download_path = Path(pkg_download_path)
-        self.constants=constants
+        self.constants = constants
 
     def extract_zip_files(self):
+        """Extract nightly archives before installation."""
         if self.constants.allow_nightly_check and not self.constants.stable_available:
-            with zipfile.ZipFile(self.pkg_download_path,"r") as ext:
-                ext.extractall(self.constants.payload_path)
-        return
+            with zipfile.ZipFile(self.pkg_download_path, "r") as archive:
+                archive.extractall(self.constants.payload_path)
 
     def install_update(self) -> bool:
+        """Install the downloaded update with the privileged installer helper."""
         logging.info(f"[Update] Installing update: {self.pkg_download_path}")
         self.extract_zip_files()
+
         result = subprocess_wrapper.run_as_root(
             ["/usr/sbin/installer", "-pkg", str(self.pkg_download_path), "-target", "/"],
             capture_output=True,

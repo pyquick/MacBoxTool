@@ -225,6 +225,7 @@ class NetworkUtilities:
             if 'allow_redirects' in kwargs and kwargs['allow_redirects']:
                 kwargs['max_redirects'] = kwargs.get('max_redirects', MAX_REDIRECTS)
             kwargs = self._apply_github_headers(url, kwargs)
+            kwargs.setdefault('timeout', 30)
             result = self._get_session().get(url, **kwargs)
         except (
             requests.exceptions.Timeout,
