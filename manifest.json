@@ -1,6 +1,6 @@
 {
-    "version": "0.0.3",
-    "build": "4443.1000",
-    "core": "1.0.23780092",
-    "nightly": false
+    "version": "0.0.3.1",
+    "build": "4443.1100",
+    "core": "1.0.23780094prefix",
+    "nightly": true
 }
