@@ -314,7 +314,14 @@ class Updater(ScrollArea):
                 return
 
             if self.update_result.get("if_update"):
-                self.status_card.setContent("Update available")
+                update_type = self.update_result.get("update_type", "")
+                update_version = self.update_result.get("update_version", "")
+                if update_type == "nightly" and update_version:
+                    self.status_card.setContent(f"Update available: Nightly build {update_version}")
+                elif update_type == "stable" and update_version:
+                    self.status_card.setContent(f"Update available: Stable {update_version}")
+                else:
+                    self.status_card.setContent("Update available")
                 self.download_card.setEnabled(True)
                 self.download_card.button.setText("Download")
                 self.log_box.setMarkdown(self.update_result.get("update_log", ""))

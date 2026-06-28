@@ -11,6 +11,7 @@ UPDATE_RESULT_TEMPLATE: dict[str, object] = {
     "download_url": "",
     "download_name": "",
     "update_type": "",
+    "update_version": "",
     "error": False,
 }
 
@@ -45,6 +46,7 @@ class CheckUpdate:
                 self.prompt["download_url"] = nightly[1]
                 self.prompt["download_name"] = f"{nightly[2]}.zip"
                 self.prompt["update_type"] = "nightly"
+                self.prompt["update_version"] = nightly[3]
                 return self.prompt
         # For stable & Low nightly
         elif self.vg.compare_tags() or self.stable_is_coming:
@@ -56,6 +58,7 @@ class CheckUpdate:
             self.prompt["download_url"] = asset["download_url"]
             self.prompt["download_name"] = asset["name"]
             self.prompt["update_type"] = "stable"
+            self.prompt["update_version"] = self.vg.update_version()
 
             self.constants.stable_available = True
 

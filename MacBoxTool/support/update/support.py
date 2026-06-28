@@ -68,24 +68,25 @@ class VisitGithubAPI:
             return ["build-app-qt-arm", "MacBoxTool-arm64.pkg"]
         raise RuntimeError(f"Unsupported architecture: {platform.machine()}")
 
-    def find_and_compare_latest_release_nightly(self) -> list[bool, str, str]:
+    def find_and_compare_latest_release_nightly(self) -> list[bool, str, str, str]:
         """Check the nightly manifest and return the nightly download URL."""
         workflow, artifact = self.arch_check()
         self.nightly_url = f"https://nightly.link/pyquick/MacBoxTool/workflows/{workflow}/main/{artifact}.zip"
-        
+
         response = requests.get(self.check_url, verify=False, timeout=20)
         response.raise_for_status()
         manifest: dict = response.json()
         if "build" not in manifest or "nightly" not in manifest or "version" not in manifest:
             raise KeyError("nightly manifest missing key(s)")
 
+        remote_build = str(manifest["build"])
         local_build = version.parse(str(self.constants.nightly_build))
-        remote_build = version.parse(str(manifest["build"]))
+        remote_build_version = version.parse(remote_build)
         is_nightly_build = bool(manifest["nightly"])
-        if (remote_build > local_build) and is_nightly_build:
-            return True, self.nightly_url, artifact
-        
-        return False, "", ""
+        if (remote_build_version > local_build) and is_nightly_build:
+            return True, self.nightly_url, artifact, remote_build
+
+        return False, "", "", ""
     
     def is_higher_stable_is_coming(self) -> bool:
         """
@@ -119,12 +120,13 @@ class VisitGithubAPI:
             raise KeyError("nightly manifest missing key(s)")
         manifest_version = version.parse(str(manifest["version"]))
         manifest_build = version.parse(str(manifest["build"])) # manifest
+        is_manifest_nightly= bool(manifest["nightly"])
 
         local_version = version.parse(str(self.constants.macboxtool_version))
         remote_version = version.parse(str(self.latest_tag_name)) # api.github.com
         local_build = version.parse(str(self.constants.nightly_build))
         # We need update is not downloaded before releasing and building.
-        return (remote_version > local_version) and (manifest_version >= remote_version) and (manifest_build >= local_build)
+        return (remote_version > local_version) and (manifest_version >= remote_version) and (not is_manifest_nightly) and (manifest_build >= local_build)
 
     def update_log(self) -> str:
         """Return the latest release changelog."""
