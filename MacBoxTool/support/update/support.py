@@ -8,6 +8,7 @@ import requests
 from packaging import version
 
 from ... import constants as constants
+from ..on_nightly import CheckNightly
 
 
 class VisitGithubAPI:
@@ -28,8 +29,7 @@ class VisitGithubAPI:
         
         self.check_url = "https://pyquick.github.io/MacBoxTool/manifest.json"
 
-        if fetch_latest:
-            self.find_latest_release_stable()
+        self.find_latest_release_stable()
 
     def _github_headers(self) -> dict:
         """Build authenticated GitHub API headers when a token is configured."""
@@ -97,9 +97,17 @@ class VisitGithubAPI:
         manifest: dict = response.json()
         if "build" not in manifest or "nightly" not in manifest or "version" not in manifest:
             raise KeyError("nightly manifest missing key.")
+        
         is_nightly_version=bool(manifest["nightly"])
+        is_local_nightly = CheckNightly(self.constants).check()
+        manifest_version = version.parse(str(manifest["version"]))
+        manifest_build = version.parse(str(manifest["build"])) # manifest
 
-        return not is_nightly_version
+        local_version = version.parse(str(self.constants.macboxtool_version))
+        remote_version = version.parse(str(self.latest_tag_name)) # api.github.com
+        local_build = version.parse(str(self.constants.nightly_build))
+
+        return (not is_nightly_version) and (manifest_version==local_version) and (manifest_build==local_build) and (manifest_version>=remote_version) and is_local_nightly
 
 
     def compare_tags(self) -> bool:
@@ -110,11 +118,13 @@ class VisitGithubAPI:
         if "build" not in manifest or "nightly" not in manifest or "version" not in manifest:
             raise KeyError("nightly manifest missing key(s)")
         manifest_version = version.parse(str(manifest["version"]))
+        manifest_build = version.parse(str(manifest["build"])) # manifest
 
         local_version = version.parse(str(self.constants.macboxtool_version))
-        remote_version = version.parse(str(self.latest_tag_name))
+        remote_version = version.parse(str(self.latest_tag_name)) # api.github.com
+        local_build = version.parse(str(self.constants.nightly_build))
         # We need update is not downloaded before releasing and building.
-        return (remote_version > local_version) and (manifest_version >= remote_version)
+        return (remote_version > local_version) and (manifest_version >= remote_version) and (manifest_build >= local_build)
 
     def update_log(self) -> str:
         """Return the latest release changelog."""

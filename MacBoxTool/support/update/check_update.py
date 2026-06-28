@@ -46,7 +46,7 @@ class CheckUpdate:
                 self.prompt["download_name"] = f"{nightly[2]}.zip"
                 self.prompt["update_type"] = "nightly"
                 return self.prompt
-        
+        # For stable & Low nightly
         elif self.vg.compare_tags() or self.stable_is_coming:
             asset = self.vg.assets_decode()
             self.changelog = self.vg.update_log()
@@ -56,7 +56,7 @@ class CheckUpdate:
             self.prompt["download_url"] = asset["download_url"]
             self.prompt["download_name"] = asset["name"]
             self.prompt["update_type"] = "stable"
-            
+
             self.constants.stable_available = True
 
         else:

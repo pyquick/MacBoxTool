@@ -75,11 +75,6 @@ jobs:
           --run-as-individual-steps
           --prepare-package
 
-      - name: Prepare manifest (gen.py)
-        run: >
-         /Library/Frameworks/Python.framework/Versions/3.12/bin/python3 gen.py
-     
-
       - name: Upload Installation Package to Artifacts
         uses: actions/upload-artifact@v4
         with:

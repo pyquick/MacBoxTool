@@ -7,6 +7,7 @@ from pathlib import Path
 
 from MacBoxTool.volume  import generate_copy_arguments
 from MacBoxTool.support import subprocess_wrapper
+from gen import generate_manifest
 
 
 class GenerateApplication:
@@ -152,7 +153,7 @@ class GenerateApplication:
         with open(_file, "wb") as f:
             f.write(data)
 
-    def _embed_git_data(self) -> None:
+    def _embed_git_data(self) -> tuple:
         """
         Embed git data
         """
@@ -161,15 +162,18 @@ class GenerateApplication:
         _git_branch = self._git_branch or "Built from source"
         _git_commit = self._git_commit_url or ""
         _git_commit_date = self._git_commit_date or time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        _commit_info = (_git_branch, _git_commit_date, _git_commit)
 
         print("Embedding git data")
         _plist = plistlib.load(_file.open("rb"))
         _plist["Github"] = {
-            "Branch": _git_branch,
-            "Commit URL": _git_commit,
-            "Commit Date": _git_commit_date
+            "Branch": _commit_info[0],
+            "Commit URL": _commit_info[2],
+            "Commit Date": _commit_info[1]
         }
         plistlib.dump(_plist, _file.open("wb"), sort_keys=True)
+
+        return _commit_info
 
     def _setting_bundle_icon_name(self) -> None:
         """
@@ -209,6 +213,7 @@ class GenerateApplication:
         self._remove_analytics_key()
         self._patch_load_command()
         self._patch_sdk_version()
-        self._embed_git_data()
+        commit_info = self._embed_git_data()
+        generate_manifest(commit_info)
         self._setting_bundle_icon_name()
         self._embed_resources()
