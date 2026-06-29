@@ -43,6 +43,7 @@ class VisitGithubAPI:
 
     def find_latest_release_stable(self) -> None:
         """Fetch and validate the latest stable GitHub release payload."""
+        
         logging.info(f"[Update] Requesting latest release: {self.url}")
         response = requests.get(self.url, headers=self._github_headers(), verify=False, timeout=20)
         response.raise_for_status()
@@ -76,14 +77,12 @@ class VisitGithubAPI:
         response = requests.get(self.check_url, verify=False, timeout=20)
         response.raise_for_status()
         manifest: dict = response.json()
-        if "build" not in manifest or "nightly" not in manifest or "version" not in manifest:
-            raise KeyError("nightly manifest missing key(s)")
 
-        remote_build = str(manifest["build"])
+        remote_build = str(manifest["nightly_latest"]["build"])
         local_build = version.parse(str(self.constants.nightly_build))
         remote_build_version = version.parse(remote_build)
-        is_nightly_build = bool(manifest["nightly"])
-        if (remote_build_version > local_build) and is_nightly_build:
+        
+        if remote_build_version > local_build:
             return True, self.nightly_url, artifact, remote_build
 
         return False, "", "", ""
@@ -96,37 +95,32 @@ class VisitGithubAPI:
         response = requests.get(self.check_url, verify=False, timeout=20)
         response.raise_for_status()
         manifest: dict = response.json()
-        if "build" not in manifest or "nightly" not in manifest or "version" not in manifest:
-            raise KeyError("nightly manifest missing key.")
-        
-        is_nightly_version=bool(manifest["nightly"])
-        is_local_nightly = CheckNightly(self.constants).check()
-        manifest_version = version.parse(str(manifest["version"]))
-        manifest_build = version.parse(str(manifest["build"])) # manifest
 
         local_version = version.parse(str(self.constants.macboxtool_version))
-        remote_version = version.parse(str(self.latest_tag_name)) # api.github.com
         local_build = version.parse(str(self.constants.nightly_build))
 
-        return (not is_nightly_version) and (manifest_version==local_version) and (manifest_build==local_build) and (manifest_version>=remote_version) and is_local_nightly
+        manifest_version_stable = version.parse(str(manifest["stable_latest"]["version"]))
+        manifest_build_stable = version.parse(str(manifest["stable_latest"]["build"]))
+
+        return manifest_version_stable >= local_version or manifest_build_stable >= local_build
 
 
     def compare_tags(self) -> bool:
         """Return True when the remote stable release is newer than local."""
         response = requests.get(self.check_url, verify=False, timeout=20)
+        # Only stable can use it, nightly us is_higher_stable_is_coming()
+        if CheckNightly(self.constants).check(): return False
         response.raise_for_status()
         manifest: dict = response.json()
-        if "build" not in manifest or "nightly" not in manifest or "version" not in manifest:
-            raise KeyError("nightly manifest missing key(s)")
-        manifest_version = version.parse(str(manifest["version"]))
-        manifest_build = version.parse(str(manifest["build"])) # manifest
-        is_manifest_nightly= bool(manifest["nightly"])
+
+        manifest_version_stable = version.parse(str(manifest["stable_latest"]["version"]))
+        manifest_build_stable = version.parse(str(manifest["stable_latest"]["build"])) # manifest
 
         local_version = version.parse(str(self.constants.macboxtool_version))
-        remote_version = version.parse(str(self.latest_tag_name)) # api.github.com
         local_build = version.parse(str(self.constants.nightly_build))
-        # We need update is not downloaded before releasing and building.
-        return (remote_version > local_version) and (manifest_version >= remote_version) and (not is_manifest_nightly) and (manifest_build >= local_build)
+
+        return manifest_version_stable > local_version or manifest_build_stable > local_build
+        
 
     def update_log(self) -> str:
         """Return the latest release changelog."""

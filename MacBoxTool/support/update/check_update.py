@@ -32,7 +32,7 @@ class CheckUpdate:
     def check_update(self):
         """Return update availability plus the exact asset to download."""
         self.constants.stable_available = False
-        self.stable_is_coming:bool = self.vg.is_higher_stable_is_coming()
+        self.stable_is_coming :bool = self.vg.is_higher_stable_is_coming()
 
         if not hasattr(self.vg, "latest_tag_name"):
             self.vg.find_latest_release_stable()

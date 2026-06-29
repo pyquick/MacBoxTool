@@ -19,14 +19,14 @@ from packaging import version
 class Constants:
     def __init__(self):
         #MacBoxTool Version
-        self.macboxtool_version:        str = "0.0.3"
+        self.macboxtool_version:        str = "0.0.3.2"
         self.patcher_support_pkg_version:     str = "1.11.3"  # PatcherSupportPkg
         self.copyright:                        str = "Copyright © 2020-2026 Pyquick"
         self.launcher_binary:           str = None
         self.launcher_script:           str = None
         # OpenCore Version
         self.opencore_version:           str = "1.0.6"
-        self.nightly_build:              str = "4443.1222"
+        self.nightly_build:              str = "4444.1000"
         self.support_version:            str = "1.0.23780094prefix" # prefix: unstable core.
 
         # Kext Versioning
