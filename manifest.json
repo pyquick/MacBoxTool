@@ -7,11 +7,11 @@
     "nightly_latest":{
         "version": "0.0.3",
         "build": "4443.1222",
-        "core": "1.0.23780094prefix",
+        "core": "1.0.23780094prefix"
     },
     "stable_latest":{
         "version": "0.0.3",
         "build": "4443.1000",
-        "core": "1.0.23780092",
-    },
+        "core": "1.0.23780092"
+    }
 }
