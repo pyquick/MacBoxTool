@@ -105,7 +105,6 @@ jobs:
             ./dist/MacBoxTool-Uninstaller-x86_64.pkg
 
       - name: Sync GitHub Pages
-        if: ${{ github.ref == 'refs/heads/main' }}
         uses: JamesIves/github-pages-deploy-action@v4.8.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
