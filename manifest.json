@@ -1,12 +1,12 @@
 {
     "Note": "Please update to 0.0.3.2(Nightly) by 2026-07-02-00:00:00 UTC.",
-    "version": "0.0.3.2",
-    "build": "4444.1001",
+    "version": "0.0.4",
+    "build": "4508.1000",
     "core": "1.0.23780094prefix",
-    "nightly": false,
+    "nightly": true,
     "nightly_latest": {
-        "version": "0.0.3.2",
-        "build": "4444.1001",
+        "version": "0.0.4",
+        "build": "4508.1000",
         "core": "1.0.23780094prefix"
     },
     "stable_latest": {
