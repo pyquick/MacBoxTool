@@ -7,6 +7,7 @@ from .gui_build import BuildOCPage
 from .gui_about import AboutInterface
 from .gui_settings import SettingsInterface
 from .gui_task import TaskInterface, TaskManager
+from .sys_patch import SysPatch
 from .gui_all_download import DownloadInterface
 from .gui_update import Updater
 from ..support import on_nightly
@@ -112,6 +113,7 @@ class Window(FluentWindow):
             getattr(self, "introduction", None),
             getattr(self, "build", None),
             getattr(self, "task_page", None),
+            getattr(self, "sys_patch_page", None),
             getattr(self, "download_page", None),
             getattr(self, "updater", None),
         ):
@@ -225,6 +227,14 @@ class Window(FluentWindow):
             self.task_page,
             FluentIcon.DOWNLOAD,
             "Download Tasks",
+            NavigationItemPosition.SCROLL
+        )
+
+        self.sys_patch_page=SysPatch(self.constants,self.gui_support,self.settings,self)
+        self.addSubInterface(
+            self.sys_patch_page,
+            FluentIcon.UPDATE,
+            "Root Patching",
             NavigationItemPosition.SCROLL
         )
 
