@@ -2814,9 +2814,9 @@
 			</dict>
 			<key>4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102</key>
 			<dict>
-				<key>OCLP-Version</key>
+				<key>MBT-Version</key>
 				<string></string>
-				<key>OCLP-Settings</key>
+				<key>MBT-Settings</key>
 				<string></string>
 			</dict>
 			<key>7C436110-AB2A-4BBB-A880-FE41995C9F82</key>
@@ -2839,11 +2839,11 @@
 			</array>
 			<key>4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102</key>
 			<array>
-				<string>OCLP-Version</string>
-				<string>OCLP-Model</string>
-				<string>OCLP-Settings</string>
-				<string>OCLP-Spoofed-SN</string>
-				<string>OCLP-Spoofed-MLB</string>
+				<string>MBT-Version</string>
+				<string>MBT-Model</string>
+				<string>MBT-Settings</string>
+				<string>MBT-Spoofed-SN</string>
+				<string>MBT-Spoofed-MLB</string>
 				<string>revcpu</string>
 				<string>revcpuname</string>
 				<string>revblock</string>

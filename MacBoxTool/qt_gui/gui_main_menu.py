@@ -233,7 +233,7 @@ class Window(FluentWindow):
         self.sys_patch_page=SysPatch(self.constants,self.gui_support,self.settings,self)
         self.addSubInterface(
             self.sys_patch_page,
-            FluentIcon.UPDATE,
+            FluentIcon.PASTE,
             "Root Patching",
             NavigationItemPosition.SCROLL
         )
@@ -271,6 +271,20 @@ class Window(FluentWindow):
         )
     
         self.stackedWidget.currentChanged.connect(self._on_page_changed)
+        QTimer.singleShot(0, self._apply_startup_navigation)
+
+    def _apply_startup_navigation(self):
+        if getattr(self.constants, "start_build_install", False):
+            self.stackedWidget.setCurrentWidget(self.build)
+            return
+        if getattr(self.constants, "start_updater", False):
+            self.stackedWidget.setCurrentWidget(self.updater)
+            return
+        if getattr(self.constants, "start_sys_patch", False):
+            self.stackedWidget.setCurrentWidget(self.sys_patch_page)
+            if getattr(self.constants, "start_sys_patch_now", False):
+                QTimer.singleShot(0, self.sys_patch_page.start_root_patching)
+            return
 
     def _on_intro_navigate(self, target: str):
         """Handle navigation from introduction page."""

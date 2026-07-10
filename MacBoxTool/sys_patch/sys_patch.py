@@ -65,6 +65,7 @@ from ..support import (
     subprocess_wrapper,
     metallib_handler,
 )
+from ..support.network_handler import DownloadWorker
 from .patchsets import (
     HardwarePatchsetDetection,
     HardwarePatchsetSettings,
@@ -458,24 +459,23 @@ class PatchSysVolume:
             raise Exception(f"Failed to find MetalLibSupportPkg: {metallib_obj.error_msg}")
 
         metallib_download_obj = metallib_obj.retrieve_download()
-        if not metallib_download_obj:
-            # Already downloaded, return path
-            logging.info("Using MetalLibSupportPkg: {metallib_installed_path}".format(metallib_installed_path=metallib_obj.metallib_installed_path))
-            self.metallib_path = metallib_obj.metallib_installed_path
-            return str(metallib_obj.metallib_installed_path)
-
-        metallib_download_obj.download(spawn_thread=False)
-        if metallib_download_obj.download_complete is False:
-            error_msg = metallib_download_obj.error_msg
-            logging.error("Could not download MetalLibSupportPkg: {error_msg}".format(error_msg=error_msg))
-            raise Exception(f"Could not download MetalLibSupportPkg: {error_msg}")
+        if metallib_download_obj:
+            worker = DownloadWorker(metallib_download_obj, self.constants)
+            result = {"success": False, "message": ""}
+            worker.finished_signal.connect(lambda success, message: result.update(success=success, message=message))
+            worker.run()
+            if result["success"] is False:
+                error_msg = result["message"]
+                logging.error("Could not download MetalLibSupportPkg: {error_msg}".format(error_msg=error_msg))
+                raise Exception(f"Could not download MetalLibSupportPkg: {error_msg}")
 
         if metallib_obj.install_metallib() is False:
             logging.error("Failed to install MetalLibSupportPkg")
             raise Exception("Failed to install MetalLibSupportPkg")
 
-        # After install, check if it's present
-        return self._resolve_metallib_support_pkg()
+        logging.info("Using MetalLibSupportPkg: {metallib_installed_path}".format(metallib_installed_path=metallib_obj.metallib_installed_path))
+        self.metallib_path = metallib_obj.metallib_installed_path
+        return str(metallib_obj.metallib_installed_path)
 
     @cache
     def _resolve_dynamic_patchset(self, variant: DynamicPatchset) -> str:
@@ -549,7 +549,40 @@ class PatchSysVolume:
         return required_patches
 
 
-    # Entry Function
+    def _filter_patchset_by_hardware_details(self, patchset_obj: HardwarePatchsetDetection) -> dict:
+        if self.hardware_details is None:
+            return patchset_obj.patches
+
+        selected_labels = [
+            patch for patch, enabled in self.hardware_details.items()
+            if enabled is True and not patch.startswith("Settings") and not patch.startswith("Validation")
+        ]
+        if not selected_labels:
+            return {}
+
+        selected_hardware = []
+        for hardware_variant in patchset_obj._hardware_variants:
+            item = hardware_variant(
+                self.constants.detected_os,
+                self.constants.detected_os_minor,
+                self.constants.detected_os_build,
+                self.constants,
+            )
+            if item.name() not in selected_labels:
+                continue
+            if item.present() is False:
+                continue
+            if item.native_os() is True:
+                continue
+            selected_hardware.append(item)
+
+        selected_hardware = patchset_obj._strip_incompatible_hardware(selected_hardware)
+
+        selected_patchset = {}
+        for item in selected_hardware:
+            selected_patchset.update(item.patches())
+        return selected_patchset
+
     def start_patch(self):
         """
         Entry function for the patching process
@@ -558,7 +591,7 @@ class PatchSysVolume:
         logging.info("- Starting Patch Process")
         logging.info("- Determining Required Patch set for Darwin {detected_os}".format(detected_os=self.constants.detected_os))
         patchset_obj = HardwarePatchsetDetection(self.constants)
-        self.patch_set_dictionary = patchset_obj.patches
+        self.patch_set_dictionary = self._filter_patchset_by_hardware_details(patchset_obj)
 
         if self.patch_set_dictionary == {}:
             logging.info("- No Root Patches required for your machine!")

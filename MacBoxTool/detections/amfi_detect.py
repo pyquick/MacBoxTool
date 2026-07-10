@@ -56,7 +56,7 @@ class AmfiConfigurationDetection:
         """
 
         boot_args = utilities.get_nvram("boot-args", decode=True)
-        mbt_args = utilities.get_nvram("OCLP-Settings", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
+        mbt_args = utilities.get_nvram("MBT-Settings", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
 
         if boot_args:
             self.boot_args = boot_args.split(" ")

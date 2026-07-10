@@ -26,8 +26,8 @@ class Constants:
         self.launcher_script:           str = None
         # OpenCore Version
         self.opencore_version:           str = "1.0.6"
-        self.nightly_build:              str = "4508.1000"
-        self.support_version:            str = "1.0.23780094prefix" # prefix: unstable core.
+        self.nightly_build:              str = "4528.1000"
+        self.support_version:            str = "1.0.245699254prefix" # prefix: unstable core.
 
         # Kext Versioning
         ## Acidanthera
@@ -60,9 +60,9 @@ class Constants:
         self.url_patcher_support_pkg:         str = "https://github.com/hackdoc/PatcherSupportPkg/releases/download/"
         self.discord_link:                    str = ""
         self.guide_link:                      str = "https://dortania.github.io/OpenCore-Legacy-Patcher/"
-        self.repo_link:                       str = "https://github.com/hackdoc/OCLP-R/releases/"
+        self.repo_link:                       str = "https://github.com/pyquick/MacBoxTool/releases/"
         self.installer_pkg_url:               str = f"{self.repo_link}/releases/download/{self.macboxtool_version}/AutoPkg-Assets.pkg"
-        self.installer_pkg_url_nightly:       str = "http://nightly.link/hackdoc/OCLP-R/workflows/build-app-wxpython/main/AutoPkg-Assets.pkg.zip"
+        self.installer_pkg_url_nightly:       str = "http://nightly.link/pyquick/MacBoxTool/workflows/build-app-wxpython/main/AutoPkg-Assets.pkg.zip"
         self.user_download_file:              str = f"/Users/{getpass.getuser()}/Downloads"
         self.github_token:                    str = ""
 
@@ -183,6 +183,9 @@ class Constants:
         self.has_checked_updates:       bool = False  # Determine if check for updates has been run
         self.root_patcher_succeeded:    bool = False  # Determine if root patcher succeeded
         self.start_build_install:       bool = False  # Determine if build install should be started
+        self.start_updater:             bool = False  # Determine if updater should be opened
+        self.start_sys_patch:           bool = False  # Determine if root patching should be opened
+        self.start_sys_patch_now:       bool = False  # Determine if root patching should start immediately
         self.host_is_non_metal:         bool = False  # Determine if host is non-metal (ie. enable UI hacks)
         self.needs_to_open_preferences: bool = False  # Determine if preferences need to be opened
         self.host_is_hackintosh:        bool = False  # Determine if host is Hackintosh
@@ -275,7 +278,7 @@ class Constants:
         self.set_vmm_cpuid:          bool = False  # Set VMM bit inside CPUID
         self.disable_mediaanalysisd: bool = False  # Set mediaanalysisd to spawn
         self.force_quad_thread:      bool = False  #  Force quad thread mode (cpus=4)
-        self.allow_usb_patch:        bool = True   # Allow USB patch on macOS 26+
+        self.allow_usb_patch:        bool = False  # Allow USB patch on macOS 26+
         self.set_alc_usage:          bool = True   #  Set AppleALC usage
         self.allow_3rd_party_drives: bool = True   #  Allow ThridPartyDrives quirk
         self.allow_nvme_fixing:      bool = True   #  Allow NVMe Kernel Space Patches

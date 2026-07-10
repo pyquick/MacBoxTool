@@ -106,12 +106,12 @@ def get_nvram(variable: str, uuid: str = None, *, decode: bool = False):
     The GUID is passed as the namespace in the format: "{GUID}-VariableName".
 
     Common OpenCore GUIDs:
-    - 4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102 (OCLP custom variables)
+    - 4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102 (MBT custom variables)
     - 94B73556-2197-4702-82A8-3E1337DAFBFB (Apple Secure Boot)
     - 7C436110-AB2A-4BBB-A880-FE41995C9F82 (OpenCore & Apple boot-args csr-active-config run-efi-upd)
 
     Parameters:
-        variable: NVRAM variable name (e.g., "OCLP-Version")
+        variable: NVRAM variable name (e.g., "MBT-Version")
         uuid: EFI GUID in 8-4-4-4-12 format without hyphens or with standard format
         decode: If True, decode bytes to string
 

@@ -119,19 +119,19 @@ class KernelCacheSupport:
         if self.detected_os < os_data.os_data.big_sur:
             return
         logging.info("- Cleaning Auxiliary Kernel Collection")
-        oclp_path = "/System/Library/CoreServices/MacBoxTool.plist"
-        if Path(oclp_path).exists():
-            oclp_plist_data = plistlib.load(Path(oclp_path).open("rb"))
-            for key in oclp_plist_data:
-                if isinstance(oclp_plist_data[key], (bool, int)):
+        mbt_path = "/System/Library/CoreServices/MacBoxTool.plist"
+        if Path(mbt_path).exists():
+            mbt_plist_data = plistlib.load(Path(mbt_path).open("rb"))
+            for key in mbt_plist_data:
+                if isinstance(mbt_plist_data[key], (bool, int)):
                     continue
                 for install_type in [PatchType.OVERWRITE_SYSTEM_VOLUME, PatchType.OVERWRITE_DATA_VOLUME, PatchType.MERGE_SYSTEM_VOLUME, PatchType.MERGE_DATA_VOLUME]:
-                    if install_type not in oclp_plist_data[key]:
+                    if install_type not in mbt_plist_data[key]:
                         continue
-                    for location in oclp_plist_data[key][install_type]:
+                    for location in mbt_plist_data[key][install_type]:
                         if not location.endswith("Extensions"):
                             continue
-                        for file in oclp_plist_data[key][install_type][location]:
+                        for file in mbt_plist_data[key][install_type][location]:
                             if not file.endswith(".kext"):
                                 continue
                             if not Path(f"/Library/Extensions/{file}").exists():

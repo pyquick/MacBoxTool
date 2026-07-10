@@ -345,7 +345,7 @@ class Introduction(ScrollArea):
         hero_text.addWidget(hero_title)
 
         hero_body = BodyLabel(
-            "A specialized tool that can work like OCLP.<br>"
+            "A specialized tool that can work like MBT.<br>"
             "Now it only support old Macs."
         )
         hero_body.setWordWrap(True)

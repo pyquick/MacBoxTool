@@ -40,10 +40,10 @@ class InstallAutomaticPatchingServices:
             return
 
         services = {
-            self.constants.auto_patch_launch_agent_path:        "/Library/LaunchAgents/com.hackdoc.macboxtool.auto-patch.plist",
-            self.constants.update_launch_daemon_path:           "/Library/LaunchDaemons/com.hackdoc.macboxtool.macos-update.plist",
-            **({ self.constants.rsr_monitor_launch_daemon_path: "/Library/LaunchDaemons/com.hackdoc.macboxtool.rsr-monitor.plist" } if self._create_rsr_monitor_daemon() else {}),
-            **({ self.constants.kdk_launch_daemon_path:         "/Library/LaunchDaemons/com.hackdoc.macboxtool.os-caching.plist" } if kdk_caching_needed is True else {} ),
+            self.constants.auto_patch_launch_agent_path:        "/Library/LaunchAgents/com.pyquick.macboxtool.auto-patch.plist",
+            self.constants.update_launch_daemon_path:           "/Library/LaunchDaemons/com.pyquick.macboxtool.macos-update.plist",
+            **({ self.constants.rsr_monitor_launch_daemon_path: "/Library/LaunchDaemons/com.pyquick.macboxtool.rsr-monitor.plist" } if self._create_rsr_monitor_daemon() else {}),
+            **({ self.constants.kdk_launch_daemon_path:         "/Library/LaunchDaemons/com.pyquick.macboxtool.os-caching.plist" } if kdk_caching_needed is True else {} ),
         }
 
         for service in services:

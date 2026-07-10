@@ -9,6 +9,7 @@ from ... import constants
 
 from ...datasets import os_data
 from ...support import subprocess_wrapper, kdk_handler
+from ...support.network_handler import DownloadWorker
 from ...volume import generate_copy_arguments
 
 
@@ -25,18 +26,18 @@ class KernelDebugKitMerge:
         """
         Check whether the KDK is already merged with the root volume
         """
-        oclp_plist = Path("/System/Library/CoreServices/MacBoxTool.plist")
-        if not oclp_plist.exists():
+        mbt_plist = Path("/System/Library/CoreServices/MacBoxTool.plist")
+        if not mbt_plist.exists():
             return False
 
         if not (Path(self.mount_location) / Path("System/Library/Extensions/System.kext/PlugIns/Libkern.kext/Libkern")).exists():
             return False
 
         try:
-            oclp_plist_data = plistlib.load(open(oclp_plist, "rb"))
-            if "Kernel Debug Kit Used" not in oclp_plist_data:
+            mbt_plist_data = plistlib.load(open(mbt_plist, "rb"))
+            if "Kernel Debug Kit Used" not in mbt_plist_data:
                 return False
-            if oclp_plist_data["Kernel Debug Kit Used"] == str(kdk_path):
+            if mbt_plist_data["Kernel Debug Kit Used"] == str(kdk_path):
                 logging.info("- Matching KDK determined to already be merged, skipping")
                 return True
         except:
@@ -123,10 +124,13 @@ class KernelDebugKitMerge:
                 raise Exception("Could not retrieve KDK: {error_msg}".format(error_msg=kdk_obj.error_msg))
 
             # Hold thread until download is complete
-            kdk_download_obj.download(spawn_thread=False)
+            worker = DownloadWorker(kdk_download_obj, self.constants)
+            result = {"success": False, "message": ""}
+            worker.finished_signal.connect(lambda success, message: result.update(success=success, message=message))
+            worker.run()
 
-            if kdk_download_obj.download_complete is False:
-                error_msg = kdk_download_obj.error_msg
+            if result["success"] is False:
+                error_msg = result["message"]
                 logging.info("Could not download KDK: {error_msg}".format(error_msg=error_msg))
                 raise Exception("Could not download KDK: {error_msg}".format(error_msg=error_msg))
 

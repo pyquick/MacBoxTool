@@ -156,7 +156,7 @@ class HardwarePatchsetDetection:
         """
         _min_os = os_data.big_sur.value
         _max_os = os_data.tahoe.value
-        if self._hackdoc_internal_check() is True:
+        if self._pyquick_internal_check() is True:
             return False
         if self._xnu_major < _min_os or self._xnu_major > _max_os:
             return True
@@ -168,7 +168,10 @@ class HardwarePatchsetDetection:
         """
         Determine if network connection is present
         """
-        return network_handler.NetworkUtilities().verify_network_connection() is False
+        return network_handler.NetworkUtilities(self._constants).verify_network_connection(
+            "https://api.github.com/repos/pyquick/MacBoxTool/releases/latest",
+            5,
+        ) is False
 
 
     @cache
@@ -181,7 +184,7 @@ class HardwarePatchsetDetection:
             return False
 
         # MacBoxTool exposes whether it patched APFS.kext to allow for FileVault
-        nvram = utilities.get_nvram("OCLP-Settings", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
+        nvram = utilities.get_nvram("MBT-Settings", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
         if nvram:
             if "-allow_fv" in nvram:
                 return False
@@ -213,13 +216,13 @@ class HardwarePatchsetDetection:
         """
         if self._constants.commit_info[0] in ["Running from source", "Built from source"] or self._constants.commit_info[2] is None or self._constants.commit_info[2] == "":
             return False
-        oclp_patch_path = "/System/Library/CoreServices/MacBoxTool.plist"
-        if not Path(oclp_patch_path).exists():
+        mbt_patch_path = "/System/Library/CoreServices/MacBoxTool.plist"
+        if not Path(mbt_patch_path).exists():
             return self._is_root_volume_dirty()
 
-        oclp_plist = plistlib.load(open(oclp_patch_path, "rb"))
+        mbt_plist = plistlib.load(open(mbt_patch_path, "rb"))
 
-        if self._constants.computer.oclp_sys_url != self._constants.commit_info[2]:
+        if self._constants.computer.mbt_sys_url != self._constants.commit_info[2]:
             logging.error("Installed patches are from different commit, unpatching is required")
             return True
 
@@ -243,7 +246,7 @@ class HardwarePatchsetDetection:
             "Custom Signature",
         }
 
-        existing_patches = set(oclp_plist) - wireless_keys - metadata_keys
+        existing_patches = set(mbt_plist) - wireless_keys - metadata_keys
         if existing_patches:
             logging.error("Patch(es) already installed: {0}, unpatching is required".format(", ".join(existing_patches)))
             return True
@@ -336,25 +339,25 @@ class HardwarePatchsetDetection:
         return level
 
 
-    def _hackdoc_internal_check(self) -> None:
+    def _pyquick_internal_check(self) -> None:
         """
-        Determine whether to unlock Hackdoc Developer mode
+        Determine whether to unlock Pyquick Developer mode
         """
-        return Path("~/.hackdoc_developer").expanduser().exists()
+        return Path("~/.pyquick_developer").expanduser().exists()
 
 
     def _already_has_networking_patches(self) -> bool:
         """
         Check if network patches are already applied
         """
-        oclp_patch_path = "/System/Library/CoreServices/MacBoxTool.plist"
-        if not Path(oclp_patch_path).exists():
+        mbt_patch_path = "/System/Library/CoreServices/MacBoxTool.plist"
+        if not Path(mbt_patch_path).exists():
             return False
         try:
-            oclp_plist = plistlib.load(open(oclp_patch_path, "rb"))
+            mbt_plist = plistlib.load(open(mbt_patch_path, "rb"))
         except Exception as e:
             return False
-        if "Legacy Wireless" in oclp_plist or "Modern Wireless" in oclp_plist or "传统无线补丁" in oclp_plist or "现代无线补丁" in oclp_plist:
+        if "Legacy Wireless" in mbt_plist or "Modern Wireless" in mbt_plist or "传统无线补丁" in mbt_plist or "现代无线补丁" in mbt_plist:
             return True
         return False
 

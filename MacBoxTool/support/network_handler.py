@@ -165,7 +165,7 @@ class NetworkUtilities:
         """Check network connectivity via HEAD request to GitHub.com"""
         try:
             session = self._get_session()
-            response = session.head("https://github.com", timeout=10)
+            response = session.head("https://github.com", timeout=10, verify=False)
             return response.status_code == 200
         except Exception as e:
             logging.warning(f"Network check failed: {e}")
@@ -182,7 +182,7 @@ class NetworkUtilities:
         self.headers=self._github_headers()
         try:
             if "nightly.link" in url:
-                response=requests.get(url, timeout=timeout, allow_redirects=True, verify=True,stream=True,headers=self.headers)
+                response=requests.get(url, timeout=timeout, allow_redirects=True, verify=False,stream=True,headers=self.headers)
             else:
                 response = requests.head(url, timeout=timeout, allow_redirects=True, verify=False,headers=self.headers)
             
@@ -226,6 +226,7 @@ class NetworkUtilities:
                 kwargs['max_redirects'] = kwargs.get('max_redirects', MAX_REDIRECTS)
             kwargs = self._apply_github_headers(url, kwargs)
             kwargs.setdefault('timeout', 30)
+            kwargs.setdefault('verify', False)
             result = self._get_session().get(url, **kwargs)
         except (
             requests.exceptions.Timeout,
@@ -245,6 +246,7 @@ class NetworkUtilities:
         session = self._get_session()
         timeout = kwargs.pop('timeout', 30)
         kwargs = self._apply_github_headers(url, kwargs)
+        kwargs.setdefault('verify', False)
         return session.get(url, timeout=timeout, **kwargs)
 
     def custom_post(self, url: str, **kwargs) -> requests.Response:
@@ -252,6 +254,7 @@ class NetworkUtilities:
         session = self._get_session()
         timeout = kwargs.pop('timeout', 30)
         kwargs = self._apply_github_headers(url, kwargs)
+        kwargs.setdefault('verify', False)
         return session.post(url, timeout=timeout, **kwargs)
 
     def post(self, url: str, **kwargs) -> requests.Response:
@@ -261,7 +264,7 @@ class NetworkUtilities:
         """Get file size from URL without downloading"""
         try:
             session = self._get_session()
-            response = session.head(url, allow_redirects=True, timeout=10)
+            response = session.head(url, allow_redirects=True, timeout=10, verify=False)
             return int(response.headers.get('content-length', 0))
         except Exception as e:
             logging.warning(f"[NetworkUtilities] Failed to get file size: {e}")
@@ -295,6 +298,8 @@ class DownloadWorker(QThread):
 
             # Check if file already exists and delete it
             final_path = os.path.join(self.download.save_path, self.download.filename)
+            if os.path.isdir(final_path):
+                raise IsADirectoryError(f"Download destination is a directory: {final_path}")
             if os.path.exists(final_path):
                 logging.info(f"[DownloadWorker] Removing existing file: {final_path}")
                 try:
@@ -302,7 +307,7 @@ class DownloadWorker(QThread):
                     logging.info(f"[DownloadWorker] Removed: {final_path}")
                 except Exception as e:
                     logging.warning(f"[DownloadWorker] Failed to remove {final_path}: {e}")
-                    # Continue with download even if deletion fails
+                    raise
 
             # Get file size
             total_size = self.network_utilities.get_file_size(self.download.url)

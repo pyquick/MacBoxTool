@@ -4,7 +4,7 @@ gui_settings.py: Settings page using Fluent Design components
 from ..include import *
 from ..support import generate_smbios
 from ..support import utilities
-from .gui_support import DefGUI
+from .gui_support import DefGUI, CheckProperties
 
 
 class SettingsInterface(QWidget):
@@ -86,6 +86,7 @@ class SettingsInterface(QWidget):
         self.tab_sip = self._create_tab_scroll()
         self.tab_smbios = self._create_tab_scroll()
         self.tab_misc = self._create_tab_scroll()
+        self.tab_patch = self._create_tab_scroll()
         self.tab_debug = self._create_tab_scroll()
 
         self._build_boot_group()
@@ -95,10 +96,11 @@ class SettingsInterface(QWidget):
         self._build_sip_group()
         self._build_smbios_group()
         self._build_misc_group()
+        self._build_patch_group()
         self._build_debug_group()
 
         for tab in (self.tab_build, self.tab_security, self.tab_sip,
-                    self.tab_smbios, self.tab_misc, self.tab_debug):
+                    self.tab_smbios, self.tab_misc, self.tab_patch, self.tab_debug):
             tab._layout.addStretch()
 
         self._add_tab("build", "Build", self.tab_build)
@@ -106,6 +108,7 @@ class SettingsInterface(QWidget):
         self._add_tab("sip", "SIP", self.tab_sip)
         self._add_tab("smbios", "SMBIOS", self.tab_smbios)
         self._add_tab("misc", "Misc", self.tab_misc)
+        self._add_tab("patch", "Patch", self.tab_patch)
         self._add_tab("debug", "Debug", self.tab_debug)
         self.pivot.setCurrentItem("build")
 
@@ -564,6 +567,67 @@ class SettingsInterface(QWidget):
 
         self.tab_misc._layout.addWidget(group)
 
+    def _build_patch_group(self):
+        group1 = SettingCardGroup("Root Patch", self.tab_patch._container)
+
+        self.allow_ts2_accel_card = SwitchSettingCard(
+            FIF.GAME,
+            "TeraScale 2 Acceleration",
+            "Enable AMD TeraScale 2 GPU acceleration on MacBookPro8,2 and MacBookPro8,3. Disabled by default due to common GPU failures.",
+            parent=group1
+        )
+        self.allow_usb_patch_card = SwitchSettingCard(
+            FIF.LINK,
+            "Allow Tahoe Modern USB Patch",
+            "Patch old USB extensions on Tahoe.",
+            parent=group1
+        )
+
+        self.audio_type_card = SettingCard(FIF.SYNC, "Audio Patch choice", "AppleHDA for Tahoe, or VoodooHDA for Monterey and newer. VoodooHDA is not recommended.", parent=group1)
+        self.audio_type_combo = ComboBox(self.audio_type_card)
+        self.audio_type_combo.addItems(["AppleHDA", "VoodooHDA"])
+        self.audio_type_card.hBoxLayout.addWidget(self.audio_type_combo, 0, Qt.AlignmentFlag.AlignRight)
+        self.audio_type_card.hBoxLayout.addSpacing(16)
+
+        self.applehda_version_card = SettingCard(FIF.SYNC, "AppleHDA.kext Version", "Select AppleHDA.kext version used by the Tahoe AppleHDA patch.", parent=group1)
+        self.applehda_version_combo = ComboBox(self.applehda_version_card)
+        self.applehda_version_combo.addItems(["15.6", "26.0 Beta 1"])
+        self.applehda_version_card.hBoxLayout.addWidget(self.applehda_version_combo, 0, Qt.AlignmentFlag.AlignRight)
+        self.applehda_version_card.hBoxLayout.addSpacing(16)
+
+        for card in (self.allow_ts2_accel_card, self.audio_type_card, self.allow_usb_patch_card, self.applehda_version_card):
+            group1.addSettingCard(card)
+
+        self.allow_ts2_accel_card.checkedChanged.connect(lambda v: self._save("allow_ts2_accel", v))
+        self.allow_usb_patch_card.checkedChanged.connect(lambda v: self._save("allow_usb_patch", v))
+        self.audio_type_combo.currentTextChanged.connect(lambda v: self._save("audio_type", v))
+        self.applehda_version_combo.currentTextChanged.connect(lambda v: self._save("applehda_version", v))
+
+        self.allow_ts2_accel_card.setEnabled(bool(self.constants.computer and self.constants.computer.real_model in ["MacBookPro8,2", "MacBookPro8,3"]))
+        self.audio_type_card.setEnabled(self.audio_check())
+
+        self.tab_patch._layout.addWidget(group1)
+
+        group2 = SettingCardGroup("Non-Metal", self.tab_patch._container)
+        self.sw_dark_menu_bar = SwitchSettingCard(FIF.TRANSPARENT, "Dark Menu Bar", "If Beta Menu Bar is enabled, menu bar colour will dynamically update.", parent=group2)
+        self.sw_beta_blur = SwitchSettingCard(FIF.TRANSPARENT, "Beta Blur", "Control window blur behaviour.", parent=group2)
+        self.sw_spin_hack = SwitchSettingCard(FIF.SYNC, "Beach Ball Cursor Workaround", "Control beach ball cursor behaviour.", parent=group2)
+        self.sw_beta_menu_bar = SwitchSettingCard(FIF.TRANSPARENT, "Beta Menu Bar", "Supports dynamic colour changes.", parent=group2)
+        self.sw_disable_beta_rim = SwitchSettingCard(FIF.REMOVE, "Disable Beta Rim", "Control Window Rim rendering.", parent=group2)
+        self.sw_disable_color_widgets = SwitchSettingCard(FIF.REMOVE, "Disable Color Widgets Enforcement", "Control Color Desktop Widgets Enforcement.", parent=group2)
+
+        for card in (self.sw_dark_menu_bar, self.sw_beta_blur, self.sw_spin_hack, self.sw_beta_menu_bar, self.sw_disable_beta_rim, self.sw_disable_color_widgets):
+            group2.addSettingCard(card)
+
+        self.sw_dark_menu_bar.checkedChanged.connect(lambda v: self._update_system_defaults("Moraea_DarkMenuBar", v))
+        self.sw_beta_blur.checkedChanged.connect(lambda v: self._update_system_defaults("Moraea_BlurBeta", v))
+        self.sw_spin_hack.checkedChanged.connect(lambda v: self._update_system_defaults_root("Moraea.EnableSpinHack", v))
+        self.sw_beta_menu_bar.checkedChanged.connect(lambda v: self._update_system_defaults("Amy.MenuBar2Beta", v))
+        self.sw_disable_beta_rim.checkedChanged.connect(lambda v: self._update_system_defaults("Moraea_RimBetaDisabled", v))
+        self.sw_disable_color_widgets.checkedChanged.connect(lambda v: self._update_system_defaults("Moraea_ColorWidgetDisabled", v))
+
+        group2.setEnabled(self._host_is_non_metal())
+        self.tab_patch._layout.addWidget(group2)
     # ── Debug ──
 
     def _build_debug_group(self):
@@ -617,6 +681,32 @@ class SettingsInterface(QWidget):
     # ── Persistence ──
 
     # ── Helpers ──
+
+    def audio_check(self):
+        if self.constants.detected_os < os_data.os_data.tahoe:
+            return False
+        if utilities.check_kext_loaded("com.apple.driver.AppleHDA") and self.constants.detected_os >= os_data.os_data.tahoe:
+            self.constants.audio_type = "AppleHDA"
+            return False
+        return True
+
+    def _host_is_non_metal(self) -> bool:
+        return CheckProperties(self.constants).host_is_non_metal(general_check=True)
+
+    def _get_system_settings(self, key: str) -> bool:
+        try:
+            result = subprocess.run(["/usr/bin/defaults", "read", "-g", key], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+            if result.returncode != 0:
+                return False
+            return result.stdout.strip().lower() in ["1", "true", "yes"]
+        except Exception:
+            return False
+
+    def _update_system_defaults(self, key: str, value: bool):
+        subprocess.run(["/usr/bin/defaults", "write", "-g", key, "-bool", "true" if value else "false"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    def _update_system_defaults_root(self, key: str, value: bool):
+        subprocess_wrapper.run_as_root(["/usr/bin/defaults", "write", "-g", key, "-bool", "true" if value else "false"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def _on_download_path_clicked(self):
         """Handle download path selection"""
@@ -766,6 +856,31 @@ class SettingsInterface(QWidget):
         self.sw_oc_everywhere.setChecked(_get("allow_oc_everywhere", False))
         self.sw_nvme_fix.setChecked(_get("allow_nvme_fixing", True))
 
+        # Root Patch
+        self.allow_ts2_accel_card.setChecked(_get("allow_ts2_accel", True))
+        self.allow_usb_patch_card.setChecked(_get("allow_usb_patch", False))
+        audio_type = _get("audio_type", "AppleHDA")
+        idx = self.audio_type_combo.findText(audio_type)
+        if idx >= 0:
+            self.audio_type_combo.setCurrentIndex(idx)
+        applehda_version = _get("applehda_version", "15.6")
+        idx = self.applehda_version_combo.findText(applehda_version)
+        if idx >= 0:
+            self.applehda_version_combo.setCurrentIndex(idx)
+
+        # Non-Metal
+        for card, key in (
+            (self.sw_dark_menu_bar, "Moraea_DarkMenuBar"),
+            (self.sw_beta_blur, "Moraea_BlurBeta"),
+            (self.sw_spin_hack, "Moraea.EnableSpinHack"),
+            (self.sw_beta_menu_bar, "Amy.MenuBar2Beta"),
+            (self.sw_disable_beta_rim, "Moraea_RimBetaDisabled"),
+            (self.sw_disable_color_widgets, "Moraea_ColorWidgetDisabled"),
+        ):
+            card.blockSignals(True)
+            card.setChecked(self._get_system_settings(key))
+            card.blockSignals(False)
+
     # ── Hardware Conditions ──
 
     # Socketed GPU models that support Graphics Override
@@ -800,6 +915,7 @@ class SettingsInterface(QWidget):
         # Software Demux: MacBookPro8,2/8,3 only
         self._set_card_enabled(self.sw_demux,
             model in ("MacBookPro8,2", "MacBookPro8,3"))
+        self.allow_ts2_accel_card.setVisible(model in ("MacBookPro8,2", "MacBookPro8,3"))
 
         # dGPU Switch: models with Switchable GPUs
         self._set_card_enabled(self.sw_dgpu_switch,

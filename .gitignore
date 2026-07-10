@@ -8,11 +8,15 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+.idea
 build/
 develop-eggs/
 dist/
+Universal-Binaries
+Universal-Binaries_overlay
 downloads/
 eggs/
+MacBoxTool.plist
 .claude
 *.zip
 .eggs/
@@ -122,7 +126,8 @@ instance/
 
 # Sphinx documentation
 docs/_build/
-
+KDK.dmg
+KDKInfo.plist
 # PyBuilder
 .pybuilder/
 target/

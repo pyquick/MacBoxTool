@@ -14,6 +14,7 @@ from ..sys_patch.patchsets import (
     HardwarePatchsetSettings,
     HardwarePatchsetValidation,
 )
+from shiboken6 import isValid as is_qt_object_valid
 
 
 class PatchDetectionWorker(QThread):
@@ -74,10 +75,19 @@ class SysPatch(ScrollArea):
         self.available_patches = False
         self.no_new_patches = False
         self.can_unpatch = False
+        self.is_busy = False
+        self.pending_auto_patch = bool(getattr(self.constants, "start_sys_patch_now", False))
+        self.patch_checkboxes = {}
         self.detection_worker = None
         self.patch_worker = None
         self.download_worker = None
         self.log_handler = None
+        self.download_card = None
+        self.download_title_label = None
+        self.download_detail_label = None
+        self.download_progress_bar = None
+        self.download_percent_label = None
+        self.download_cancel_button = None
 
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
@@ -107,10 +117,17 @@ class SysPatch(ScrollArea):
         )
         self.expandLayout.addWidget(self.status_card)
 
-        self.patch_container = QWidget()
-        self.patch_layout = QVBoxLayout(self.patch_container)
+        self.patch_container = CardWidget()
+        patch_card_layout = QVBoxLayout(self.patch_container)
+        patch_card_layout.setContentsMargins(SPACING["large"], SPACING["large"], SPACING["large"], SPACING["large"])
+        patch_card_layout.setSpacing(SPACING["medium"])
+        self.patch_title_label = StrongBodyLabel("Available Patches")
+        patch_card_layout.addWidget(self.patch_title_label)
+        self.patch_layout = QVBoxLayout()
         self.patch_layout.setContentsMargins(0, 0, 0, 0)
         self.patch_layout.setSpacing(SPACING["medium"])
+        patch_card_layout.addLayout(self.patch_layout)
+        self.patch_container.hide()
         self.expandLayout.addWidget(self.patch_container)
 
         button_row = QWidget()
@@ -126,7 +143,7 @@ class SysPatch(ScrollArea):
         self.revert_button.clicked.connect(self.revert_root_patching)
         button_layout.addWidget(self.revert_button)
 
-        self.refresh_button = PushButton("Refresh")
+        self.refresh_button = ToolButton(FIF.SYNC)
         self.refresh_button.clicked.connect(self.refresh)
         button_layout.addWidget(self.refresh_button)
         button_layout.addStretch()
@@ -152,15 +169,22 @@ class SysPatch(ScrollArea):
         self.status_card = self.gui_support.custom_card(card_type=card_type, title=title, body=body)
         self.expandLayout.insertWidget(index, self.status_card)
 
-    def _set_busy(self, busy: bool):
-        self.progress_ring.setVisible(busy)
-        if busy:
+    def _set_busy(self, busy: bool, show_progress_ring: bool = False):
+        self.is_busy = busy
+        ring_visible = busy and show_progress_ring
+        self.progress_ring.setVisible(ring_visible)
+        if ring_visible:
             self.progress_ring.start()
         else:
             self.progress_ring.stop()
         self.refresh_button.setEnabled(not busy)
-        self.start_button.setEnabled(not busy and self.available_patches and not self.no_new_patches)
+        self.start_button.setEnabled(
+            not busy and self.available_patches and not self.no_new_patches and self._has_selected_patches(self._selected_patches())
+        )
         self.revert_button.setEnabled(not busy and self.can_unpatch)
+        for checkbox in self.patch_checkboxes.values():
+            if is_qt_object_valid(checkbox):
+                checkbox.setEnabled(not busy)
 
     def _clear_layout(self, layout: QLayout):
         while layout.count():
@@ -169,17 +193,98 @@ class SysPatch(ScrollArea):
             if widget:
                 widget.deleteLater()
 
+    def _format_size(self, size: int) -> str:
+        if size <= 0:
+            return "0 B"
+        units = ["B", "KB", "MB", "GB", "TB"]
+        value = float(size)
+        index = 0
+        while value >= 1024 and index < len(units) - 1:
+            value /= 1024
+            index += 1
+        if index == 0:
+            return f"{int(value)} {units[index]}"
+        return f"{value:.2f} {units[index]}"
+
+    def _remove_download_card(self):
+        if self.download_card and is_qt_object_valid(self.download_card):
+            self.expandLayout.removeWidget(self.download_card)
+            self.download_card.deleteLater()
+        self.download_card = None
+        self.download_title_label = None
+        self.download_detail_label = None
+        self.download_progress_bar = None
+        self.download_percent_label = None
+        self.download_cancel_button = None
+
+    def _cancel_download(self):
+        worker = self.download_worker
+        if worker and is_qt_object_valid(worker):
+            logging.info("Cancelling download")
+            worker.cancel()
+        if self.download_cancel_button and is_qt_object_valid(self.download_cancel_button):
+            self.download_cancel_button.setEnabled(False)
+        if self.download_detail_label and is_qt_object_valid(self.download_detail_label):
+            self.download_detail_label.setText("Cancelling download...")
+
+    def _show_download_card(self, title: str, detail: str):
+        self._remove_download_card()
+        card = CardWidget(self)
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(SPACING["large"], SPACING["large"], SPACING["large"], SPACING["large"])
+        layout.setSpacing(SPACING["medium"])
+
+        title_label = StrongBodyLabel(title)
+        detail_label = BodyLabel(detail)
+        detail_label.setWordWrap(True)
+        progress_bar = ProgressBar()
+        progress_bar.setRange(0, 100)
+        progress_bar.setValue(0)
+        percent_label = BodyLabel("0%")
+        percent_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        cancel_button = PushButton("Cancel")
+        cancel_button.clicked.connect(self._cancel_download)
+
+        button_row = QWidget()
+        button_layout = QHBoxLayout(button_row)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_layout.addStretch()
+        button_layout.addWidget(cancel_button)
+
+        layout.addWidget(title_label)
+        layout.addWidget(detail_label)
+        layout.addWidget(progress_bar)
+        layout.addWidget(percent_label)
+        layout.addWidget(button_row)
+
+        self.download_card = card
+        self.download_title_label = title_label
+        self.download_detail_label = detail_label
+        self.download_progress_bar = progress_bar
+        self.download_percent_label = percent_label
+        self.download_cancel_button = cancel_button
+        self.expandLayout.insertWidget(self.expandLayout.indexOf(self.log_box), card)
+
+    def _update_download_card(self, downloaded: int, total: int):
+        if not self.download_progress_bar or not is_qt_object_valid(self.download_progress_bar):
+            return
+        percent = int((downloaded / total) * 100) if total else 0
+        self.download_progress_bar.setValue(percent)
+        self.download_percent_label.setText(f"{percent}%")
+        self.download_detail_label.setText(f"{self._format_size(downloaded)} / {self._format_size(total)}")
+
     def refresh(self):
         self._clear_layout(self.patch_layout)
         self._set_status("Root Patching", "Fetching patches for host...")
         self.available_patches = False
         self.no_new_patches = False
         self.can_unpatch = False
-        self._set_busy(True)
+        self._set_busy(True, show_progress_ring=True)
 
         self.detection_worker = PatchDetectionWorker(self.constants, self)
         self.detection_worker.finished_signal.connect(self._on_patches_detected)
         self.detection_worker.error_signal.connect(self._on_detection_error)
+        self.detection_worker.finished.connect(lambda: setattr(self, "detection_worker", None))
         self.detection_worker.finished.connect(self.detection_worker.deleteLater)
         self.detection_worker.start()
 
@@ -207,9 +312,17 @@ class SysPatch(ScrollArea):
             RestartHost(self.window(), self.constants).restart(
                 message="No root patch updates needed!\n\nWould you like to reboot to apply the new OpenCore build?"
             )
+            return
+
+        if self.pending_auto_patch and self.available_patches and not self.no_new_patches:
+            self.pending_auto_patch = False
+            self.constants.start_sys_patch_now = False
+            QTimer.singleShot(0, self.start_root_patching)
 
     def _render_patch_list(self):
         self._clear_layout(self.patch_layout)
+        self.patch_checkboxes = {}
+        self.patch_container.hide()
 
         if not self.patches:
             self._set_status("Available patches for your system", "No patches required", "success")
@@ -225,10 +338,15 @@ class SysPatch(ScrollArea):
             self._set_status("Available patches for your system", "All applicable patches already installed", "success")
         else:
             self._set_status("Available patches for your system", "Root patching can patch the following items:", "info")
+            self.patch_container.show()
             logging.info("Available patches:")
             for patch in patch_names:
                 logging.info(f"- {patch}")
-                self.patch_layout.addWidget(BodyLabel(f"- {patch}"))
+                checkbox = CheckBox(patch)
+                checkbox.setChecked(True)
+                checkbox.stateChanged.connect(lambda _state: self._on_patch_selection_changed())
+                self.patch_checkboxes[patch] = checkbox
+                self.patch_layout.addWidget(checkbox)
 
         if self.patches[HardwarePatchsetValidation.PATCHING_NOT_POSSIBLE] is True:
             self.patch_layout.addWidget(StrongBodyLabel("Cannot patch due to the following reasons:"))
@@ -241,23 +359,96 @@ class SysPatch(ScrollArea):
                     continue
                 self.patch_layout.addWidget(BodyLabel(f"- {patch.split('Validation: ')[1]}"))
 
-        elif self.constants.computer.mbt_sys_version and self.constants.computer.oclp_sys_date:
-            date = self.constants.computer.oclp_sys_date.split(" @")
+        elif self.constants.computer.mbt_sys_version and self.constants.computer.mbt_sys_date:
+            date = self.constants.computer.mbt_sys_date.split(" @")
             date = date[0] if len(date) == 2 else ""
             self.patch_layout.addWidget(StrongBodyLabel("Root Volume last patched:"))
             self.patch_layout.addWidget(BodyLabel(f"{self.constants.computer.mbt_sys_version}, {date}"))
 
         self.available_patches = self.patches[HardwarePatchsetValidation.PATCHING_NOT_POSSIBLE] is False
 
-    def _run_download_worker(self, download_obj) -> bool:
+    def _selected_patches(self) -> dict:
+        selected_patches = dict(self.patches)
+        for patch, checkbox in self.patch_checkboxes.items():
+            selected_patches[patch] = checkbox.isChecked() if is_qt_object_valid(checkbox) else False
+        return selected_patches
+
+    def _has_selected_patches(self, patches: dict) -> bool:
+        return any(
+            not patch.startswith("Settings") and not patch.startswith("Validation") and enabled is True
+            for patch, enabled in patches.items()
+        )
+
+    def _apply_selected_dependency_settings(self, selected_patches: dict) -> dict:
+        selected_labels = [
+            patch for patch, enabled in selected_patches.items()
+            if enabled is True and not patch.startswith("Settings") and not patch.startswith("Validation")
+        ]
+        if not selected_labels:
+            return selected_patches
+
+        detection = HardwarePatchsetDetection(self.constants)
+        selected_hardware = []
+        for hardware_variant in detection._hardware_variants:
+            item = hardware_variant(
+                self.constants.detected_os,
+                self.constants.detected_os_minor,
+                self.constants.detected_os_build,
+                self.constants,
+            )
+            if item.name() not in selected_labels:
+                continue
+            if item.present() is False:
+                continue
+            if item.native_os() is True:
+                continue
+            selected_hardware.append(item)
+
+        selected_hardware = detection._strip_incompatible_hardware(selected_hardware)
+        requires_kdk = any(item.requires_kernel_debug_kit() is True for item in selected_hardware)
+        requires_metallib = any(item.requires_metallib_support_pkg() is True for item in selected_hardware)
+
+        selected_patches[HardwarePatchsetSettings.KERNEL_DEBUG_KIT_REQUIRED] = requires_kdk
+        selected_patches[HardwarePatchsetSettings.KERNEL_DEBUG_KIT_MISSING] = self.patches[HardwarePatchsetSettings.KERNEL_DEBUG_KIT_MISSING] if requires_kdk else False
+        selected_patches[HardwarePatchsetSettings.METALLIB_SUPPORT_PKG_REQUIRED] = requires_metallib
+        selected_patches[HardwarePatchsetSettings.METALLIB_SUPPORT_PKG_MISSING] = self.patches[HardwarePatchsetSettings.METALLIB_SUPPORT_PKG_MISSING] if requires_metallib else False
+        return selected_patches
+
+    def _on_patch_selection_changed(self):
+        if self.is_busy:
+            return
+        self.start_button.setEnabled(
+            self.available_patches and not self.no_new_patches and self._has_selected_patches(self._selected_patches())
+        )
+
+    def _run_download_worker(self, download_obj, title: str, detail: str) -> bool:
         loop = QEventLoop()
         result = {"success": False, "message": ""}
-        self.download_worker = DownloadWorker(download_obj, self.constants)
-        self.download_worker.finished_signal.connect(lambda success, message: (result.update(success=success, message=message), loop.quit()))
-        self.download_worker.start()
+        worker = DownloadWorker(download_obj, self.constants)
+        self.download_worker = worker
+        self._show_download_card(title, detail)
+
+        def finish_download(success: bool, message: str):
+            result.update(success=success, message=message)
+            loop.quit()
+
+        worker.progress_signal.connect(self._update_download_card)
+        worker.finished_signal.connect(finish_download)
+        worker.start()
         loop.exec()
-        self.download_worker.deleteLater()
-        self.download_worker = None
+
+        if result["success"] is True and self.download_detail_label and is_qt_object_valid(self.download_detail_label):
+            self.download_detail_label.setText("Download complete")
+            self.download_progress_bar.setValue(100)
+            self.download_percent_label.setText("100%")
+        elif result["message"] == "Download cancelled":
+            self._remove_download_card()
+        if self.download_cancel_button and is_qt_object_valid(self.download_cancel_button):
+            self.download_cancel_button.setEnabled(False)
+        if is_qt_object_valid(worker):
+            worker.deleteLater()
+        if self.download_worker is worker:
+            self.download_worker = None
         if result["success"] is False:
             logging.error(result["message"])
         return result["success"]
@@ -280,7 +471,11 @@ class SysPatch(ScrollArea):
         if not kdk_download_obj:
             return True
 
-        if self._run_download_worker(kdk_download_obj) is False:
+        if self._run_download_worker(
+            kdk_download_obj,
+            "Downloading Kernel Debug Kit",
+            f"Downloading {kdk_download_obj.filename}",
+        ) is False:
             return False
 
         self._set_status("Validating KDK", "Checking if checksum is valid...")
@@ -291,6 +486,7 @@ class SysPatch(ScrollArea):
             QMessageBox.critical(self.window(), "Error", f"KDK checksum validation failed: {self.kdk_obj.error_msg}")
             return False
 
+        self._remove_download_card()
         logging.info("KDK download complete")
         return True
 
@@ -309,11 +505,13 @@ class SysPatch(ScrollArea):
             return False
 
         metallib_download_obj = self.metallib_obj.retrieve_download()
-        if not metallib_download_obj:
-            return True
-
-        if self._run_download_worker(metallib_download_obj) is False:
-            return False
+        if metallib_download_obj:
+            if self._run_download_worker(
+                metallib_download_obj,
+                "Downloading MetallibSupportPkg",
+                f"Downloading {metallib_download_obj.filename}",
+            ) is False:
+                return False
 
         self._set_status("Installing Metallib", "Installing MetallibSupportPkg PKG...")
         QApplication.processEvents()
@@ -321,6 +519,7 @@ class SysPatch(ScrollArea):
             QMessageBox.critical(self.window(), "Error", f"Metallib installation failed: {self.metallib_obj.error_msg}")
             return False
 
+        self._remove_download_card()
         logging.info("Metallib installation complete")
         return True
 
@@ -348,24 +547,30 @@ class SysPatch(ScrollArea):
 
     def start_root_patching(self):
         logging.info("Starting root patching")
+        selected_patches = self._apply_selected_dependency_settings(self._selected_patches())
+        if not self._has_selected_patches(selected_patches):
+            QMessageBox.warning(self.window(), "No Patches Selected", "Please select at least one patch to apply.")
+            return
+
         self._set_busy(True)
         while PayloadMount(self.constants, self.window()).is_unpack_finished() is False:
             QApplication.processEvents()
             time.sleep(self.constants.thread_sleep_interval)
 
-        if self.patches[HardwarePatchsetSettings.KERNEL_DEBUG_KIT_REQUIRED] is True:
+        if selected_patches[HardwarePatchsetSettings.KERNEL_DEBUG_KIT_REQUIRED] is True:
             if self._kdk_download() is False:
                 self._set_busy(False)
                 return
 
-        if self.patches[HardwarePatchsetSettings.METALLIB_SUPPORT_PKG_REQUIRED] is True:
+        if selected_patches[HardwarePatchsetSettings.METALLIB_SUPPORT_PKG_REQUIRED] is True:
             if self._metallib_download() is False:
                 self._set_busy(False)
                 return
 
-        self._prepare_patch_run("Root Patching", self._patch_summary("Root Patching will patch the following:"))
-        self.patch_worker = PatchRunWorker(self.constants, self.patches, revert=False, parent=self)
+        self._prepare_patch_run("Root Patching", self._patch_summary("Root Patching will patch the following:", selected_patches))
+        self.patch_worker = PatchRunWorker(self.constants, selected_patches, revert=False, parent=self)
         self.patch_worker.finished_signal.connect(self._finish_patch_run)
+        self.patch_worker.finished.connect(lambda: setattr(self, "patch_worker", None))
         self.patch_worker.finished.connect(self.patch_worker.deleteLater)
         self.patch_worker.start()
 
@@ -374,12 +579,14 @@ class SysPatch(ScrollArea):
         self._prepare_patch_run("Revert Root Patches", "Reverting to last sealed snapshot")
         self.patch_worker = PatchRunWorker(self.constants, self.patches, revert=True, parent=self)
         self.patch_worker.finished_signal.connect(self._finish_patch_run)
+        self.patch_worker.finished.connect(lambda: setattr(self, "patch_worker", None))
         self.patch_worker.finished.connect(self.patch_worker.deleteLater)
         self.patch_worker.start()
 
-    def _patch_summary(self, header: str) -> str:
+    def _patch_summary(self, header: str, patches: dict = None) -> str:
+        patches = patches or self.patches
         patch_names = [
-            patch for patch, enabled in self.patches.items()
+            patch for patch, enabled in patches.items()
             if not patch.startswith("Settings") and not patch.startswith("Validation") and enabled is True
         ]
         if not patch_names:
@@ -430,7 +637,7 @@ class SysPatch(ScrollArea):
             logging.info("Built from source, running from source")
             return True
 
-        if self.constants.computer.oclp_sys_url != self.constants.commit_info[2]:
+        if self.constants.computer.mbt_sys_url != self.constants.commit_info[2]:
             logging.info("- Commit URLs differ")
             logging.info(f"- Commit URLs: {self.constants.commit_info[2]}")
             return True
@@ -451,12 +658,18 @@ class SysPatch(ScrollArea):
 
     def cleanup_workers(self):
         for worker in (self.detection_worker, self.patch_worker, self.download_worker):
-            if worker and worker.isRunning():
+            if not worker or not is_qt_object_valid(worker):
+                continue
+            if worker.isRunning():
                 worker.requestInterruption()
                 if hasattr(worker, "cancel"):
                     worker.cancel()
                 if not worker.wait(2000):
                     worker.terminate()
                     worker.wait(1000)
+        self.detection_worker = None
+        self.patch_worker = None
+        self.download_worker = None
         if self.log_handler in logging.getLogger().handlers:
             logging.getLogger().removeHandler(self.log_handler)
+        self.log_handler = None

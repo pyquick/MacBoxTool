@@ -60,14 +60,14 @@ class InstallerCreation:
 
     def generate_installer_creation_script(self, tmp_location: str, installer_path: str, disk: str) -> bool:
         """
-        Creates installer.sh to be piped to OCLP-Helper and run as admin
+        Creates installer.sh to be piped to MBT-Helper and run as admin
 
         Script includes:
         - Format provided disk as APFS GPT
         - Run createinstallmedia on provided disk
 
         Implementing this into a single installer.sh script allows us to only call
-        OCLP-Helper once to avoid nagging the user about permissions
+        MBT-Helper once to avoid nagging the user about permissions
 
         Parameters:
             tmp_location (str): Path to temporary directory
@@ -137,9 +137,9 @@ class InstallerCreation:
 
         with script_location.open("w") as script:
             script.write(f'''#!/bin/bash
-erase_disk='/usr/sbin/diskutil eraseDisk APFS OCLP-Installer {disk}'
+erase_disk='/usr/sbin/diskutil eraseDisk APFS MBT-Installer {disk}'
 if $erase_disk; then
-    "{createinstallmedia_path}" --volume /Volumes/OCLP-Installer --nointeraction{additional_args}
+    "{createinstallmedia_path}" --volume /Volumes/MBT-Installer --nointeraction{additional_args}
 fi
             ''')
         if Path(script_location).exists():

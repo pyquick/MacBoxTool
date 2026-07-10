@@ -134,8 +134,8 @@ class BuildOpenCore:
             self.config["#Revision"]["Build-Type"] = "OpenCore Built for External Machine"
         self.config["#Revision"]["OpenCore-Version"] = f"{self.constants.opencore_version} - {'DEBUG' if self.constants.opencore_debug is True else 'RELEASE'}"
         self.config["#Revision"]["Original-Model"] = self.model
-        self.config["NVRAM"]["Add"]["4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102"]["OCLP-Version"] = f"{self.constants.macboxtool_version}"
-        self.config["NVRAM"]["Add"]["4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102"]["OCLP-Model"] = self.model
+        self.config["NVRAM"]["Add"]["4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102"]["MBT-Version"] = f"{self.constants.macboxtool_version}"
+        self.config["NVRAM"]["Add"]["4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102"]["MBT-Model"] = self.model
 
 
     def _save_config(self) -> None:

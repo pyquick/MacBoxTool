@@ -172,7 +172,7 @@ class AboutInterface(ScrollArea):
         )
         btpv_card=SettingCard(
             FIF.ZIP_FOLDER,
-            "Booted Patcher Version (OCLP)",
+            "Booted Patcher Version (MBT)",
             f"{self.constants.computer.mbt_version}",
         )
         btoc_card=SettingCard(

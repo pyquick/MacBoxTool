@@ -2,36 +2,23 @@
 start.py: Start automatic patching of host
 """
 
-import wx
-import wx.html2
-
 import logging
 import plistlib
-import requests
-import markdown2
 import subprocess
-import webbrowser
 
+from packaging import version
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from ... import constants
-
-try:
-    from ...wx_gui import (
-        gui_entry,
-        gui_support
-    )
-except ModuleNotFoundError:
-    gui_entry = None
-    gui_support = None
 from ...support import (
     utilities,
-    updates,
     global_settings,
     network_handler,
 )
+from ...support.update import check_update
 from ..patchsets import (
     HardwarePatchsetDetection,
-    HardwarePatchsetValidation
+    HardwarePatchsetValidation,
 )
 
 
@@ -42,7 +29,6 @@ class StartAutomaticPatching:
 
     def __init__(self, global_constants: constants.Constants):
         self.constants: constants.Constants = global_constants
-
 
     def start_auto_patch(self):
         """
@@ -58,7 +44,6 @@ class StartAutomaticPatching:
             - Verify there are no updates for MacBoxTool (ensure we have the latest patch sets)
 
         If all these tests pass, start Root Patcher
-
         """
 
         logging.info("- Starting Automatic Patching")
@@ -66,83 +51,11 @@ class StartAutomaticPatching:
             logging.info("- Auto Patch option is not supported on TUI, please use GUI")
             return
 
-        dict = updates.CheckBinaryUpdates(self.constants).check_binary_updates()
-        if dict:
-            version = dict["Version"]
-            logging.info("- Found new version: {version}".format(version=version))
-
-            app = wx.App()
-            mainframe = wx.Frame(None, -1, "MacBoxTool")
-
-            ID_GITHUB = wx.NewId()
-            ID_UPDATE = wx.NewId()
-
-            url = "https://api.github.com/repos/pyquick/MacBoxTool/releases/latest"
-            response = requests.get(url,verify=False).json()
-            try:
-                changelog = response["body"].split("## Asset Information")[0]
-            except: #if user constantly checks for updates, github will rate limit them
-                changelog = """## Unable to fetch changelog
-
-Please check the Github page for more information about this release."""
-
-            html_markdown = markdown2.markdown(changelog, extras=["tables"])
-            html_css = ""
-            frame = wx.Dialog(None, -1, title="", size=(650, 500))
-            frame.SetMinSize((650, 500))
-            frame.SetWindowStyle(wx.STAY_ON_TOP)
-            panel = wx.Panel(frame)
-            sizer = wx.BoxSizer(wx.VERTICAL)
-            sizer.AddSpacer(10)
-            self.title_text = wx.StaticText(panel, label="A new version of MacBoxTool is available!")
-            self.description = wx.StaticText(panel, label="MacBoxTool {version} is now available - You have {current_version}. Would you like to update?".format(version=version, current_version=self.constants.patcher_version))
-            self.title_text.SetFont(gui_support.font_factory(19, wx.FONTWEIGHT_BOLD))
-            self.description.SetFont(gui_support.font_factory(13, wx.FONTWEIGHT_NORMAL))
-            self.web_view = wx.html2.WebView.New(panel, style=wx.BORDER_SUNKEN)
-            html_code = f'''
-<html>
-    <head>
-        <style>
-            {html_css}
-        </style>
-    </head>
-    <body class="markdown-body">
-        {html_markdown.replace("<a href=", "<a target='_blank' href=")}
-    </body>
-</html>
-'''
-            self.web_view.SetPage(html_code, "")
-            self.web_view.Bind(wx.html2.EVT_WEBVIEW_NEWWINDOW, self._onWebviewNav)
-            self.web_view.EnableContextMenu(False)
-            self.close_button = wx.Button(panel, label="Ignore")
-            self.close_button.Bind(wx.EVT_BUTTON, lambda event: frame.EndModal(wx.ID_CANCEL))
-            self.view_button = wx.Button(panel, ID_GITHUB, label="View on GitHub")
-            self.view_button.Bind(wx.EVT_BUTTON, lambda event: frame.EndModal(ID_GITHUB))
-            self.install_button = wx.Button(panel, label="Download and Install")
-            self.install_button.Bind(wx.EVT_BUTTON, lambda event: frame.EndModal(ID_UPDATE))
-            self.install_button.SetDefault()
-
-            buttonsizer = wx.BoxSizer(wx.HORIZONTAL)
-            buttonsizer.Add(self.close_button, 0, wx.ALIGN_CENTRE | wx.RIGHT, 5)
-            buttonsizer.Add(self.view_button, 0, wx.ALIGN_CENTRE | wx.LEFT|wx.RIGHT, 5)
-            buttonsizer.Add(self.install_button, 0, wx.ALIGN_CENTRE | wx.LEFT, 5)
-            sizer = wx.BoxSizer(wx.VERTICAL)
-            sizer.Add(self.title_text, 0, wx.ALIGN_CENTRE | wx.TOP, 20)
-            sizer.Add(self.description, 0, wx.ALIGN_CENTRE | wx.BOTTOM, 20)
-            sizer.Add(self.web_view, 1, wx.EXPAND | wx.LEFT|wx.RIGHT, 10)
-            sizer.Add(buttonsizer, 0, wx.ALIGN_RIGHT | wx.ALL, 20)
-            panel.SetSizer(sizer)
-            frame.Centre()
-
-            result = frame.ShowModal()
-
-
-            if result == ID_GITHUB:
-                webbrowser.open(dict["Github Link"])
-            elif result == ID_UPDATE:
-                gui_entry.EntryPoint(self.constants).start(entry=gui_entry.SupportedEntryPoints.UPDATE_APP)
-
-
+        update_result = self._check_for_updates()
+        if update_result.get("if_update"):
+            update_version = update_result.get("update_version", "")
+            logging.info("- Found new version: {version}".format(version=update_version))
+            self._prompt_update(update_version)
             return
 
         if utilities.check_seal() is True:
@@ -166,36 +79,127 @@ Please check the Github page for more information about this release."""
 
                 warning_str = ""
                 if network_handler.NetworkUtilities(self.constants).verify_network_connection("https://api.github.com/repos/pyquick/MacBoxTool/releases/latest", 5) is False:
-                    warning_str = "WARNING: We're unable to verify whether there are any new releases of MacBoxTool on Github. Be aware that you may be using an outdated version for this OS. If you're unsure, verify on Github that MacBoxTool {version} is the latest official release".format(version=self.constants.patcher_version)
+                    warning_str = "\n\nWARNING: We're unable to verify whether there are any new releases of MacBoxTool on Github. Be aware that you may be using an outdated version for this OS. If you're unsure, verify on Github that MacBoxTool {version} is the latest official release".format(version=self.constants.macboxtool_version)
 
-                args = [
-                    "/usr/bin/osascript",
-                    "-e",
-                    f"""display dialog "{'MacBoxTool has detected you\'re running without Root Patches, and would like to install them.\n\nmacOS wipes all root patches during OS installs and updates, so they need to be reinstalled.\n\nFollowing Patches have been detected for your system: \n{patch_string}\nWould you like to apply these patches?{warning_str}'.format(patch_string=patch_string,warning_str=warning_str)}" """
-                    f'with icon POSIX file "{self.constants.app_icon_path}"',
-                ]
-                output = subprocess.run(
-                    args,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT
+                dialog_text = (
+                    "MacBoxTool has detected you're running without Root Patches, and would like to install them.\n\n"
+                    "macOS wipes all root patches during OS installs and updates, so they need to be reinstalled.\n\n"
+                    "Following Patches have been detected for your system:\n"
+                    f"{patch_string}\n"
+                    f"Would you like to apply these patches?{warning_str}"
                 )
-                if output.returncode == 0:
-                    gui_entry.EntryPoint(self.constants).start(entry=gui_entry.SupportedEntryPoints.SYS_PATCH, start_patching=True)
+                if self._ask_yes_no("Root Patches Required", dialog_text):
+                    self._open_sys_patch(start_patching=True)
                 return
 
-            else:
-                logging.info("- No patches detected")
+            logging.info("- No patches detected")
         else:
             logging.info("- Detected Snapshot seal not intact, skipping")
 
         if self._determine_if_versions_match():
             self._determine_if_boot_matches()
 
+    def _check_for_updates(self) -> dict:
+        try:
+            return check_update.CheckUpdate(self.constants).check_update()
+        except Exception as e:
+            logging.error("- Failed to check for MacBoxTool updates: {error}".format(error=e))
+            return check_update.UPDATE_RESULT_TEMPLATE.copy()
 
-    def _onWebviewNav(self, event):
-        url = event.GetURL()
-        webbrowser.open(url)
+    def _prompt_update(self, update_version: str):
+        current_version = self.constants.macboxtool_version
+        message = (
+            "A new version of MacBoxTool is available.\n\n"
+            "MacBoxTool {version} is now available. You have {current_version}.\n\n"
+            "Would you like to open the Updater page?"
+        ).format(version=update_version or "latest", current_version=current_version)
+        if self._ask_yes_no("Update Available", message):
+            self._open_updater()
 
+    def _escape_applescript_text(self, text: str) -> str:
+        return text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+
+    def _ask_yes_no(self, title: str, message: str) -> bool:
+        app = QApplication.instance()
+        if app:
+            result = QMessageBox.question(
+                self._main_window(),
+                title,
+                message,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes,
+            )
+            return result == QMessageBox.StandardButton.Yes
+
+        escaped_title = self._escape_applescript_text(title)
+        escaped_message = self._escape_applescript_text(message)
+        args = [
+            "/usr/bin/osascript",
+            "-e",
+            f'display dialog "{escaped_message}" with title "{escaped_title}" buttons {{"No", "Yes"}} default button "Yes" with icon POSIX file "{self.constants.app_icon_path}"',
+        ]
+        output = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        return output.returncode == 0
+
+    def _main_window(self):
+        try:
+            from ... import app_entry
+            return getattr(app_entry, "_qt_window", None)
+        except Exception:
+            return None
+
+    def _open_window_page(self, page_name: str):
+        window = self._main_window()
+        if window and hasattr(window, page_name):
+            window.show()
+            window.raise_()
+            window.activateWindow()
+            window.stackedWidget.setCurrentWidget(getattr(window, page_name))
+            return True
+        return False
+
+    def _open_updater(self):
+        if self._open_window_page("updater"):
+            return
+        self.constants.start_updater = True
+        self._open_gui_if_needed()
+        logging.info("- Unable to locate GUI Updater page")
+
+    def _open_sys_patch(self, start_patching: bool = False):
+        if self._open_window_page("sys_patch_page"):
+            page = self._main_window().sys_patch_page
+            if start_patching:
+                if getattr(page, "available_patches", False) and getattr(page, "patches", None):
+                    page.pending_auto_patch = False
+                    page.start_root_patching()
+                else:
+                    page.pending_auto_patch = True
+                    self.constants.start_sys_patch_now = True
+            return
+        self.constants.start_sys_patch = True
+        self.constants.start_sys_patch_now = start_patching
+        self._open_gui_if_needed()
+        logging.info("- Unable to locate GUI Root Patching page")
+
+    def _open_build(self):
+        if self._open_window_page("build"):
+            return
+        self.constants.start_build_install = True
+        self._open_gui_if_needed()
+        logging.info("- Unable to locate GUI Build page")
+
+    def _open_gui_if_needed(self):
+        if QApplication.instance() is not None:
+            return
+        from ...qt_gui.gui_go_in import OpenGUI
+        settings = global_settings.GlobalSettings(self.constants)
+        OpenGUI(self.constants, settings).gui_main_menu()
+
+    def _version_is_newer_than_local(self, other_version: str) -> bool:
+        try:
+            return version.parse(str(other_version)) > version.parse(str(self.constants.macboxtool_version))
+        except version.InvalidVersion:
+            return False
 
     def _determine_if_versions_match(self):
         """
@@ -208,49 +212,33 @@ Please check the Github page for more information about this release."""
         """
 
         logging.info("- Checking booted vs installed MacBoxTool build")
-        if self.constants.computer.oclp_version is None:
+        if self.constants.computer.mbt_version is None:
             logging.info("- Booted version not found")
             return True
 
-        if self.constants.computer.oclp_version == self.constants.patcher_version:
+        if self.constants.computer.mbt_version == self.constants.macboxtool_version:
             logging.info("- Versions match")
             return True
 
         if self.constants.special_build is True:
-            # Version doesn't match and we're on a special build
-            # Special builds don't have good ways to compare versions
             logging.info("- Special build detected, assuming installed is older")
             return False
 
-        # Check if installed version is newer than booted version
-        if updates.CheckBinaryUpdates(self.constants).check_if_newer(self.constants.computer.oclp_version):
+        if self._version_is_newer_than_local(self.constants.computer.mbt_version):
             logging.info("- Installed version is newer than booted version")
             return True
 
         build_type = "a different" if self.constants.special_build else "an outdated"
         dialog_text = "MacBoxTool has detected that you are booting {build_type} OpenCore build\n- Booted: {booted_version}\n- Installed: {installed_version}\n\nWould you like to update the OpenCore bootloader?".format(
             build_type=build_type,
-            booted_version=self.constants.computer.oclp_version,
-            installed_version=self.constants.patcher_version
+            booted_version=self.constants.computer.mbt_version,
+            installed_version=self.constants.macboxtool_version,
         )
-        args = [
-            "/usr/bin/osascript",
-            "-e",
-            f"""display dialog "{dialog_text}" """
-            f'with icon POSIX file "{self.constants.app_icon_path}"',
-        ]
-        output = subprocess.run(
-            args,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
-        )
-        if output.returncode == 0:
+        if self._ask_yes_no("Update OpenCore Bootloader?", dialog_text):
             logging.info("- Launching GUI's Build/Install menu")
-            self.constants.start_build_install = True
-            gui_entry.EntryPoint(self.constants).start(entry=gui_entry.SupportedEntryPoints.BUILD_OC)
+            self._open_build()
 
         return False
-
 
     def _determine_if_boot_matches(self):
         """
@@ -267,7 +255,7 @@ Please check the Github page for more information about this release."""
 
         logging.info("- Determining if macOS drive matches boot drive")
 
-        should_notify = global_settings.GlobalEnviromentSettings().read_property("AutoPatch_Notify_Mismatched_Disks")
+        should_notify = global_settings.GlobalSettings(self.constants).find_key("AutoPatch_Notify_Mismatched_Disks")
         if should_notify is False:
             logging.info("- Skipping due to user preference")
             return
@@ -282,7 +270,7 @@ Please check the Github page for more information about this release."""
         root_disk = "disk" + root_disk.split("s")[0]
 
         logging.info("  - Boot Drive: {boot_disk} ({root_disk})".format(
-            boot_disk=self.constants.booted_oc_disk, root_disk=root_disk
+            boot_disk=self.constants.booted_oc_disk, root_disk=root_disk,
         ))
         macOS_disk = utilities.get_disk_path()
         logging.info("  - macOS Drive: {macos_disk}".format(macos_disk=macOS_disk))
@@ -299,7 +287,6 @@ Please check the Github page for more information about this release."""
         if disk_match is True:
             return
 
-        # Check if OpenCore is on a USB drive
         logging.info("- Boot Drive does not match macOS drive, checking if OpenCore is on a USB drive")
 
         disk_info = plistlib.loads(subprocess.run(["/usr/sbin/diskutil", "info", "-plist", root_disk], stdout=subprocess.PIPE).stdout)
@@ -311,21 +298,9 @@ Please check the Github page for more information about this release."""
             logging.info("- Boot Disk is ejectable, prompting user to install to internal")
 
             dialog_text = "MacBoxTool has detected that you are booting OpenCore from an USB or External drive.\n\nIf you would like to boot your Mac normally without a USB drive plugged in, you can install OpenCore to the internal hard drive.\n\nWould you like to launch MacBoxTool and install to disk?"
-            args = [
-                "/usr/bin/osascript",
-                "-e",
-                f"""display dialog "{dialog_text}" """
-                f'with icon POSIX file "{self.constants.app_icon_path}"',
-            ]
-            output = subprocess.run(
-                args,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT
-            )
-            if output.returncode == 0:
+            if self._ask_yes_no("Install OpenCore to Internal Disk?", dialog_text):
                 logging.info("- Launching GUI's Build/Install menu")
-                self.constants.start_build_install = True
-                gui_entry.EntryPoint(self.constants).start(entry=gui_entry.SupportedEntryPoints.BUILD_OC)
+                self._open_build()
 
         except KeyError:
             logging.info("- Unable to determine if boot disk is removable, skipping prompt")

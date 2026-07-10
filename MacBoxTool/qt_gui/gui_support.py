@@ -5,9 +5,10 @@ gui_support.py: Give custom looks
 from ..include import *
 
 # Additional imports for converted wxPython classes
-from PySide6.QtWidgets import QMenuBar, QMenu, QMessageBox, QProgressBar, QPlainTextEdit, QMainWindow, QWidget
+from PySide6.QtWidgets import QMenuBar, QMenu, QMessageBox, QProgressBar, QPlainTextEdit, QTextEdit, QMainWindow, QWidget
 from PySide6.QtCore import QMetaObject, Qt, Q_ARG, QTimer, QObject
 from PySide6.QtGui import QFont
+from shiboken6 import isValid as is_qt_object_valid
 import subprocess
 import sys
 import logging
@@ -26,6 +27,8 @@ class ThemeAwareCard(CardWidget):
         qconfig.themeChanged.connect(self._apply_style)
 
     def _apply_style(self):
+        if not is_qt_object_valid(self):
+            return
         style = self._get_style()
         self.setStyleSheet(f"""
             CardWidget {{
@@ -202,6 +205,10 @@ class DefGUI():
         resolved_icon = icon
         get_style = lambda: self.card_styles.get(card_type, self.card_styles["note"])
 
+        def apply_style_if_valid(widget: QWidget, style_sheet: str):
+            if is_qt_object_valid(widget):
+                widget.setStyleSheet(style_sheet)
+
         if resolved_icon is None:
             resolved_icon = get_style()["default_icon"]
 
@@ -213,7 +220,8 @@ class DefGUI():
 
         icon_label = self.build_icon_label(resolved_icon, get_style()["text"], size=40)
         def _refresh_icon():
-            icon_label.setPixmap(resolved_icon.icon(color=get_style()["text"]).pixmap(40, 40))
+            if is_qt_object_valid(icon_label):
+                icon_label.setPixmap(resolved_icon.icon(color=get_style()["text"]).pixmap(40, 40))
         _refresh_icon()
         qconfig.themeChanged.connect(_refresh_icon)
         main_layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
@@ -223,23 +231,21 @@ class DefGUI():
 
         if title:
             title_label = StrongBodyLabel(title)
-            QTimer.singleShot(40,lambda: title_label.setStyleSheet("color: {}; font-size: 16px;".format(get_style()["text"])))
-            title_label.setStyleSheet("color: {}; font-size: 16px;".format(get_style()["text"]))
+            title_style = lambda: "color: {}; font-size: 16px;".format(get_style()["text"])
+            apply_style_if_valid(title_label, title_style())
 
             # Create proper callback function for theme changes
             def update_title_with_delay():
-                QTimer.singleShot(40, lambda: title_label.setStyleSheet("color: {}; font-size: 16px;".format(get_style()["text"])))
+                QTimer.singleShot(40, lambda: apply_style_if_valid(title_label, title_style()))
 
             qconfig.themeChanged.connect(update_title_with_delay)
-            title_label.setStyleSheet("color: {}; font-size: 16px;".format(get_style()["text"]))
             text_layout.addWidget(title_label)
 
         if body:
             body_label = BodyLabel(body)
             body_label.setWordWrap(True)
             body_label.setOpenExternalLinks(True)
-            QTimer.singleShot(40,lambda: body_label.setStyleSheet("line-height: 1.6;"))
-            body_label.setStyleSheet("line-height: 1.6;")
+            apply_style_if_valid(body_label, "line-height: 1.6;")
             text_layout.addWidget(body_label)
 
         if custom_widget:
@@ -371,20 +377,20 @@ class CheckProperties:
 
     def host_psp_version(self) -> packaging.version.Version:
         """
-        Grab PatcherSupportPkg version from OCLP-R.plist
+        Grab PatcherSupportPkg version from MacBoxTool.plist
         """
-        oclp_plist_path = "/System/Library/CoreServices/OCLP-R.plist"
-        if not Path(oclp_plist_path).exists():
+        mbt_plist_path = "/System/Library/CoreServices/MacBoxTool.plist"
+        if not Path(mbt_plist_path).exists():
             return packaging.version.Version("0.0.0")
 
-        oclp_plist = plistlib.load(open(oclp_plist_path, "rb"))
-        if "PatcherSupportPkg" not in oclp_plist:
+        mbt_plist = plistlib.load(open(mbt_plist_path, "rb"))
+        if "PatcherSupportPkg" not in mbt_plist:
             return packaging.version.Version("0.0.0")
 
-        if oclp_plist["PatcherSupportPkg"].startswith("v"):
-            oclp_plist["PatcherSupportPkg"] = oclp_plist["PatcherSupportPkg"][1:]
+        if mbt_plist["PatcherSupportPkg"].startswith("v"):
+            mbt_plist["PatcherSupportPkg"] = mbt_plist["PatcherSupportPkg"][1:]
 
-        return packaging.version.parse(oclp_plist["PatcherSupportPkg"])
+        return packaging.version.parse(mbt_plist["PatcherSupportPkg"])
 
     def host_has_3802_gpu(self) -> bool:
         """
@@ -440,7 +446,7 @@ class GenerateMenubar:
         menubar = self.window.menuBar()
         fileMenu = menubar.addMenu("&File")
 
-        aboutAction = fileMenu.addAction("&About OCLP-R")
+        aboutAction = fileMenu.addAction("&About MacBoxTool")
         fileMenu.addSeparator()
         revealLogAction = fileMenu.addAction("&Reveal Log File")
 
@@ -553,21 +559,25 @@ class PayloadMount:
 
 class ThreadHandler(logging.Handler):
     """
-    Reroutes logging output to a QPlainTextEdit using UI callbacks
+    Reroutes logging output to a Qt text widget using UI callbacks
     Thread-safe for Qt GUI updates
     """
 
-    def __init__(self, text_edit: QPlainTextEdit):
+    def __init__(self, text_edit: QPlainTextEdit | QTextEdit):
         logging.Handler.__init__(self)
         self.text_edit = text_edit
 
     def emit(self, record: logging.LogRecord):
         """Thread-safe emit using Qt's signal/slot mechanism"""
-        msg = self.format(record) + '\n'
-        # Use QMetaObject.invokeMethod for thread-safe GUI updates
+        msg = self.format(record)
+        if isinstance(self.text_edit, QPlainTextEdit):
+            method = "appendPlainText"
+        else:
+            method = "append"
+
         QMetaObject.invokeMethod(
             self.text_edit,
-            "appendPlainText",
+            method,
             Qt.ConnectionType.QueuedConnection,
             Q_ARG(str, msg)
         )

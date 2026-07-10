@@ -221,7 +221,7 @@ def check_kext_loaded(bundle_id: str) -> str:
 
 
 def check_mbt_boot():
-    if get_nvram("OCLP-Version", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True):
+    if get_nvram("MBT-Version", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True):
         return True
     else:
         return False
@@ -259,7 +259,7 @@ def check_metal_support(device_probe, computer):
 
 def check_filevault_skip():
     # Check whether we can skip FileVault check with Root Patching
-    nvram = get_nvram("OCLP-Settings", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
+    nvram = get_nvram("MBT-Settings", "4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102", decode=True)
     if nvram:
         if "-allow_fv" in nvram:
             return True
@@ -323,7 +323,7 @@ def patching_status(os_sip, os):
         sip_enabled = False
 
     if os > os_data.os_data.catalina and not check_filevault_skip():
-        # Assume non-OCLP Macs do not have our APFS seal patch
+        # Assume non-MBT Macs do not have our APFS seal patch
         fv_status: str = subprocess.run(["/usr/bin/fdesetup", "status"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.decode()
         if "FileVault is Off" in fv_status:
             fv_enabled = False

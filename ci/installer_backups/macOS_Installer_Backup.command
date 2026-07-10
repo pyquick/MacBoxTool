@@ -19,7 +19,7 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 
-# To allow easy importing of OCLP-R's utilities
+# To allow easy importing of MacBoxTool's utilities
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from MacBoxTool.support import (

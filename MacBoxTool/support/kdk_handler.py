@@ -7,6 +7,7 @@ import plistlib
 import requests
 import tempfile
 import subprocess
+import shutil
 import packaging.version
 
 from typing import cast
@@ -115,7 +116,7 @@ class KernelDebugKitObject:
             results = network_handler.NetworkUtilities(self.constants).get(
                 KDK_API_LINK,
                 headers={
-                    "User-Agent": f"OCLP/{self.constants.macboxtool_version}"
+                    "User-Agent": f"MBT/{self.constants.macboxtool_version}"
                 },
                 timeout=5
             )
@@ -312,8 +313,12 @@ class KernelDebugKitObject:
         kdk_download_path = self.constants.kdk_download_path if override_path == "" else Path(override_path)
         kdk_plist_path = Path(f"{kdk_download_path.parent}/{KDK_INFO_PLIST}") if override_path == "" else Path(f"{Path(override_path).parent}/{KDK_INFO_PLIST}")
 
+        if kdk_download_path.is_dir():
+            logging.info("Removing invalid KDK download directory: {0}".format(kdk_download_path))
+            shutil.rmtree(kdk_download_path)
+
         self._generate_kdk_info_plist(kdk_plist_path)
-        return network_handler.DownloadObject(self.kdk_url, kdk_download_path)
+        return network_handler.DownloadObject(self.kdk_url, str(kdk_download_path.parent), kdk_download_path.name)
 
 
     def _generate_kdk_info_plist(self, plist_path: str) -> None:
