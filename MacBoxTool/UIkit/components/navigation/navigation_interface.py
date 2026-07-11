@@ -15,6 +15,10 @@ class NavigationInterface(QWidget):
     """ Navigation interface """
 
     displayModeChanged = Signal(NavigationDisplayMode)
+    PANEL_MARGIN_LEFT = 12
+    PANEL_MARGIN_TOP = 66
+    PANEL_MARGIN_RIGHT = 12
+    PANEL_MARGIN_BOTTOM = 16
 
     def __init__(self, parent=None, showMenuButton=True, showReturnButton=False, collapsible=True):
         """
@@ -40,9 +44,10 @@ class NavigationInterface(QWidget):
         self.panel.installEventFilter(self)
         self.panel.displayModeChanged.connect(self.displayModeChanged)
 
-        self.resize(48, self.height())
-        self.setMinimumWidth(48)
+        self.resize(48 + self.PANEL_MARGIN_LEFT + self.PANEL_MARGIN_RIGHT, self.height())
+        self.setMinimumWidth(48 + self.PANEL_MARGIN_LEFT + self.PANEL_MARGIN_RIGHT)
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self._updatePanelGeometry()
 
     def addItem(self, routeKey: str, icon: Union[str, QIcon, FluentIconBase], text: str, onClick=None,
                 selectable=True, position=NavigationItemPosition.TOP, tooltip: str = None,
@@ -374,10 +379,16 @@ class NavigationInterface(QWidget):
         if self.panel.displayMode != NavigationDisplayMode.MENU:
             event = QResizeEvent(e)
             if event.oldSize().width() != event.size().width():
-                self.setFixedWidth(event.size().width())
+                self.setFixedWidth(event.size().width() + self.PANEL_MARGIN_LEFT + self.PANEL_MARGIN_RIGHT)
+                self._updatePanelGeometry()
 
         return super().eventFilter(obj, e)
 
     def resizeEvent(self, e: QResizeEvent):
         if e.oldSize().height() != self.height():
-            self.panel.setFixedHeight(self.height())
+            self._updatePanelGeometry()
+
+    def _updatePanelGeometry(self):
+        height = max(0, self.height() - self.PANEL_MARGIN_TOP - self.PANEL_MARGIN_BOTTOM)
+        self.panel.move(self.PANEL_MARGIN_LEFT, self.PANEL_MARGIN_TOP)
+        self.panel.setFixedHeight(height)

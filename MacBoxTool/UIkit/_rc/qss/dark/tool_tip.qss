@@ -1,11 +1,11 @@
 ToolTip {
-    border-radius: 4px;
+    border-radius: 12px;
 }
 
 ToolTip > #container {
     background-color: rgb(43, 43, 43);
     border: 1px solid rgb(28, 28, 28);
-    border-radius: 4px;
+    border-radius: 12px;
 }
 
 ToolTip>#container[transparent=true] {

@@ -318,7 +318,7 @@ xw
         #
         # Note: With macOS 14.1, injection of these kexts causes a panic.
         #       To avoid this, a MaxKernel is configured with XNU 23.0.0 (macOS 14.0).
-        #       Additionally sys_patch.py stack will now patches the bins onto disk for 14.1+.
+        #       Additionally gui_sys_patch.py stack will now patches the bins onto disk for 14.1+.
         #       Reason for keeping the dual logic is due to potential conflicts of in-cache vs injection if we start
         #       patching pre-14.1 hosts.
         if (

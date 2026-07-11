@@ -1,6 +1,6 @@
 InfoBar {
     border: 1px solid rgb(229, 229, 229);
-    border-radius: 6px;
+    border-radius: 12px;
     background-color: rgb(244, 244, 244);
 }
 
@@ -35,7 +35,7 @@ InfoBar[type="Error"] {
 
 InfoBarCloseButton {
     background-color: transparent;
-    border-radius: 5px;
+    border-radius: 12px;
 }
 
 InfoBarCloseButton:hover {

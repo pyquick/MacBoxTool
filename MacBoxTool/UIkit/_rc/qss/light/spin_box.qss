@@ -12,7 +12,7 @@ CompactTimeEdit {
     background-color: rgba(255, 255, 255, 0.7);
     border: 1px solid rgba(0, 0, 0, 13);
     border-bottom: 1px solid rgba(0, 0, 0, 100);
-    border-radius: 5px;
+    border-radius: 12px;
     padding: 0px 80px 0 10px;
     selection-background-color: --ThemeColorLight1;
 }
@@ -95,7 +95,7 @@ CompactTimeEdit:disabled {
 
 SpinButton {
     background-color: transparent;
-    border-radius: 4px;
+    border-radius: 12px;
     margin: 0;
 }
 

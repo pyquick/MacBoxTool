@@ -7,6 +7,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QUrl
 
 import sys
+import threading
 # Import install_helper only on macOS
 if sys.platform == "darwin":
     try:
@@ -37,10 +38,11 @@ class _SignalHandler(logging.Handler):
         ("- Adding ", 72, "Configuring components"),
     ]
 
-    def __init__(self, log_signal, progress_signal=None, total_steps=1):
+    def __init__(self, log_signal, progress_signal=None, total_steps=1, thread_id=None):
         super().__init__()
         self._log_signal = log_signal
         self._progress_signal = progress_signal
+        self._thread_id = thread_id
         self._last_progress = 0
         self._last_stage = None
 
@@ -59,6 +61,8 @@ class _SignalHandler(logging.Handler):
             return
 
     def emit(self, record):
+        if self._thread_id is not None and record.thread != self._thread_id:
+            return
         msg = self.format(record)
         self._emit_stage_progress(msg)
         self._log_signal.emit(msg)
@@ -78,7 +82,7 @@ class BuildWorker(QThread):
         self.constants = constants
 
     def run(self):
-        handler = _SignalHandler(self.log_signal, self.progress_signal, self.TOTAL_STEPS)
+        handler = _SignalHandler(self.log_signal, self.progress_signal, self.TOTAL_STEPS, threading.get_ident())
         handler.setFormatter(logging.Formatter("%(message)s"))
         root_logger = logging.getLogger()
         previous_level = root_logger.level
@@ -495,7 +499,7 @@ class BuildOCPage(ScrollArea):
         
 
         # Build button - always enabled regardless of physical model
-        self.build_btn = PushButton(FluentIcon.DEVELOPER_TOOLS, "Advanced: Build OpenCore EFI")
+        self.build_btn = PushButton(FluentIcon.DEVELOPER_TOOLS, "Build OpenCore EFI")
         self.build_btn.setFixedHeight(40)
         self.build_btn.clicked.connect(self._on_build)
         layout.addWidget(self.build_btn)
@@ -634,9 +638,9 @@ class BuildOCPage(ScrollArea):
                 content=f"Successfully installed EFI to {info}",
                 orient=Qt.Orientation.Horizontal,
                 isClosable=True,
-                position=InfoBarPosition.TOP_RIGHT,
+                position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=4000,
-                parent=self.window()
+                parent=self
             )
         else:
             InfoBar.error(
@@ -644,9 +648,9 @@ class BuildOCPage(ScrollArea):
                 content=info,
                 orient=Qt.Orientation.Horizontal,
                 isClosable=True,
-                position=InfoBarPosition.TOP_RIGHT,
+                position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=8000,
-                parent=self.window()
+                parent=self
             )
         self.install_worker = None
 

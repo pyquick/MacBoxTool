@@ -3,8 +3,8 @@ from enum import Enum
 from typing import Dict, Union
 
 from PySide6.QtCore import Qt, QPropertyAnimation, QRect, QSize, QEvent, QEasingCurve, Signal, QPoint, QRectF
-from PySide6.QtGui import QResizeEvent, QIcon, QColor, QPainterPath
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QFrame, QApplication, QHBoxLayout
+from PySide6.QtGui import QResizeEvent, QIcon, QColor, QPainterPath, QPainter, QPen
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QFrame, QApplication, QHBoxLayout, QGraphicsDropShadowEffect
 
 from .navigation_widget import (NavigationTreeWidgetBase, NavigationToolButton, NavigationWidget, NavigationSeparator,
                                 NavigationTreeWidget, NavigationFlyoutMenu, NavigationItemHeader, NavigationIndicator)
@@ -74,6 +74,7 @@ class NavigationPanel(QFrame):
         self._isUpdateIndicatorPosOnCollapseFinished = False
 
         self.indicator = NavigationIndicator(self)
+        self.shadowEffect = QGraphicsDropShadowEffect(self)
 
         self.acrylicBrush = AcrylicBrush(self, 30)
 
@@ -106,7 +107,11 @@ class NavigationPanel(QFrame):
 
     def __initWidget(self):
         self.resize(48, self.height())
-        self.setAttribute(Qt.WA_StyledBackground)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.shadowEffect.setBlurRadius(28)
+        self.shadowEffect.setOffset(0, 8)
+        self.shadowEffect.setColor(QColor(0, 0, 0, 70 if isDarkTheme() else 38))
+        self.setGraphicsEffect(self.shadowEffect)
         self.window().installEventFilter(self)
 
         self.returnButton.hide()
@@ -156,7 +161,7 @@ class NavigationPanel(QFrame):
 
         self.vBoxLayout.setAlignment(Qt.AlignTop)
         self.topLayout.setAlignment(Qt.AlignTop)
-        self.scrollLayout.setAlignment(Qt.AlignTop)
+        self.scrollLayout.setAlignment(Qt.AlignVCenter)
         self.bottomLayout.setAlignment(Qt.AlignBottom)
 
         self.topLayout.addWidget(self.returnButton, 0, Qt.AlignTop)
@@ -523,7 +528,7 @@ class NavigationPanel(QFrame):
                     QRect(self.mapToGlobal(QPoint()), QSize(self.expandWidth, self.height())))
 
             if not self._parent.isWindow():
-                pos = self.parent().pos()
+                pos = self.mapTo(self.window(), QPoint(0, 0))
                 self.setParent(self.window())
                 self.move(pos)
 
@@ -749,7 +754,10 @@ class NavigationPanel(QFrame):
 
             if not self._parent.isWindow():
                 self.setParent(self._parent)
-                self.move(0, 0)
+                self.move(
+                    getattr(self._parent, 'PANEL_MARGIN_LEFT', 0),
+                    getattr(self._parent, 'PANEL_MARGIN_TOP', 0)
+                )
                 self.show()
 
     def _setWidgetCompacted(self, isCompacted: bool):
@@ -768,18 +776,63 @@ class NavigationPanel(QFrame):
     def _canDrawAcrylic(self):
         return self.acrylicBrush.isAvailable() and self.isAcrylicEnabled()
 
+    def _paintPanelRegion(self, painter: QPainter, rect: QRectF):
+        if rect.isNull() or rect.height() <= 0:
+            return
+
+        fill = QColor(38, 38, 38, 132) if isDarkTheme() else QColor(255, 255, 255, 132)
+        outline = QColor(255, 255, 255, 24 if isDarkTheme() else 178)
+        if self.displayMode == NavigationDisplayMode.MENU:
+            fill = QColor(38, 38, 38, 176) if isDarkTheme() else QColor(255, 255, 255, 168)
+            outline = QColor(255, 255, 255, 32 if isDarkTheme() else 190)
+
+        painter.setBrush(fill)
+        pen = QPen(outline)
+        pen.setWidthF(1)
+        painter.setPen(pen)
+        painter.drawRoundedRect(rect.adjusted(0.5, 0.5, -0.5, -0.5), 12, 12)
+
+    def _layoutRegionRect(self, layout: QVBoxLayout):
+        region = QRectF()
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            widget = item.widget() if item else None
+            if not widget or not widget.isVisible():
+                continue
+
+            widgetRect = QRectF(QRect(widget.mapTo(self, QPoint(0, 0)), widget.size()))
+            region = widgetRect if region.isNull() else region.united(widgetRect)
+
+        if region.isNull() or region.height() <= 0:
+            return QRectF()
+
+        return region.adjusted(-4, -3, 4, 3)
+
+    def _scrollRegionRect(self):
+        rect = self._layoutRegionRect(self.scrollLayout)
+        if rect.isNull():
+            return QRectF()
+
+        return rect.intersected(QRectF(self.scrollArea.geometry()))
+
     def paintEvent(self, e):
-        if not self._canDrawAcrylic() or self.displayMode != NavigationDisplayMode.MENU:
-            return super().paintEvent(e)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setPen(Qt.NoPen)
 
-        path = QPainterPath()
-        path.setFillRule(Qt.WindingFill)
-        path.addRoundedRect(0, 1, self.width() - 1, self.height() - 1, 7, 7)
-        path.addRect(0, 1, 8, self.height() - 1)
-        self.acrylicBrush.setClipPath(path)
+        if self._canDrawAcrylic() and self.displayMode == NavigationDisplayMode.MENU:
+            path = QPainterPath()
+            path.setFillRule(Qt.WindingFill)
+            path.addRoundedRect(0, 1, self.width() - 1, self.height() - 1, 12, 12)
+            self.acrylicBrush.setClipPath(path)
 
-        self._updateAcrylicColor()
-        self.acrylicBrush.paint()
+            self._updateAcrylicColor()
+            self.acrylicBrush.paint()
+
+        self._paintPanelRegion(painter, self._layoutRegionRect(self.topLayout))
+        self._paintPanelRegion(painter, self._scrollRegionRect())
+        self._paintPanelRegion(painter, self._layoutRegionRect(self.bottomLayout))
+        painter.end()
 
         super().paintEvent(e)
 

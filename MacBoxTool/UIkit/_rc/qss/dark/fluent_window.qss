@@ -48,21 +48,19 @@ CloseButton {
 }
 
 StackedWidget {
-    border: 1px solid rgba(0, 0, 0, 0.18);
-    border-right: none;
-    border-bottom: none;
-    border-radius: 10px;
+    border: none;
+    border-radius: 0;
     margin-left: 8px;
-    margin-bottom: 8px;
-    background-color: rgba(255, 255, 255, 0.0314);
+    margin-bottom: 0;
+    background-color: transparent;
 }
 
 SplitFluentWindow > StackedWidget {
-    border-radius: 0px;
+    border-radius: 0;
     border-top: none;
 }
 
 FluentWindowBase {
     background-color: transparent;
-    border-radius: 10px;
+    border-radius: 12px;
 }

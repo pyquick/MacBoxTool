@@ -11,7 +11,7 @@ CheckBox {
 CheckBox::indicator {
     width: 18px;
     height: 18px;
-    border-radius: 5px;
+    border-radius: 12px;
     border: 1px solid transparent;
     background-color: transparent;
 }

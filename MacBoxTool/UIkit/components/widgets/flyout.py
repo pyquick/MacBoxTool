@@ -68,7 +68,7 @@ class FlyoutViewBase(QWidget):
         painter.setPen(self.borderColor())
 
         rect = self.rect().adjusted(1, 1, -1, -1)
-        painter.drawRoundedRect(rect, 8, 8)
+        painter.drawRoundedRect(rect, 12, 12)
 
 
 class FlyoutView(FlyoutViewBase):
@@ -177,7 +177,7 @@ class FlyoutView(FlyoutViewBase):
         self.widgetLayout.addWidget(widget, stretch, align)
 
     def _addImageToLayout(self):
-        self.imageLabel.setBorderRadius(8, 8, 0, 0)
+        self.imageLabel.setBorderRadius(12, 12, 0, 0)
         self.imageLabel.setHidden(self.imageLabel.isNull())
         self.vBoxLayout.insertWidget(0, self.imageLabel)
 

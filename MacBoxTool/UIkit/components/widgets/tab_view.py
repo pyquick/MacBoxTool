@@ -72,7 +72,7 @@ class TabItem(PushButton):
 
     def _postInit(self):
         super()._postInit()
-        self.borderRadius = 5
+        self.borderRadius = 12
         self.isSelected = False
         self.isShadowEnabled = True
         self.closeButtonDisplayMode = TabCloseButtonDisplayMode.ALWAYS

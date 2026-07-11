@@ -1,9 +1,7 @@
 StackedWidget {
-    border: 1px solid rgba(0, 0, 0, 0.068);
-    border-right: none;
-    border-bottom: none;
-    border-top-left-radius: 10px;
-    background-color: rgba(255, 255, 255, 0.5);
+    border: none;
+    border-top-left-radius: 0;
+    background-color: transparent;
 }
 
 StackedWidget[isTransparent=true] {
@@ -12,7 +10,7 @@ StackedWidget[isTransparent=true] {
 }
 
 SplitFluentWindow>StackedWidget {
-    border-top-left-radius: 0px;
+    border-top-left-radius: 0;
     border-top: none;
 }
 
@@ -54,7 +52,7 @@ MaximizeButton {
     qproperty-normalColor: black;
     qproperty-normalBackgroundColor: transparent;
     qproperty-hoverColor: black;
-    border-radius: 10px;
+    border-radius: 12px;
     margin-left: 8px;
     margin-bottom: 8px;
     qproperty-hoverBackgroundColor: rgba(0, 0, 0, 26);
@@ -65,5 +63,5 @@ MaximizeButton {
 CloseButton {
     qproperty-normalColor: black;
     qproperty-normalBackgroundColor: transparent;
-    border-radius: 10px;
+    border-radius: 12px;
 }

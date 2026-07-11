@@ -106,7 +106,7 @@ class SpinFlyoutView(FlyoutViewBase):
             QColor(0, 0, 0, 51) if isDarkTheme() else QColor(0, 0, 0, 15))
 
         rect = self.rect().adjusted(1, 1, -1, -1)
-        painter.drawRoundedRect(rect, 8, 8)
+        painter.drawRoundedRect(rect, 12, 12)
 
 
 class SpinBoxBase:

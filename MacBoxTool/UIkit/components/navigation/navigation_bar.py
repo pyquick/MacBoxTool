@@ -101,7 +101,7 @@ class NavigationBarPushButton(NavigationPushButton):
     def _drawBackground(self, painter: QPainter):
         if self.isSelected or self.isAboutSelected:
             painter.setBrush(QColor(255, 255, 255, 42) if isDarkTheme() else Qt.white)
-            painter.drawRoundedRect(self.rect(), 5, 5)
+            painter.drawRoundedRect(self.rect(), 12, 12)
 
             # draw indicator
             if not self.isAboutSelected:
@@ -114,7 +114,7 @@ class NavigationBarPushButton(NavigationPushButton):
             c = 255 if isDarkTheme() else 0
             alpha = 9 if self.isEnter else 6
             painter.setBrush(QColor(c, c, c, alpha))
-            painter.drawRoundedRect(self.rect(), 5, 5)
+            painter.drawRoundedRect(self.rect(), 12, 12)
 
     def _drawIcon(self, painter: QPainter):
         if (self.isPressed or not self.isEnter) and not (self.isSelected or self.isAboutSelected):

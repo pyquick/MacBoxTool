@@ -27,7 +27,7 @@ class AcrylicFlyoutViewBase(AcrylicWidget, FlyoutViewBase):
         painter.setBrush(Qt.NoBrush)
         painter.setPen(self.borderColor())
         rect = QRectF(self.rect()).adjusted(1, 1, -1, -1)
-        painter.drawRoundedRect(rect, 8, 8)
+        painter.drawRoundedRect(rect, 12, 12)
 
 
 class AcrylicFlyoutView(AcrylicWidget, FlyoutView):
@@ -47,7 +47,7 @@ class AcrylicFlyoutView(AcrylicWidget, FlyoutView):
         painter.setBrush(Qt.NoBrush)
         painter.setPen(self.borderColor())
         rect = self.rect().adjusted(1, 1, -1, -1)
-        painter.drawRoundedRect(rect, 8, 8)
+        painter.drawRoundedRect(rect, 12, 12)
 
 
 class AcrylicFlyout(Flyout):

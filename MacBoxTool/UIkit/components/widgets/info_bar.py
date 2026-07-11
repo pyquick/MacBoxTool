@@ -270,7 +270,7 @@ class InfoBar(QFrame):
             painter.setBrush(self.lightBackgroundColor)
 
         rect = self.rect().adjusted(1, 1, -1, -1)
-        painter.drawRoundedRect(rect, 6, 6)
+        painter.drawRoundedRect(rect, 12, 12)
 
     @classmethod
     def new(cls, icon, title, content, orient=Qt.Horizontal, isClosable=True, duration=1000,

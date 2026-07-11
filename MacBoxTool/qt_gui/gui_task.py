@@ -572,7 +572,7 @@ class TaskInterface(ScrollArea):
                 content=f"File not found: {file_path}",
                 orient=Qt.Orientation.Horizontal,
                 isClosable=True,
-                position=InfoBarPosition.TOP_RIGHT,
+                position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=3000,
                 parent=self
             )
@@ -588,7 +588,7 @@ class TaskInterface(ScrollArea):
                 content=f"Folder not found: {folder_path}",
                 orient=Qt.Orientation.Horizontal,
                 isClosable=True,
-                position=InfoBarPosition.TOP_RIGHT,
+                position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=3000,
                 parent=self
             )
@@ -601,7 +601,7 @@ class TaskInterface(ScrollArea):
             "Download Cancelled",
             f"{download.filename} has been cancelled.",
             duration=3000,
-            position=InfoBarPosition.TOP_RIGHT,
+            position=InfoBarPosition.BOTTOM_RIGHT,
             parent=self,
         )
 
@@ -644,7 +644,7 @@ class TaskInterface(ScrollArea):
             "Download Restarted",
             f"Restarting download for {download.filename}",
             duration=3000,
-            position=InfoBarPosition.TOP_RIGHT,
+            position=InfoBarPosition.BOTTOM_RIGHT,
             parent=self,
         )
 
@@ -764,8 +764,8 @@ class TaskInterface(ScrollArea):
             "Download Started",
             f"{download.filename} is downloading again.",
             duration=3000,
-            position=InfoBarPosition.TOP_RIGHT,
-            parent=self.window(),
+            position=InfoBarPosition.BOTTOM_RIGHT,
+            parent=self,
         )
 
     def _on_clear_all_history(self):

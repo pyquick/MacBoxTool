@@ -7,7 +7,7 @@
     margin: 0;
     padding-left: 8px;
     text-align: left;
-    border-radius: 5px;
+    border-radius: 12px;
 }
 
 #titleButton:hover {
@@ -38,14 +38,14 @@
 CalendarViewBase {
     background-color: rgb(37, 37, 37);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
+    border-radius: 12px;
 }
 
 ScrollViewBase {
     border: none;
     padding: 0px 1px 0px 1px;
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
     border-top: 1px solid rgb(52, 52, 52);
     background-color: transparent;
 }
@@ -54,7 +54,7 @@ CalendarPicker {
     background: rgba(255, 255, 255, 0.0605);
     border: 1px solid rgba(255, 255, 255, 0.053);
     border-top: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 5px;
+    border-radius: 12px;
     color: rgba(255, 255, 255, 0.6063);
     font: 14px --FontFamilies;
     padding: 5px 32px 6px 12px;

@@ -109,7 +109,7 @@ class SegmentedWidget(Pivot):
 
         item = self.currentItem()
         rect = item.rect().adjusted(1, 1, -1, -1).translated(int(self.slideAni.value()), 0)
-        painter.drawRoundedRect(rect, 5, 5)
+        painter.drawRoundedRect(rect, 12, 12)
 
         # draw indicator
         painter.setPen(Qt.PenStyle.NoPen)

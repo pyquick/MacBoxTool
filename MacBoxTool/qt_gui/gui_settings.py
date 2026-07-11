@@ -583,7 +583,7 @@ class SettingsInterface(QWidget):
             parent=group1
         )
 
-        self.audio_type_card = SettingCard(FIF.SYNC, "Audio Patch choice", "AppleHDA for Tahoe, or VoodooHDA for Monterey and newer. VoodooHDA is not recommended.", parent=group1)
+        self.audio_type_card = SettingCard(FIF.SYNC, "Audio Patch choice", "AppleHDA for Tahoe, or VoodooHDA for Monterey and newer.", parent=group1)
         self.audio_type_combo = ComboBox(self.audio_type_card)
         self.audio_type_combo.addItems(["AppleHDA", "VoodooHDA"])
         self.audio_type_card.hBoxLayout.addWidget(self.audio_type_combo, 0, Qt.AlignmentFlag.AlignRight)
@@ -756,8 +756,8 @@ class SettingsInterface(QWidget):
                 "Export Complete",
                 f"Constants exported to {file_path}",
                 duration=3000,
-                position=InfoBarPosition.TOP_RIGHT,
-                parent=self.window(),
+                position=InfoBarPosition.BOTTOM_RIGHT,
+                parent=self,
             )
         except Exception as e:
             logging.error(f"Failed to export constants: {e}")
@@ -765,8 +765,8 @@ class SettingsInterface(QWidget):
                 "Export Failed",
                 str(e),
                 duration=3000,
-                position=InfoBarPosition.TOP_RIGHT,
-                parent=self.window(),
+                position=InfoBarPosition.BOTTOM_RIGHT,
+                parent=self,
             )
 
     def _save(self, key: str, value):

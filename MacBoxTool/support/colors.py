@@ -60,10 +60,10 @@ SIZES: Final[dict[str, int]] = {
 }
 
 RADIUS: Final[dict[str, int]] = {
-    "small": 4,
-    "medium": 6,
-    "large": 8,
-    "xlarge": 10,
-    "button": 4,
-    "card": 8,
+    "small": 7,
+    "medium": 8,
+    "large": 11,
+    "xlarge": 15,
+    "button": 8,
+    "card": 12,
 }

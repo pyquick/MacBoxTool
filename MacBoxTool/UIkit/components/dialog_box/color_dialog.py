@@ -64,7 +64,7 @@ class HuePanel(QWidget):
         # draw hue panel
         painter.setBrush(QBrush(self.huePixmap))
         painter.setPen(QPen(QColor(0, 0, 0, 15), 2.4))
-        painter.drawRoundedRect(self.rect(), 5.6, 5.6)
+        painter.drawRoundedRect(self.rect(), 12, 12)
 
         # draw picker
         if self.saturation > 153 or 40 < self.hue < 180:
@@ -141,12 +141,12 @@ class ColorCard(QWidget):
         if self.enableAlpha:
             painter.setBrush(QBrush(self.titledPixmap))
             painter.setPen(QColor(0, 0, 0, 13))
-            painter.drawRoundedRect(self.rect(), 4, 4)
+            painter.drawRoundedRect(self.rect(), 12, 12)
 
         # draw color
         painter.setBrush(self.color)
         painter.setPen(QColor(0, 0, 0, 13))
-        painter.drawRoundedRect(self.rect(), 4, 4)
+        painter.drawRoundedRect(self.rect(), 12, 12)
 
 
 class ColorLineEdit(LineEdit):

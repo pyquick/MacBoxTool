@@ -1,5 +1,5 @@
 """
-sys_patch_helpers.py: Additional support functions for sys_patch.py
+sys_patch_helpers.py: Additional support functions for gui_sys_patch.py
 """
 
 import os
@@ -24,7 +24,7 @@ from ..support import (
 
 class SysPatchHelpers:
     """
-    Library of helper functions for sys_patch.py and related libraries
+    Library of helper functions for gui_sys_patch.py and related libraries
     """
 
     def __init__(self, global_constants: constants.Constants):

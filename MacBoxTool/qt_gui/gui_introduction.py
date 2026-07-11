@@ -222,7 +222,7 @@ class Introduction(ScrollArea):
             content="Installing Privileged Helper...",
             orient=Qt.Orientation.Horizontal,
             isClosable=False,
-            position=InfoBarPosition.TOP_RIGHT,
+            position=InfoBarPosition.BOTTOM_RIGHT,
             duration=0,  # Don't auto-close
             parent=self
         )
@@ -241,7 +241,7 @@ class Introduction(ScrollArea):
                 content="Privileged Helper installed successfully!",
                 orient=Qt.Orientation.Horizontal,
                 isClosable=True,
-                position=InfoBarPosition.TOP_RIGHT,
+                position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=3000,
                 parent=self
             )
@@ -254,7 +254,7 @@ class Introduction(ScrollArea):
                 content=msg,
                 orient=Qt.Orientation.Horizontal,
                 isClosable=True,
-                position=InfoBarPosition.TOP_RIGHT,
+                position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=5000,
                 parent=self
             )
@@ -289,7 +289,7 @@ class Introduction(ScrollArea):
                     content="Privileged Helper installed successfully!",
                     orient=Qt.Orientation.Horizontal,
                     isClosable=True,
-                    position=InfoBarPosition.TOP_RIGHT,
+                    position=InfoBarPosition.BOTTOM_RIGHT,
                     duration=3000,
                     parent=self
                 )
@@ -304,7 +304,7 @@ class Introduction(ScrollArea):
                     content=error_msg,
                     orient=Qt.Orientation.Horizontal,
                     isClosable=True,
-                    position=InfoBarPosition.TOP_RIGHT,
+                    position=InfoBarPosition.BOTTOM_RIGHT,
                     duration=5000,
                     parent=self
                 )
@@ -315,7 +315,7 @@ class Introduction(ScrollArea):
                 content="Installation timed out.",
                 orient=Qt.Orientation.Horizontal,
                 isClosable=True,
-                position=InfoBarPosition.TOP_RIGHT,
+                position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=5000,
                 parent=self
             )
@@ -325,7 +325,7 @@ class Introduction(ScrollArea):
                 content=f"Failed to install: {str(e)}",
                 orient=Qt.Orientation.Horizontal,
                 isClosable=True,
-                position=InfoBarPosition.TOP_RIGHT,
+                position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=5000,
                 parent=self
             )
@@ -345,7 +345,7 @@ class Introduction(ScrollArea):
         hero_text.addWidget(hero_title)
 
         hero_body = BodyLabel(
-            "A specialized tool that can work like MBT.<br>"
+            "A specialized tool that can work like OCLP.<br>"
             "Now it only support old Macs."
         )
         hero_body.setWordWrap(True)

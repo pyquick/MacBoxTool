@@ -45,7 +45,7 @@ SegmentedToolItem {
 SegmentedWidget, SegmentedToolWidget {
     background-color: rgba(0, 0, 0, 0.0241);
     border: 1px solid rgba(0, 0, 0, 0.0578);
-    border-radius: 6px;
+    border-radius: 12px;
 }
 
 SegmentedItem[isSelected=false],
@@ -54,7 +54,7 @@ SegmentedToolItem[isSelected=false] {
     padding-bottom: 3px;
     background-color: transparent;
     border: none;
-    border-radius: 6px;
+    border-radius: 12px;
     margin: 3px 0px;
 }
 

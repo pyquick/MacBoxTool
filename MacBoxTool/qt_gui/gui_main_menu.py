@@ -7,7 +7,7 @@ from .gui_build import BuildOCPage
 from .gui_about import AboutInterface
 from .gui_settings import SettingsInterface
 from .gui_task import TaskInterface, TaskManager
-from .sys_patch import SysPatch
+from .gui_sys_patch import SysPatch
 from .gui_all_download import DownloadInterface
 from .gui_update import Updater
 from ..support import on_nightly
@@ -163,7 +163,7 @@ class Window(FluentWindow):
                 content=message,
                 orient=Qt.Orientation.Horizontal,
                 isClosable=True,
-                position=InfoBarPosition.TOP_RIGHT,
+                position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=3000,
                 parent=self
             )
@@ -173,7 +173,7 @@ class Window(FluentWindow):
                 content=message,
                 orient=Qt.Orientation.Horizontal,
                 isClosable=True,
-                position=InfoBarPosition.TOP_RIGHT,
+                position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=5000,
                 parent=self
             )
@@ -183,7 +183,7 @@ class Window(FluentWindow):
                 content=message,
                 orient=Qt.Orientation.Horizontal,
                 isClosable=True,
-                position=InfoBarPosition.TOP_RIGHT,
+                position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=4000,
                 parent=self
             )
@@ -193,7 +193,7 @@ class Window(FluentWindow):
                 content=message,
                 orient=Qt.Orientation.Horizontal,
                 isClosable=True,
-                position=InfoBarPosition.TOP_RIGHT,
+                position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=3000,
                 parent=self
             )
@@ -209,7 +209,7 @@ class Window(FluentWindow):
             self.introduction,
             FluentIcon.HOME,
             "Home",
-            NavigationItemPosition.TOP
+            NavigationItemPosition.SCROLL
         )
 
         self.build=BuildOCPage(self.constants,self.gui_support,self.settings,self)

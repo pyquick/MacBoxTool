@@ -181,7 +181,7 @@ class KDKCard(NoAnimCardWidget):
         self.kdk_data = kdk_data
         self.constants = constants
         self.setFixedHeight(80)
-        self.setBorderRadius(8)
+        self.setBorderRadius(12)
 
         # 使用 build 推断显示版本，避免上游 beta version 错误。
         major_version = display_version_major(kdk_data)
@@ -266,7 +266,7 @@ class KDKCard(NoAnimCardWidget):
         url = self.kdk_data.get("url")
         if url:
             QApplication.clipboard().setText(url)
-            InfoBar.success("Link Copied", "Download link copied to clipboard", duration=2000, position=InfoBarPosition.TOP_RIGHT, parent=self.window())
+            InfoBar.success("Link Copied", "Download link copied to clipboard", duration=2000, position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
 
 
 class KDKList(ScrollArea):
@@ -409,7 +409,7 @@ class KDKList(ScrollArea):
             "Loading Failed",
             f"Failed to load KDK packages: {error_msg}",
             duration=5000,
-            position=InfoBarPosition.TOP_RIGHT,
+            position=InfoBarPosition.BOTTOM_RIGHT,
             parent=self
         )
 
@@ -520,7 +520,7 @@ class KDKList(ScrollArea):
 
         TaskManager.start_download(download_obj, icon=icon_path)
 
-        InfoBar.success("Download Started", f"{filename} is downloading.", duration=3000, position=InfoBarPosition.TOP_RIGHT, parent=self)
+        InfoBar.success("Download Started", f"{filename} is downloading.", duration=3000, position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
 
     def closeEvent(self, event):
         """Clean up resources when window closes."""

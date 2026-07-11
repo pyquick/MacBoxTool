@@ -60,7 +60,7 @@ class BuildSecurity:
             # Note this function was added in 11.3 (20E232, 20.4), older builds do not support this (ie. 11.2.3)
             logging.info("- Allowing FileVault on Root Patched systems")
             support.BuildSupport(self.model, self.constants, self.config).get_item_by_kv(self.config["Kernel"]["Patch"], "Comment", "Force FileVault on Broken Seal")["Enabled"] = True
-            # Lets us check in sys_patch.py if config supports FileVault
+            # Lets us check in gui_sys_patch.py if config supports FileVault
             self.config["NVRAM"]["Add"]["4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102"]["MBT-Settings"] += " -allow_fv"
 
             # Patch KC UUID panics due to RSR installation

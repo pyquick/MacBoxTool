@@ -59,24 +59,24 @@ class TeachingTipView(FlyoutView):
         pos = self.manager.imagePosition()
 
         if pos == ImagePosition.TOP:
-            self.imageLabel.setBorderRadius(8, 8, 0, 0)
+            self.imageLabel.setBorderRadius(12, 12, 0, 0)
             self.vBoxLayout.insertWidget(0, self.imageLabel)
         elif pos == ImagePosition.BOTTOM:
-            self.imageLabel.setBorderRadius(0, 0, 8, 8)
+            self.imageLabel.setBorderRadius(0, 0, 12, 12)
             self.vBoxLayout.addWidget(self.imageLabel)
         elif pos == ImagePosition.LEFT:
             self.vBoxLayout.removeItem(self.vBoxLayout.itemAt(0))
             self.hBoxLayout.addLayout(self.viewLayout)
             self.vBoxLayout.addLayout(self.hBoxLayout)
 
-            self.imageLabel.setBorderRadius(8, 0, 8, 0)
+            self.imageLabel.setBorderRadius(12, 0, 12, 0)
             self.hBoxLayout.insertWidget(0, self.imageLabel)
         elif pos == ImagePosition.RIGHT:
             self.vBoxLayout.removeItem(self.vBoxLayout.itemAt(0))
             self.hBoxLayout.addLayout(self.viewLayout)
             self.vBoxLayout.addLayout(self.hBoxLayout)
 
-            self.imageLabel.setBorderRadius(0, 8, 0, 8)
+            self.imageLabel.setBorderRadius(0, 12, 0, 12)
             self.hBoxLayout.addWidget(self.imageLabel)
 
     def paintEvent(self, e):
@@ -322,7 +322,7 @@ class TeachingTipManager(QObject):
     def draw(self, tip: TeachTipBubble, painter: QPainter):
         """ draw the shape of bubble """
         rect = tip.rect().adjusted(1, 1, -1, -1)
-        painter.drawRoundedRect(rect, 8, 8)
+        painter.drawRoundedRect(rect, 12, 12)
 
     def _pos(self, tip: TeachingTip):
         """ return the poisition of tip """

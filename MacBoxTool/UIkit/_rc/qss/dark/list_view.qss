@@ -22,7 +22,7 @@ ListView::indicator,
 ListWidget::indicator {
     width: 18px;
     height: 18px;
-    border-radius: 5px;
+    border-radius: 12px;
     border: none;
     background-color: transparent;
     margin-right: 4px;

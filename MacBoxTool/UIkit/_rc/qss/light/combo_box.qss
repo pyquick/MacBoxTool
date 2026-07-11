@@ -1,6 +1,6 @@
 ComboBox, ModelComboBox {
     border: 1px solid rgba(0, 0, 0, 0.073);
-    border-radius: 5px;
+    border-radius: 12px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.183);
     padding: 5px 31px 6px 11px;
     /* font: 14px --FontFamilies; */

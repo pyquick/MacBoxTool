@@ -21,7 +21,7 @@ class CardWidget(BackgroundAnimationWidget, QFrame):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self._isClickEnabled = False
-        self._borderRadius = 5
+        self._borderRadius = 12
 
     def mouseReleaseEvent(self, e):
         super().mouseReleaseEvent(e)
@@ -149,7 +149,7 @@ class ElevatedCardWidget(SimpleCardWidget):
         self.elevatedAni.setDuration(100)
 
         self._originalPos = self.pos()
-        self.setBorderRadius(8)
+
 
     def enterEvent(self, e):
         super().enterEvent(e)

@@ -1,14 +1,14 @@
 ScrollButton {
     background-color: rgb(44, 44, 44);
     border: none;
-    border-radius: 7px;
+    border-radius: 12px;
 }
 
 CycleListWidget {
     background-color: transparent;
     border: none;
-    border-top-left-radius: 7px;
-    border-top-right-radius: 7px;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
     outline: none;
     font: 14px --FontFamilies;
 }
@@ -17,7 +17,7 @@ CycleListWidget::item {
     color: white;
     background-color: transparent;
     border: none;
-    border-radius: 5px;
+    border-radius: 12px;
     margin: 0 4px;
     padding-left: 11px;
     padding-right: 11px;
@@ -38,7 +38,7 @@ CycleListWidget::item:selected:active {
 PickerPanel > #view {
     background-color: rgb(44, 44, 44);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 7px;
+    border-radius: 12px;
 }
 
 SeparatorWidget {
@@ -54,7 +54,7 @@ PickerBase {
     background: rgba(255, 255, 255, 0.0605);
     border: 1px solid rgba(255, 255, 255, 0.053);
     border-top: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 5px;
+    border-radius: 12px;
     outline: none;
 }
 

@@ -1,5 +1,5 @@
 """
-sys_patch.py: Root patching interface
+gui_sys_patch.py: Root patching interface
 """
 
 from ..include import *

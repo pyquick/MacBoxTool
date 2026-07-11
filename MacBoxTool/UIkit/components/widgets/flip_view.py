@@ -52,7 +52,7 @@ class ScrollButton(ToolButton):
         else:
             painter.setBrush(QColor(44, 44, 44, 245))
 
-        painter.drawRoundedRect(self.rect(), 4, 4)
+        painter.drawRoundedRect(self.rect(), 12, 12)
 
         # draw icon
         if isDarkTheme():

@@ -18,7 +18,7 @@ class ListItemDelegate(TableItemDelegate):
         super().__init__(parent)
 
     def _drawBackground(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
-        painter.drawRoundedRect(option.rect, 5, 5)
+        painter.drawRoundedRect(option.rect, 12, 12)
 
     def _drawIndicator(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
         y, h = option.rect.y(), option.rect.height()

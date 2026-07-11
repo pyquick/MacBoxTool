@@ -85,7 +85,7 @@ class VolumeView(FlyoutViewBase):
             painter.setBrush(QColor(248, 248, 248))
             painter.setPen(QColor(0, 0, 0, 10))
 
-        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 8, 8)
+        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 12, 12)
 
 
 class VolumeButton(MediaPlayBarButton):
@@ -218,7 +218,7 @@ class MediaPlayBarBase(QWidget):
             painter.setBrush(QColor(248, 248, 248))
             painter.setPen(QColor(0, 0, 0, 10))
 
-        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 8, 8)
+        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 12, 12)
 
 
 

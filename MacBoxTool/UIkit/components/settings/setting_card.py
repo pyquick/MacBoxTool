@@ -111,7 +111,7 @@ class SettingCard(QFrame):
             painter.setBrush(QColor(255, 255, 255, 170))
             painter.setPen(QColor(0, 0, 0, 19))
 
-        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 6, 6)
+        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 12, 12)
 
 
 
@@ -349,7 +349,7 @@ class ColorPickerButton(QToolButton):
             color.setAlpha(255)
 
         painter.setBrush(color)
-        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 5, 5)
+        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), 12, 12)
 
 
 class ColorSettingCard(SettingCard):

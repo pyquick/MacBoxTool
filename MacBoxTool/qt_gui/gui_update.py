@@ -308,7 +308,7 @@ class Updater(ScrollArea):
                     "Update",
                     "Failed to check update",
                     duration=3000,
-                    position=InfoBarPosition.TOP_RIGHT,
+                    position=InfoBarPosition.BOTTOM_RIGHT,
                     parent=self.scrollWidget,
                 )
                 return
@@ -329,7 +329,7 @@ class Updater(ScrollArea):
                     "Update",
                     "Update available",
                     duration=3000,
-                    position=InfoBarPosition.TOP_RIGHT,
+                    position=InfoBarPosition.BOTTOM_RIGHT,
                     parent=self.scrollWidget,
                 )
                 if self.auto_download_install:
@@ -341,8 +341,8 @@ class Updater(ScrollArea):
                     "Update",
                     "You're up to date",
                     duration=3000,
-                    position=InfoBarPosition.TOP_RIGHT,
-                    parent=self.scrollWidget,
+                    position=InfoBarPosition.BOTTOM_RIGHT,
+                    parent=self,
                 )
 
         QTimer.singleShot(100, _finish_check)
@@ -368,7 +368,7 @@ class Updater(ScrollArea):
                 "Update",
                 "Failed to prepare update download",
                 duration=5000,
-                position=InfoBarPosition.TOP_RIGHT,
+                position=InfoBarPosition.BOTTOM_RIGHT,
                 parent=self.scrollWidget,
             )
             return
@@ -425,8 +425,8 @@ class Updater(ScrollArea):
                 "Update",
                 "Update downloaded",
                 duration=3000,
-                position=InfoBarPosition.TOP_RIGHT,
-                parent=self.window(),
+                position=InfoBarPosition.BOTTOM_RIGHT,
+                parent=self,
             )
             if self.auto_download_install:
                 QTimer.singleShot(0, self.install_update)
@@ -437,16 +437,16 @@ class Updater(ScrollArea):
                     "Update",
                     "Download cancelled",
                     duration=3000,
-                    position=InfoBarPosition.TOP_RIGHT,
-                    parent=self.window(),
+                    position=InfoBarPosition.BOTTOM_RIGHT,
+                    parent=self,
                 )
             else:
                 InfoBar.error(
                     "Update",
                     "Download failed",
                     duration=3000,
-                    position=InfoBarPosition.TOP_RIGHT,
-                    parent=self.window(),
+                    position=InfoBarPosition.BOTTOM_RIGHT,
+                    parent=self,
                 )
 
     def _on_install_finished(self, success: bool, message: str):
@@ -459,8 +459,8 @@ class Updater(ScrollArea):
                 "Update",
                 "Update installed, relaunching...",
                 duration=3000,
-                position=InfoBarPosition.TOP_RIGHT,
-                parent=self.window(),
+                position=InfoBarPosition.BOTTOM_RIGHT,
+                parent=self,
             )
             launch.LaunchUpdate().launch_update()
         else:
@@ -468,8 +468,8 @@ class Updater(ScrollArea):
                 "Update",
                 message,
                 duration=5000,
-                position=InfoBarPosition.TOP_RIGHT,
-                parent=self.window(),
+                position=InfoBarPosition.BOTTOM_RIGHT,
+                parent=self,
             )
 
     # ------------------------------------------------------------------

@@ -192,14 +192,14 @@ class NavigationPushButton(NavigationWidget):
 
         if self._canDrawIndicator():
             painter.setBrush(QColor(c, c, c, 6 if self.isEnter else 10))
-            painter.drawRoundedRect(self.rect(), 5, 5)
+            painter.drawRoundedRect(self.rect(), 12, 12)
 
             # draw indicator
             painter.setBrush(autoFallbackThemeColor(self.lightIndicatorColor, self.darkIndicatorColor))
             painter.drawRoundedRect(self.indicatorRect(), 1.5, 1.5)
         elif ((self.isEnter and globalRect.contains(QCursor.pos())) or self.isAboutSelected) and self.isEnabled():
             painter.setBrush(QColor(c, c, c, 6 if self.isAboutSelected else 10))
-            painter.drawRoundedRect(self.rect(), 5, 5)
+            painter.drawRoundedRect(self.rect(), 12, 12)
 
         drawIcon(self._icon, painter, QRectF(11.5+pl, 10, 16, 16))
 
@@ -741,7 +741,7 @@ class NavigationAvatarWidget(NavigationWidget):
         c = 255 if isDarkTheme() else 0
         painter.setBrush(QColor(c, c, c, 10))
         painter.setPen(Qt.NoPen)
-        painter.drawRoundedRect(self.rect(), 5, 5)
+        painter.drawRoundedRect(self.rect(), 12, 12)
 
 
 @InfoBadgeManager.register(InfoBadgePosition.NAVIGATION_ITEM)

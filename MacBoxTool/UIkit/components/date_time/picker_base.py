@@ -52,7 +52,7 @@ class ItemMaskWidget(QWidget):
         # draw background
         painter.setPen(Qt.NoPen)
         painter.setBrush(autoFallbackThemeColor(self.lightBackgroundColor, self.darkBackgroundColor))
-        painter.drawRoundedRect(self.rect().adjusted(4, 0, -3, 0), 5, 5)
+        painter.drawRoundedRect(self.rect().adjusted(4, 0, -3, 0), 12, 12)
 
         # draw text
         painter.setPen(Qt.black if isDarkTheme() else Qt.white)

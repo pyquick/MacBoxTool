@@ -54,7 +54,6 @@ class InstallerCard(CardWidget):
     def _init_card(self):
         """Initialize card size and border"""
         self.setFixedHeight(80)
-        self.setBorderRadius(8)
 
     def _init_icon(self):
         """Initialize macOS icon widget using XNUMajor"""
@@ -172,8 +171,8 @@ class InstallerCard(CardWidget):
                 "Link Copied",
                 "Download link copied to clipboard",
                 duration=2000,
-                position=InfoBarPosition.TOP_RIGHT,
-                parent=self.window()
+                position=InfoBarPosition.BOTTOM_RIGHT,
+                parent=self
             )
 
     
@@ -458,7 +457,7 @@ class MacOSInstallerList(ScrollArea):
                 "Download Failed",
                 "No download URL available for this installer.",
                 duration=3000,
-                position=InfoBarPosition.TOP_RIGHT,
+                position=InfoBarPosition.BOTTOM_RIGHT,
                 parent=self,
             )
             return
@@ -498,8 +497,8 @@ class MacOSInstallerList(ScrollArea):
             "Download Started",
             f"{title} ({version} - {build}) is downloading.",
             duration=2000,
-            position=InfoBarPosition.TOP_RIGHT,
-            parent=self.window(),
+            position=InfoBarPosition.BOTTOM_RIGHT,
+            parent=self,
         )
 
     def cleanup_workers(self):
