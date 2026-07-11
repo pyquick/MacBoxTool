@@ -3,7 +3,7 @@ sys_patch.py: Root patching interface
 """
 
 from ..include import *
-from .gui_support import AutoUpdateStages, DefGUI, PayloadMount, RestartHost, ThreadHandler
+from .gui_support import AutoUpdateStages, DefGUI, PayloadMount, RestartHost
 
 from ..datasets import os_data
 from ..support import kdk_handler, metallib_handler
@@ -15,6 +15,19 @@ from ..sys_patch.patchsets import (
     HardwarePatchsetValidation,
 )
 from shiboken6 import isValid as is_qt_object_valid
+import threading
+
+
+class _PatchLogHandler(logging.Handler):
+    def __init__(self, log_signal, thread_id: int):
+        super().__init__()
+        self._log_signal = log_signal
+        self._thread_id = thread_id
+
+    def emit(self, record: logging.LogRecord):
+        if record.thread != self._thread_id:
+            return
+        self._log_signal.emit(self.format(record))
 
 
 class PatchDetectionWorker(QThread):
@@ -34,6 +47,7 @@ class PatchDetectionWorker(QThread):
 
 
 class PatchRunWorker(QThread):
+    log_signal = Signal(str)
     finished_signal = Signal(bool)
 
     def __init__(self, constants: Constants, patches: dict, revert: bool = False, parent=None):
@@ -43,6 +57,10 @@ class PatchRunWorker(QThread):
         self.revert = revert
 
     def run(self):
+        handler = _PatchLogHandler(self.log_signal, threading.get_ident())
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logger = logging.getLogger()
+        logger.addHandler(handler)
         try:
             patcher = sys_patch_module.PatchSysVolume(
                 self.constants.computer.real_model,
@@ -58,6 +76,8 @@ class PatchRunWorker(QThread):
             logging.error("An internal error occurred while running the Root Patcher:\n")
             logging.error(traceback.format_exc())
             self.finished_signal.emit(False)
+        finally:
+            logger.removeHandler(handler)
 
 
 class SysPatch(ScrollArea):
@@ -81,7 +101,6 @@ class SysPatch(ScrollArea):
         self.detection_worker = None
         self.patch_worker = None
         self.download_worker = None
-        self.log_handler = None
         self.download_card = None
         self.download_title_label = None
         self.download_detail_label = None
@@ -130,9 +149,9 @@ class SysPatch(ScrollArea):
         self.patch_container.hide()
         self.expandLayout.addWidget(self.patch_container)
 
-        button_row = QWidget()
+        button_row = CardWidget()
         button_layout = QHBoxLayout(button_row)
-        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_layout.setContentsMargins(20,20,20,20)
         button_layout.setSpacing(SPACING["medium"])
 
         self.start_button = PrimaryPushButton("Start Root Patching")
@@ -528,14 +547,13 @@ class SysPatch(ScrollArea):
         self.log_box.show()
         self._set_status(title, body)
         self._set_busy(True)
-        self.log_handler = ThreadHandler(self.log_box)
-        logging.getLogger().addHandler(self.log_handler)
+
+    def _append_patch_log(self, msg: str):
+        self.log_box.append(msg)
+        sb = self.log_box.verticalScrollBar()
+        sb.setValue(sb.maximum())
 
     def _finish_patch_run(self, success: bool):
-        logger = logging.getLogger()
-        if self.log_handler in logger.handlers:
-            logger.removeHandler(self.log_handler)
-        self.log_handler = None
         self._set_busy(False)
 
         if self.constants.root_patcher_succeeded is False:
@@ -569,6 +587,7 @@ class SysPatch(ScrollArea):
 
         self._prepare_patch_run("Root Patching", self._patch_summary("Root Patching will patch the following:", selected_patches))
         self.patch_worker = PatchRunWorker(self.constants, selected_patches, revert=False, parent=self)
+        self.patch_worker.log_signal.connect(self._append_patch_log)
         self.patch_worker.finished_signal.connect(self._finish_patch_run)
         self.patch_worker.finished.connect(lambda: setattr(self, "patch_worker", None))
         self.patch_worker.finished.connect(self.patch_worker.deleteLater)
@@ -578,6 +597,7 @@ class SysPatch(ScrollArea):
         logging.info("Reverting root patches")
         self._prepare_patch_run("Revert Root Patches", "Reverting to last sealed snapshot")
         self.patch_worker = PatchRunWorker(self.constants, self.patches, revert=True, parent=self)
+        self.patch_worker.log_signal.connect(self._append_patch_log)
         self.patch_worker.finished_signal.connect(self._finish_patch_run)
         self.patch_worker.finished.connect(lambda: setattr(self, "patch_worker", None))
         self.patch_worker.finished.connect(self.patch_worker.deleteLater)
@@ -670,6 +690,3 @@ class SysPatch(ScrollArea):
         self.detection_worker = None
         self.patch_worker = None
         self.download_worker = None
-        if self.log_handler in logging.getLogger().handlers:
-            logging.getLogger().removeHandler(self.log_handler)
-        self.log_handler = None
