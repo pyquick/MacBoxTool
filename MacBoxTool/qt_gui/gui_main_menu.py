@@ -200,78 +200,86 @@ class Window(FluentWindow):
     def _init_ui(self):
         self.setResizeEnabled(True)
         self.setMinimumWidth(1200)
-        self.introduction=Introduction(self.constants,self.gui_support,self)
+        self.beginAddSubInterfaceBatch()
+        try:
+            self.introduction=Introduction(self.constants,self.gui_support,self)
+            self.introduction.set_navigation_callback(self._on_intro_navigate)
 
-        # Set up navigation callback for introduction page
-        self.introduction.set_navigation_callback(self._on_intro_navigate)
+            self.addSubInterface(
+                self.introduction,
+                FluentIcon.HOME,
+                "Home",
+                NavigationItemPosition.SCROLL
+            )
 
-        self.addSubInterface(
-            self.introduction,
-            FluentIcon.HOME,
-            "Home",
-            NavigationItemPosition.SCROLL
-        )
+            self.build=BuildOCPage(self.constants,self.gui_support,self.settings,self)
+            self.addSubInterface(
+                self.build,
+                FluentIcon.DEVELOPER_TOOLS,
+                "Build For Macs",
+                NavigationItemPosition.SCROLL
+            )
 
-        self.build=BuildOCPage(self.constants,self.gui_support,self.settings,self)
-        self.addSubInterface(
-            self.build,
-            FluentIcon.DEVELOPER_TOOLS,
-            "Build For Macs",
-            NavigationItemPosition.SCROLL
-        )
+            self.task_page=TaskInterface(self.constants,self.gui_support,self.settings,self)
+            self.addSubInterface(
+                self.task_page,
+                FluentIcon.DOWNLOAD,
+                "Download Tasks",
+                NavigationItemPosition.SCROLL
+            )
 
-        
+            self.sys_patch_page=SysPatch(self.constants,self.gui_support,self.settings,self)
+            self.addSubInterface(
+                self.sys_patch_page,
+                FluentIcon.PASTE,
+                "Root Patching",
+                NavigationItemPosition.SCROLL
+            )
 
-        self.task_page=TaskInterface(self.constants,self.gui_support,self.settings,self)
-        self.addSubInterface(
-            self.task_page,
-            FluentIcon.DOWNLOAD,
-            "Download Tasks",
-            NavigationItemPosition.SCROLL
-        )
+            self.download_page=DownloadInterface(self.constants,self.gui_support,self.settings,self)
+            self.addSubInterface(
+                self.download_page,
+                FluentIcon.SYNC,
+                "Downloads",
+                NavigationItemPosition.SCROLL
+            )
 
-        self.sys_patch_page=SysPatch(self.constants,self.gui_support,self.settings,self)
-        self.addSubInterface(
-            self.sys_patch_page,
-            FluentIcon.PASTE,
-            "Root Patching",
-            NavigationItemPosition.SCROLL
-        )
+            self.settings_page=SettingsInterface(self.constants,self.gui_support,self.settings,self)
+            self.settings_nav_item = self.addSubInterface(
+                self.settings_page,
+                FluentIcon.SETTING,
+                "Settings",
+                NavigationItemPosition.BOTTOM
+            )
+            self.settings_nav_item.clicked.connect(lambda *_: self._rotate_settings_icon())
 
-        self.download_page=DownloadInterface(self.constants,self.gui_support,self.settings,self)
-        self.addSubInterface(
-            self.download_page,
-            FluentIcon.SYNC,
-            "Downloads",
-            NavigationItemPosition.SCROLL
-        )
+            self.updater=Updater(self.constants,self.gui_support,self.settings,self)
+            self.addSubInterface(
+                self.updater,
+                FluentIcon.DOWNLOAD,
+                "Updater",
+                NavigationItemPosition.BOTTOM
+            )
 
-        self.settings_page=SettingsInterface(self.constants,self.gui_support,self.settings,self)
-        self.addSubInterface(
-            self.settings_page,
-            FluentIcon.SETTING,
-            "Settings",
-            NavigationItemPosition.BOTTOM
-        )
+            self.about=AboutInterface(self.constants,self.gui_support,self.settings,self)
+            self.addSubInterface(
+                self.about,
+                FluentIcon.INFO,
+                "About",
+                NavigationItemPosition.BOTTOM
+            )
+        finally:
+            self.endAddSubInterfaceBatch()
 
-        self.updater=Updater(self.constants,self.gui_support,self.settings,self)
-        self.addSubInterface(
-            self.updater,
-            FluentIcon.DOWNLOAD,
-            "Updater",
-            NavigationItemPosition.BOTTOM
-        )
-
-        self.about=AboutInterface(self.constants,self.gui_support,self.settings,self)
-        self.addSubInterface(
-            self.about,
-            FluentIcon.INFO,
-            "About",
-            NavigationItemPosition.BOTTOM
-        )
-    
         self.stackedWidget.currentChanged.connect(self._on_page_changed)
         QTimer.singleShot(0, self._apply_startup_navigation)
+
+    def _rotate_settings_icon(self):
+        item = getattr(self, "settings_nav_item", None)
+        icon_widget = getattr(item, "itemWidget", item)
+        rotate = getattr(icon_widget, "rotateIcon", None)
+        if callable(rotate):
+            rotate()
 
     def _apply_startup_navigation(self):
         if getattr(self.constants, "start_build_install", False):

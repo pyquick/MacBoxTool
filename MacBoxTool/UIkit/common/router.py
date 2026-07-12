@@ -43,10 +43,11 @@ class StackedHistory:
 
     def pop(self):
         if self.isEmpty():
-            return
+            return None
 
-        self.history.pop()
+        routeKey = self.history.pop()
         self.goToTop()
+        return routeKey
 
     def remove(self, routeKey: str):
         if routeKey not in self.history:
@@ -73,10 +74,12 @@ class Router(QObject):
     """ Router """
 
     emptyChanged = Signal(bool)
+    forwardEmptyChanged = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.history = []   # type: List[RouteItem]
+        self.forwardHistory = []   # type: List[RouteItem]
         self.stackHistories = {}  # type: Dict[QStackedWidget, StackedHistory]
 
     def setDefaultRouteKey(self, stacked: QStackedWidget, routeKey: str):
@@ -106,6 +109,8 @@ class Router(QObject):
         success = self.stackHistories[stacked].push(routeKey)
         if success:
             self.history.append(item)
+            self.forwardHistory.clear()
+            self.forwardEmptyChanged.emit(True)
 
         self.emptyChanged.emit(not bool(self.history))
 
@@ -116,13 +121,36 @@ class Router(QObject):
 
         item = self.history.pop()
         self.emptyChanged.emit(not bool(self.history))
-        self.stackHistories[item.stacked].pop()
+        poppedRouteKey = self.stackHistories[item.stacked].pop()
+        if poppedRouteKey:
+            self.forwardHistory.append(RouteItem(item.stacked, poppedRouteKey))
+            self.forwardEmptyChanged.emit(False)
+
+    def forward(self):
+        """ restore the last popped history item """
+        if not self.forwardHistory:
+            return
+
+        item = self.forwardHistory.pop()
+        if item.stacked not in self.stackHistories:
+            self.stackHistories[item.stacked] = StackedHistory(item.stacked)
+
+        success = self.stackHistories[item.stacked].push(item.routeKey)
+        if success:
+            self.history.append(item)
+            self.stackHistories[item.stacked].goToTop()
+
+        self.emptyChanged.emit(not bool(self.history))
+        self.forwardEmptyChanged.emit(not bool(self.forwardHistory))
 
     def remove(self, routeKey: str):
         """ remove history """
         self.history = [i for i in self.history if i.routeKey != routeKey]
+        self.forwardHistory = [i for i in self.forwardHistory if i.routeKey != routeKey]
         self.history = [list(g)[0] for k, g in groupby(self.history, lambda i: i.routeKey)]
+        self.forwardHistory = [list(g)[0] for k, g in groupby(self.forwardHistory, lambda i: i.routeKey)]
         self.emptyChanged.emit(not bool(self.history))
+        self.forwardEmptyChanged.emit(not bool(self.forwardHistory))
 
         for stacked, history in self.stackHistories.items():
             w = stacked.findChild(QWidget, routeKey)

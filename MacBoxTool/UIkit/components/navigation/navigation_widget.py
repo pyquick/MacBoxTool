@@ -153,6 +153,10 @@ class NavigationPushButton(NavigationWidget):
 
         self._icon = icon
         self._text = text
+        self._iconAngle = 0
+        self.iconRotateAni = QPropertyAnimation(self, b'iconAngle', self)
+        self.iconRotateAni.setDuration(450)
+        self.iconRotateAni.setEasingCurve(QEasingCurve.OutCubic)
 
         setFont(self)
 
@@ -169,6 +173,32 @@ class NavigationPushButton(NavigationWidget):
     def setIcon(self, icon: Union[str, QIcon, FIF]):
         self._icon = icon
         self.update()
+
+    def rotateIcon(self):
+        self.iconRotateAni.stop()
+        self.iconRotateAni.setStartValue(0)
+        self.iconRotateAni.setEndValue(360)
+        self.iconRotateAni.start()
+
+    def getIconAngle(self):
+        return self._iconAngle
+
+    def setIconAngle(self, angle):
+        self._iconAngle = angle
+        self.update()
+
+    iconAngle = Property(float, getIconAngle, setIconAngle)
+
+    def _drawIcon(self, painter: QPainter, rect: QRectF):
+        if self._iconAngle:
+            painter.save()
+            painter.translate(rect.center())
+            painter.rotate(self._iconAngle)
+            drawIcon(self._icon, painter, QRectF(-rect.width() / 2, -rect.height() / 2, rect.width(), rect.height()))
+            painter.restore()
+            return
+
+        drawIcon(self._icon, painter, rect)
 
     def _canDrawIndicator(self):
         return self.isSelected
@@ -201,7 +231,7 @@ class NavigationPushButton(NavigationWidget):
             painter.setBrush(QColor(c, c, c, 6 if self.isAboutSelected else 10))
             painter.drawRoundedRect(self.rect(), 12, 12)
 
-        drawIcon(self._icon, painter, QRectF(11.5+pl, 10, 16, 16))
+        self._drawIcon(painter, QRectF(11.5+pl, 10, 16, 16))
 
         # draw text
         if self.isCompacted:

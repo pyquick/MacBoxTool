@@ -166,7 +166,7 @@ class TaskManager:
 
         if success and not cls._shutting_down:
             logging.info(f"Download completed: {download.filename}")
-            # Automatically start validation for macOS installers
+            # Automatically start validation for modern macOS installers
             if download.filename == "InstallAssistant.pkg":
                 # Use the stored chunklist URL from download object
                 chunklist_url = download.chunklist_url
@@ -178,6 +178,8 @@ class TaskManager:
                     # Switch to VALIDATING so DownloadCard shows indeterminate progress bar
                     download.status = DownloadStatus.VALIDATING
                     cls.start_validation(download, chunklist_url)
+            else:
+                download.status = DownloadStatus.COMPLETED
         else:
             logging.warning(f"Download failed: {download.filename} - {message}")
 

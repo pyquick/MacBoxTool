@@ -151,7 +151,7 @@ class Updater(ScrollArea):
     def progress_widgets(self):
         """Build the shared progress panel for check/download/install actions."""
         self.progress_container = CardWidget()
-        self.progress_layout = QHBoxLayout(self.progress_container)
+        self.progress_layout = QVBoxLayout(self.progress_container)
         self.progress_layout.setContentsMargins(
             SPACING["xxlarge"],
             SPACING["xxlarge"],
@@ -160,23 +160,22 @@ class Updater(ScrollArea):
         )
 
         # Check and install use an indeterminate ring.
-        self.check_ring = IndeterminateProgressRing(self)
-        self.check_ring.setFixedSize(80, 80)
-        self.check_ring.setVisible(False)
+        self.check_bar = IndeterminateProgressBar(self)
+        self.check_bar.setFixedSize(80, 80)
+        self.check_bar.setVisible(False)
 
         # Download uses a determinate ring with live percentage updates.
-        self.progress_ring = ProgressRing(self)
-        self.progress_ring.setRange(0, 100)
-        self.progress_ring.setValue(0)
-        self.progress_ring.setTextVisible(True)
-        self.progress_ring.setFixedSize(80, 80)
-        self.progress_ring.setStrokeWidth(4)
-        self.progress_ring.setVisible(False)
+        self.progress_bar = ProgressBar(self)
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(True)
+        self.progress_bar.setFixedSize(80, 80)
+        self.progress_bar.setVisible(False)
 
-        self.progress_label = SubtitleLabel("")
-        self.progress_layout.addWidget(self.check_ring, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.progress_layout.addWidget(self.progress_ring, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.progress_label = StrongBodyLabel("")
         self.progress_layout.addWidget(self.progress_label, 1, Qt.AlignmentFlag.AlignVCenter)
+        self.progress_layout.addWidget(self.check_bar, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.progress_layout.addWidget(self.progress_bar, 0, Qt.AlignmentFlag.AlignVCenter)
         self.progress_container.setVisible(False)
 
         return self.progress_container
@@ -219,16 +218,16 @@ class Updater(ScrollArea):
         """Update controls and progress indicators for a running action."""
         self.progress_label.setText(message)
         self.progress_container.setVisible(busy)
-        self.check_ring.setVisible(mode in ("checking", "installing"))
-        self.progress_ring.setVisible(mode == "downloading")
+        self.check_bar.setVisible(mode in ("checking", "installing"))
+        self.progress_bar.setVisible(mode == "downloading")
 
         if mode in ("checking", "installing"):
-            self.check_ring.start()
+            self.check_bar.start()
         else:
-            self.check_ring.stop()
+            self.check_bar.stop()
 
         if not busy and mode != "downloading":
-            self.progress_ring.setValue(0)
+            self.progress_bar.setValue(0)
 
         self.status_card.setEnabled(not busy)
         self.auto_card.setEnabled(not busy)
@@ -374,7 +373,7 @@ class Updater(ScrollArea):
             return
 
         self.is_downloading_update = True
-        self.progress_ring.setValue(0)
+        self.progress_bar.setValue(0)
         self.download_card.button.setText("Cancel")
         self._set_busy(True, "Preparing downloading update...", "downloading")
         self._log_update(f"Downloading: {self.pkg_download_path.name}")
@@ -402,7 +401,7 @@ class Updater(ScrollArea):
         """Refresh the determinate progress ring during downloads."""
         if total:
             percent = int((downloaded / total) * 100)
-            self.progress_ring.setValue(percent)
+            self.progress_bar.setValue(percent)
             self.progress_label.setText(
                 f"Downloading update... {percent}% ({self._format_size(downloaded)} / {self._format_size(total)})"
             )
@@ -417,7 +416,7 @@ class Updater(ScrollArea):
         self._set_busy(False, "Download complete" if success else "Download failed")
 
         if success:
-            self.progress_ring.setValue(100)
+            self.progress_bar.setValue(100)
             self._log_update(f"Downloaded: {message}")
             self.pkg_download_path = Path(message)
             self._set_busy(False, "Download complete")

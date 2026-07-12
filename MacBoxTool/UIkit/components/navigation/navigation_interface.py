@@ -1,7 +1,7 @@
 # coding:utf-8
 from typing import Union
 
-from PySide6.QtCore import Qt, QEvent, Signal
+from PySide6.QtCore import Qt, QEvent, Signal, QPoint
 from PySide6.QtGui import QResizeEvent, QIcon, QPixmap
 from PySide6.QtWidgets import QWidget
 
@@ -44,10 +44,13 @@ class NavigationInterface(QWidget):
         self.panel.installEventFilter(self)
         self.panel.displayModeChanged.connect(self.displayModeChanged)
 
-        self.resize(48 + self.PANEL_MARGIN_LEFT + self.PANEL_MARGIN_RIGHT, self.height())
-        self.setMinimumWidth(48 + self.PANEL_MARGIN_LEFT + self.PANEL_MARGIN_RIGHT)
+        self.resize(self.compactWidth(), self.height())
+        self.setFixedWidth(self.compactWidth())
         self.setAttribute(Qt.WA_TranslucentBackground)
         self._updatePanelGeometry()
+
+    def compactWidth(self):
+        return 48 + self.PANEL_MARGIN_LEFT + self.PANEL_MARGIN_RIGHT
 
     def addItem(self, routeKey: str, icon: Union[str, QIcon, FluentIconBase], text: str, onClick=None,
                 selectable=True, position=NavigationItemPosition.TOP, tooltip: str = None,
@@ -269,21 +272,14 @@ class NavigationInterface(QWidget):
         card.setTitle(title)
         card.setSubtitle(subtitle)
 
-        # calculate insert index if placing above menu button
-        index = -1
         if aboveMenuButton and position == NavigationItemPosition.TOP:
-            # find menu button index in top layout
-            layout = self.panel.topLayout
-            for i in range(layout.count()):
-                item = layout.itemAt(i)
-                if item and item.widget() == self.panel.menuButton:
-                    index = i
-                    break
+            self.panel._registerWidget(routeKey, None, card, onClick, None)
+            card.setParent(self.panel)
+            self.panel.menuButtonLayout.insertWidget(0, card, 0, Qt.AlignTop)
+            card.show()
+            return card
 
-        if index >= 0:
-            self.panel.insertWidget(index, routeKey, card, onClick, position)
-        else:
-            self.addWidget(routeKey, card, onClick, position)
+        self.addWidget(routeKey, card, onClick, position)
 
         return card
 
@@ -379,7 +375,7 @@ class NavigationInterface(QWidget):
         if self.panel.displayMode != NavigationDisplayMode.MENU:
             event = QResizeEvent(e)
             if event.oldSize().width() != event.size().width():
-                self.setFixedWidth(event.size().width() + self.PANEL_MARGIN_LEFT + self.PANEL_MARGIN_RIGHT)
+                self.setFixedWidth(self.compactWidth())
                 self._updatePanelGeometry()
 
         return super().eventFilter(obj, e)
@@ -390,5 +386,14 @@ class NavigationInterface(QWidget):
 
     def _updatePanelGeometry(self):
         height = max(0, self.height() - self.PANEL_MARGIN_TOP - self.PANEL_MARGIN_BOTTOM)
-        self.panel.move(self.PANEL_MARGIN_LEFT, self.PANEL_MARGIN_TOP)
+        if self.panel.parent() is self:
+            self.panel.move(self.PANEL_MARGIN_LEFT, self.PANEL_MARGIN_TOP)
+        else:
+            self.panel.move(self.mapTo(self.window(), self.panelPosition()))
         self.panel.setFixedHeight(height)
+
+    def panelPosition(self):
+        return self.rect().topLeft() + self.panelOffset()
+
+    def panelOffset(self):
+        return QPoint(self.PANEL_MARGIN_LEFT, self.PANEL_MARGIN_TOP)

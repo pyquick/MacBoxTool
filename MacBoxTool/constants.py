@@ -26,7 +26,7 @@ class Constants:
         self.launcher_script:           str = None
         # OpenCore Version
         self.opencore_version:           str = "1.0.6"
-        self.nightly_build:              str = "4532.1000"
+        self.nightly_build:              str = "4535.1000"
         self.support_version:            str = "1.0.245834435prefix" # prefix: unstable core.
 
         # Kext Versioning
@@ -1042,7 +1042,7 @@ class Constants:
     
     @property
     def icon_path_macos_ei_capitan(self):
-        return self.icns_resource_path / Path("EICapitan.icns")
+        return self.icns_resource_path / Path("ElCapitan.icns")
 
     @property
     def icon_path_macos_sierra(self):

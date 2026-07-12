@@ -7,6 +7,66 @@ from ..support import utilities
 from .gui_support import DefGUI, CheckProperties
 
 
+class SettingsAsyncLoader(QObject):
+    loaded = Signal(dict)
+
+    def __init__(self, constants: Constants, settings: GlobalSettings, parent=None):
+        super().__init__()
+        self.constants = constants
+        self.settings = settings
+        self._cancelled = False
+        if parent:
+            parent.destroyed.connect(lambda *_: self.cancel())
+
+    def cancel(self):
+        self._cancelled = True
+
+    def start(self):
+        threading.Thread(target=self._load, daemon=True).start()
+
+    def _load(self):
+        system_keys = (
+            "Moraea_DarkMenuBar",
+            "Moraea_BlurBeta",
+            "Moraea.EnableSpinHack",
+            "Amy.MenuBar2Beta",
+            "Moraea_RimBetaDisabled",
+            "Moraea_ColorWidgetDisabled",
+        )
+        audio_enabled, audio_type = self._audio_check()
+        data = {
+            "audio_enabled": audio_enabled,
+            "audio_type": audio_type,
+            "host_is_non_metal": self._host_is_non_metal(),
+            "github_token": self.settings.find_key("github_token") or "",
+            "system_settings": {key: self._get_system_settings(key) for key in system_keys},
+        }
+        if not self._cancelled:
+            try:
+                self.loaded.emit(data)
+            except RuntimeError:
+                pass
+
+    def _audio_check(self):
+        if self.constants.detected_os < os_data.os_data.tahoe:
+            return False, None
+        if utilities.check_kext_loaded("com.apple.driver.AppleHDA") and self.constants.detected_os >= os_data.os_data.tahoe:
+            return False, "AppleHDA"
+        return True, None
+
+    def _host_is_non_metal(self) -> bool:
+        return CheckProperties(self.constants).host_is_non_metal(general_check=True)
+
+    def _get_system_settings(self, key: str) -> bool:
+        try:
+            result = subprocess.run(["/usr/bin/defaults", "read", "-g", key], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+            if result.returncode != 0:
+                return False
+            return result.stdout.strip().lower() in ["1", "true", "yes"]
+        except Exception:
+            return False
+
+
 class SettingsInterface(QWidget):
 
     def __init__(self, global_constants: Constants, ui_support: DefGUI = None, global_settings: GlobalSettings = None, parent=None):
@@ -16,6 +76,8 @@ class SettingsInterface(QWidget):
         self.constants = global_constants
         self.gui_support = ui_support
         self.settings = global_settings
+        self._loading_settings = False
+        self._async_loader = None
 
         self.mainLayout = QVBoxLayout(self)
         self.mainLayout.setContentsMargins(36, 28, 36, 28)
@@ -23,7 +85,21 @@ class SettingsInterface(QWidget):
 
         self._init_ui()
         self._load_settings()
-        self._apply_hardware_conditions(self._current_model())
+        self._loading_settings = True
+        try:
+            self._apply_hardware_conditions(self._current_model())
+        finally:
+            self._loading_settings = False
+        self._load_async_settings()
+        self.destroyed.connect(lambda *_: self._cancel_async_loader())
+
+    def _cancel_async_loader(self):
+        if self._async_loader:
+            self._async_loader.cancel()
+
+    def closeEvent(self, event):
+        self._cancel_async_loader()
+        super().closeEvent(event)
 
     def _current_model(self) -> str:
         saved = self.settings.find_key("MODEL")
@@ -604,7 +680,7 @@ class SettingsInterface(QWidget):
         self.applehda_version_combo.currentTextChanged.connect(lambda v: self._save("applehda_version", v))
 
         self.allow_ts2_accel_card.setEnabled(bool(self.constants.computer and self.constants.computer.real_model in ["MacBookPro8,2", "MacBookPro8,3"]))
-        self.audio_type_card.setEnabled(self.audio_check())
+        self.audio_type_card.setEnabled(False)
 
         self.tab_patch._layout.addWidget(group1)
 
@@ -626,7 +702,8 @@ class SettingsInterface(QWidget):
         self.sw_disable_beta_rim.checkedChanged.connect(lambda v: self._update_system_defaults("Moraea_RimBetaDisabled", v))
         self.sw_disable_color_widgets.checkedChanged.connect(lambda v: self._update_system_defaults("Moraea_ColorWidgetDisabled", v))
 
-        group2.setEnabled(self._host_is_non_metal())
+        group2.setEnabled(False)
+        self.non_metal_group = group2
         self.tab_patch._layout.addWidget(group2)
     # ── Debug ──
 
@@ -770,6 +847,10 @@ class SettingsInterface(QWidget):
             )
 
     def _save(self, key: str, value):
+        if self._loading_settings:
+            setattr(self.constants, key, value)
+            return
+
         setattr(self.constants, key, value)
         if self.settings.check_key(key):
             self.settings.edit_key(key, value)
@@ -784,104 +865,125 @@ class SettingsInterface(QWidget):
                 return v
             return getattr(self.constants, key, default)
 
-        self.sw_firewire.setChecked(_get("firewire_boot", False))
-        self.sw_nvme.setChecked(_get("nvme_boot", False))
-        self.sw_xhci.setChecked(_get("xhci_boot", False))
-        self.sw_showpicker.setChecked(_get("showpicker", True))
-        self.sw_verbose.setChecked(_get("verbose_debug", False))
+        self._loading_settings = True
+        try:
+            self.sw_firewire.setChecked(_get("firewire_boot", False))
+            self.sw_nvme.setChecked(_get("nvme_boot", False))
+            self.sw_xhci.setChecked(_get("xhci_boot", False))
+            self.sw_showpicker.setChecked(_get("showpicker", True))
+            self.sw_verbose.setChecked(_get("verbose_debug", False))
 
-        self.sw_sip.setChecked(not _get("sip_status", True))
-        self.sw_secureboot.setChecked(_get("secure_status", False))
-        self.sw_amfi.setChecked(_get("disable_amfi", False))
-        self.sw_cslv.setChecked(_get("disable_cs_lv", False))
-        self.sw_vault.setChecked(_get("vault", False))
+            self.sw_sip.setChecked(not _get("sip_status", True))
+            self.sw_secureboot.setChecked(_get("secure_status", False))
+            self.sw_amfi.setChecked(_get("disable_amfi", False))
+            self.sw_cslv.setChecked(_get("disable_cs_lv", False))
+            self.sw_vault.setChecked(_get("vault", False))
 
-        level = _get("serial_settings", "None")
-        idx = self.cb_serial.comboBox.findText(level)
-        if idx >= 0:
-            self.cb_serial.comboBox.setCurrentIndex(idx)
-        self.sw_native_spoof.setChecked(_get("allow_native_spoofs", False))
-
-        # Spoof Model
-        spoof_model = _get("override_smbios", "Default")
-        idx = self.cb_spoof_model.comboBox.findText(spoof_model)
-        if idx >= 0:
-            self.cb_spoof_model.comboBox.setCurrentIndex(idx)
-
-        # Graphics Override
-        gpu_override = _get("imac_vendor", "None")
-        if gpu_override != "None":
-            # Restore full selection (e.g., "AMD Polaris")
-            model = _get("imac_model", "")
-            full_selection = f"{gpu_override} {model}" if model else gpu_override
-            idx = self.cb_gpu_override.comboBox.findText(full_selection)
+            level = _get("serial_settings", "None")
+            idx = self.cb_serial.comboBox.findText(level)
             if idx >= 0:
-                self.cb_gpu_override.comboBox.setCurrentIndex(idx)
-        self._update_metal_build(gpu_override)
+                self.cb_serial.comboBox.setCurrentIndex(idx)
+            self.sw_native_spoof.setChecked(_get("allow_native_spoofs", False))
 
-        self.sw_amd_gop.setChecked(_get("amd_gop_injection", False))
-        self.sw_nv_gop.setChecked(_get("nvidia_kepler_gop_injection", False))
+            spoof_model = _get("override_smbios", "Default")
+            idx = self.cb_spoof_model.comboBox.findText(spoof_model)
+            if idx >= 0:
+                self.cb_spoof_model.comboBox.setCurrentIndex(idx)
 
-        self.sn_serial_edit.setText(self.constants.custom_serial_number or "")
-        self.sn_board_edit.setText(self.constants.custom_board_serial_number or "")
+            gpu_override = _get("imac_vendor", "None")
+            if gpu_override != "None":
+                model = _get("imac_model", "")
+                full_selection = f"{gpu_override} {model}" if model else gpu_override
+                idx = self.cb_gpu_override.comboBox.findText(full_selection)
+                if idx >= 0:
+                    self.cb_gpu_override.comboBox.setCurrentIndex(idx)
+            self._update_metal_build(gpu_override)
 
-        self.sw_wowl.setChecked(_get("enable_wake_on_wlan", False))
-        self.sw_tb.setChecked(_get("disable_tb", False))
-        self.sw_cpufriend.setChecked(_get("disallow_cpufriend", False))
-        self.sw_fw_throttle.setChecked(_get("disable_fw_throttle", False))
-        self.sw_media.setChecked(_get("disable_mediaanalysisd", False))
+            self.sw_amd_gop.setChecked(_get("amd_gop_injection", False))
+            self.sw_nv_gop.setChecked(_get("nvidia_kepler_gop_injection", False))
 
-        self.sw_oc_debug.setChecked(_get("opencore_debug", False))
-        self.sw_kext_debug.setChecked(_get("kext_debug", False))
-        self.constants.github_token = _get("github_token", "")
-        self.github_token_edit.setText(_get("github_token", ""))
+            self.sn_serial_edit.setText(self.constants.custom_serial_number or "")
+            self.sn_board_edit.setText(self.constants.custom_board_serial_number or "")
 
-        # Advanced Boot
-        self.oc_timeout_spin.setValue(_get("oc_timeout", 5))
-        self.sw_apfs_trim.setChecked(_get("apfs_trim_timeout", True))
-        self.sw_connectdrivers.setChecked(_get("disable_connectdrivers", False))
-        self.sw_nvram_write.setChecked(_get("nvram_write", True))
-        self.sw_apfs_aligned.setChecked(_get("allow_apfs_aligned_patch", True))
+            self.sw_wowl.setChecked(_get("enable_wake_on_wlan", False))
+            self.sw_tb.setChecked(_get("disable_tb", False))
+            self.sw_cpufriend.setChecked(_get("disallow_cpufriend", False))
+            self.sw_fw_throttle.setChecked(_get("disable_fw_throttle", False))
+            self.sw_media.setChecked(_get("disable_mediaanalysisd", False))
 
-        # Graphics (new)
-        self.sw_demux.setChecked(_get("software_demux", False))
-        self.sw_dgpu_switch.setChecked(_get("dGPU_switch", False))
-        self.sw_drm.setChecked(_get("drm_support", False))
-        self.sw_force_nv_web.setChecked(_get("force_nv_web", False))
+            self.sw_oc_debug.setChecked(_get("opencore_debug", False))
+            self.sw_kext_debug.setChecked(_get("kext_debug", False))
 
-        # Misc (new)
-        self.sw_fu.setChecked(_get("fu_status", False))
-        self.sw_vmm_cpuid.setChecked(_get("set_vmm_cpuid", False))
-        self.sw_quad_thread.setChecked(_get("force_quad_thread", False))
-        self.sw_oc_everywhere.setChecked(_get("allow_oc_everywhere", False))
-        self.sw_nvme_fix.setChecked(_get("allow_nvme_fixing", True))
+            self.oc_timeout_spin.setValue(_get("oc_timeout", 5))
+            self.sw_apfs_trim.setChecked(_get("apfs_trim_timeout", True))
+            self.sw_connectdrivers.setChecked(_get("disable_connectdrivers", False))
+            self.sw_nvram_write.setChecked(_get("nvram_write", True))
+            self.sw_apfs_aligned.setChecked(_get("allow_apfs_aligned_patch", True))
 
-        # Root Patch
-        self.allow_ts2_accel_card.setChecked(_get("allow_ts2_accel", True))
-        self.allow_usb_patch_card.setChecked(_get("allow_usb_patch", False))
-        audio_type = _get("audio_type", "AppleHDA")
-        idx = self.audio_type_combo.findText(audio_type)
-        if idx >= 0:
-            self.audio_type_combo.setCurrentIndex(idx)
-        applehda_version = _get("applehda_version", "15.6")
-        idx = self.applehda_version_combo.findText(applehda_version)
-        if idx >= 0:
-            self.applehda_version_combo.setCurrentIndex(idx)
+            self.sw_demux.setChecked(_get("software_demux", False))
+            self.sw_dgpu_switch.setChecked(_get("dGPU_switch", False))
+            self.sw_drm.setChecked(_get("drm_support", False))
+            self.sw_force_nv_web.setChecked(_get("force_nv_web", False))
 
-        # Non-Metal
-        for card, key in (
-            (self.sw_dark_menu_bar, "Moraea_DarkMenuBar"),
-            (self.sw_beta_blur, "Moraea_BlurBeta"),
-            (self.sw_spin_hack, "Moraea.EnableSpinHack"),
-            (self.sw_beta_menu_bar, "Amy.MenuBar2Beta"),
-            (self.sw_disable_beta_rim, "Moraea_RimBetaDisabled"),
-            (self.sw_disable_color_widgets, "Moraea_ColorWidgetDisabled"),
-        ):
-            card.blockSignals(True)
-            card.setChecked(self._get_system_settings(key))
-            card.blockSignals(False)
+            self.sw_fu.setChecked(_get("fu_status", False))
+            self.sw_vmm_cpuid.setChecked(_get("set_vmm_cpuid", False))
+            self.sw_quad_thread.setChecked(_get("force_quad_thread", False))
+            self.sw_oc_everywhere.setChecked(_get("allow_oc_everywhere", False))
+            self.sw_nvme_fix.setChecked(_get("allow_nvme_fixing", True))
 
-    # ── Hardware Conditions ──
+            self.allow_ts2_accel_card.setChecked(_get("allow_ts2_accel", True))
+            self.allow_usb_patch_card.setChecked(_get("allow_usb_patch", False))
+            audio_type = _get("audio_type", "AppleHDA")
+            idx = self.audio_type_combo.findText(audio_type)
+            if idx >= 0:
+                self.audio_type_combo.setCurrentIndex(idx)
+            applehda_version = _get("applehda_version", "15.6")
+            idx = self.applehda_version_combo.findText(applehda_version)
+            if idx >= 0:
+                self.applehda_version_combo.setCurrentIndex(idx)
+        finally:
+            self._loading_settings = False
+
+    def _load_async_settings(self):
+        if self._async_loader:
+            self._async_loader.cancel()
+        self._async_loader = SettingsAsyncLoader(self.constants, self.settings)
+        self._async_loader.loaded.connect(self._apply_async_settings)
+        self._async_loader.start()
+
+    def _apply_async_settings(self, data: dict):
+        self._loading_settings = True
+        try:
+            audio_type = data.get("audio_type")
+            if audio_type:
+                self.constants.audio_type = audio_type
+                idx = self.audio_type_combo.findText(audio_type)
+                if idx >= 0:
+                    self.audio_type_combo.setCurrentIndex(idx)
+            self.audio_type_card.setEnabled(bool(data.get("audio_enabled")))
+
+            if hasattr(self, "non_metal_group"):
+                self.non_metal_group.setEnabled(bool(data.get("host_is_non_metal")))
+
+            token = data.get("github_token", "")
+            self.constants.github_token = token
+            self.github_token_edit.setText(token)
+
+            system_settings = data.get("system_settings", {})
+            for card, key in (
+                (self.sw_dark_menu_bar, "Moraea_DarkMenuBar"),
+                (self.sw_beta_blur, "Moraea_BlurBeta"),
+                (self.sw_spin_hack, "Moraea.EnableSpinHack"),
+                (self.sw_beta_menu_bar, "Amy.MenuBar2Beta"),
+                (self.sw_disable_beta_rim, "Moraea_RimBetaDisabled"),
+                (self.sw_disable_color_widgets, "Moraea_ColorWidgetDisabled"),
+            ):
+                if key in system_settings:
+                    card.blockSignals(True)
+                    card.setChecked(system_settings[key])
+                    card.blockSignals(False)
+        finally:
+            self._loading_settings = False
 
     # Socketed GPU models that support Graphics Override
     SOCKETED_GPU_MODELS = ["iMac9,1", "iMac10,1", "iMac11,1", "iMac11,2", "iMac11,3", "iMac12,1", "iMac12,2"]
@@ -949,4 +1051,9 @@ class SettingsInterface(QWidget):
 
     def refresh(self):
         self._load_settings()
-        self._apply_hardware_conditions(self._current_model())
+        self._loading_settings = True
+        try:
+            self._apply_hardware_conditions(self._current_model())
+        finally:
+            self._loading_settings = False
+        self._load_async_settings()

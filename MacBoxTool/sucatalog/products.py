@@ -25,6 +25,68 @@ class CatalogProducts:
         only_vmm_install_assistants   (bool): Only list VMM-x86_64-compatible InstallAssistant products
         max_install_assistant_version (CatalogVersion): Maximum InstallAssistant version to list
     """
+
+    LEGACY_INSTALL_ASSISTANT_PACKAGE = "InstallAssistantAuto.pkg"
+    INSTALL_ASSISTANT_VERSION_MAP = {
+        CatalogVersion.MOUNTAIN_LION: "10.8",
+        CatalogVersion.LION: "10.7",
+        CatalogVersion.SNOW_LEOPARD: "10.6",
+        CatalogVersion.LEOPARD: "10.5",
+        CatalogVersion.TIGER: "10.4",
+    }
+    OFFICIAL_LEGACY_INSTALLERS = [
+        {
+            "ProductID": "061-39476",
+            "PostDate": "2019-10-24 03:19:02",
+            "Title": "macOS Sierra",
+            "Build": "16G29",
+            "Version": "10.12.6",
+            "URL": "http://updates-http.cdn-apple.com/2019/cert/061-39476-20191023-48f365f4-0015-4c41-9f44-39d3d2aca067/InstallOS.dmg",
+            "Size": 5007882126,
+            "XNUMajor": 16,
+        },
+        {
+            "ProductID": "061-41424",
+            "PostDate": "2019-10-24 18:19:26",
+            "Title": "OS X El Capitan",
+            "Build": "15G31",
+            "Version": "10.11.6",
+            "URL": "http://updates-http.cdn-apple.com/2019/cert/061-41424-20191024-218af9ec-cf50-4516-9011-228c78eda3d2/InstallMacOSX.dmg",
+            "Size": 6204629298,
+            "XNUMajor": 15,
+        },
+        {
+            "ProductID": "061-41343",
+            "PostDate": "2019-10-24 03:09:04",
+            "Title": "OS X Yosemite",
+            "Build": "14F27",
+            "Version": "10.10.5",
+            "URL": "http://updates-http.cdn-apple.com/2019/cert/061-41343-20191023-02465f92-3ab5-4c92-bfe2-b725447a070d/InstallMacOSX.dmg",
+            "Size": 5718074248,
+            "XNUMajor": 14,
+        },
+        {
+            "ProductID": "031-0627",
+            "PostDate": "2021-06-15 03:55:42",
+            "Title": "OS X Mountain Lion",
+            "Build": "12F45",
+            "Version": "10.8.5",
+            "URL": "https://updates.cdn-apple.com/2021/macos/031-0627-20210614-90D11F33-1A65-42DD-BBEA-E1D9F43A6B3F/InstallMacOSX.dmg",
+            "Size": 4449317520,
+            "XNUMajor": 12,
+        },
+        {
+            "ProductID": "041-7683",
+            "PostDate": "2021-06-15 04:01:21",
+            "Title": "Mac OS X Lion",
+            "Build": "11G63",
+            "Version": "10.7.5",
+            "URL": "https://updates.cdn-apple.com/2021/macos/041-7683-20210614-E610947E-C7CE-46EB-8860-D26D71F0D3EA/InstallMacOSX.dmg",
+            "Size": 4720237409,
+            "XNUMajor": 11,
+        },
+    ]
+
     def __init__(self,
                  catalog: dict,
                  install_assistants_only: bool = True,
@@ -34,7 +96,8 @@ class CatalogProducts:
         self.catalog:             dict = catalog
         self.ia_only:             bool = install_assistants_only
         self.vmm_only:            bool = only_vmm_install_assistants
-        self.max_ia_version: packaging = packaging.version.parse(f"{max_install_assistant_version.value}.99.99")
+        max_version = self.INSTALL_ASSISTANT_VERSION_MAP.get(max_install_assistant_version, max_install_assistant_version.value)
+        self.max_ia_version: packaging = packaging.version.parse(f"{max_version}.99.99")
         self.max_ia_catalog: CatalogVersion = max_install_assistant_version
 
 
@@ -270,6 +333,54 @@ class CatalogProducts:
         return products_copy
 
 
+    def _official_legacy_products(self, products: list) -> list:
+        existing_versions = {product.get("Version") for product in products}
+        legacy_products = []
+
+        for installer in self.OFFICIAL_LEGACY_INSTALLERS:
+            version = installer["Version"]
+            if version in existing_versions:
+                continue
+            try:
+                if packaging.version.parse(version) > self.max_ia_version:
+                    continue
+            except packaging.version.InvalidVersion:
+                continue
+
+            legacy_products.append({
+                "ProductID": installer["ProductID"],
+                "PostDate": installer["PostDate"],
+                "Title": installer["Title"],
+                "Build": installer["Build"],
+                "Version": version,
+                "Catalog": SeedType.PublicRelease,
+                "InstallAssistant": {
+                    "URL": installer["URL"],
+                    "Size": installer["Size"],
+                    "XNUMajor": installer["XNUMajor"],
+                    "LegacyInstaller": True,
+                    "DirectDownload": True,
+                    "Packages": [
+                        {
+                            "URL": installer["URL"],
+                            "Size": installer["Size"],
+                            "IntegrityDataURL": None,
+                            "IntegrityDataSize": 0,
+                        }
+                    ],
+                },
+            })
+
+        return legacy_products
+
+
+    def _version_sort_key(self, version: str):
+        try:
+            return packaging.version.parse(version)
+        except packaging.version.InvalidVersion:
+            return packaging.version.parse("0.0.0")
+
+
     @cached_property
     def products(self) -> None:
         """
@@ -284,12 +395,20 @@ class CatalogProducts:
 
             # InstallAssistants.pkgs (macOS Installers) will have the following keys:
             if self.ia_only:
+                packages = catalog["Products"][product].get("Packages", [])
+                has_legacy_install_assistant = any(
+                    Path(package.get("URL", "")).name == self.LEGACY_INSTALL_ASSISTANT_PACKAGE
+                    for package in packages
+                )
                 if "ExtendedMetaInfo" not in catalog["Products"][product]:
-                    continue
-                if "InstallAssistantPackageIdentifiers" not in catalog["Products"][product]["ExtendedMetaInfo"]:
-                    continue
-                if "SharedSupport" not in catalog["Products"][product]["ExtendedMetaInfo"]["InstallAssistantPackageIdentifiers"]:
-                    continue
+                    if not has_legacy_install_assistant:
+                        continue
+                elif "InstallAssistantPackageIdentifiers" not in catalog["Products"][product]["ExtendedMetaInfo"]:
+                    if not has_legacy_install_assistant:
+                        continue
+                elif "SharedSupport" not in catalog["Products"][product]["ExtendedMetaInfo"]["InstallAssistantPackageIdentifiers"]:
+                    if not has_legacy_install_assistant:
+                        continue
 
             _product_map = {
                 "ProductID": product,
@@ -319,15 +438,33 @@ class CatalogProducts:
                     _product_map["Packages"] = catalog["Products"][product]["Packages"]
                 for package in catalog["Products"][product]["Packages"]:
                     if "URL" in package:
-                        if Path(package["URL"]).name == "InstallAssistant.pkg":
+                        package_name = Path(package["URL"]).name
+                        if package_name == "InstallAssistant.pkg":
                             _product_map["InstallAssistant"] = {
                                 "URL":               package["URL"],
                                 "Size":              package["Size"],
                                 "IntegrityDataURL":  package["IntegrityDataURL"],
                                 "IntegrityDataSize": package["IntegrityDataSize"]
                             }
+                        elif package_name == self.LEGACY_INSTALL_ASSISTANT_PACKAGE:
+                            legacy_packages = [
+                                {
+                                    "URL": legacy_package["URL"],
+                                    "Size": legacy_package.get("Size", 0),
+                                    "IntegrityDataURL": legacy_package.get("IntegrityDataURL"),
+                                    "IntegrityDataSize": legacy_package.get("IntegrityDataSize", 0),
+                                }
+                                for legacy_package in catalog["Products"][product]["Packages"]
+                                if "URL" in legacy_package
+                            ]
+                            _product_map["InstallAssistant"] = {
+                                "URL":             package["URL"],
+                                "Size":            sum(legacy_package["Size"] for legacy_package in legacy_packages),
+                                "LegacyInstaller": True,
+                                "Packages":        legacy_packages,
+                            }
 
-                        if Path(package["URL"]).name not in ["Info.plist", "com_apple_MobileAsset_MacSoftwareUpdate.plist"]:
+                        if package_name not in ["Info.plist", "com_apple_MobileAsset_MacSoftwareUpdate.plist"]:
                             continue
 
                         net_obj = network_handler.NetworkUtilities().get(package["URL"])
@@ -420,7 +557,8 @@ class CatalogProducts:
 
             _products.append(_product_map)
 
-        _products = sorted(_products, key=lambda x: x["Version"])
+        _products.extend(self._official_legacy_products(_products))
+        _products = sorted(_products, key=lambda x: self._version_sort_key(x["Version"]))
 
         return _products
 

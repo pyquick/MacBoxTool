@@ -450,6 +450,7 @@ class MacOSInstallerList(ScrollArea):
         install_assistant = installer_data.get("InstallAssistant") or {}
         url = install_assistant.get("URL")
         integrity_data_url = install_assistant.get("IntegrityDataURL")  # Get chunklist URL
+        legacy_installer = install_assistant.get("LegacyInstaller", False)
 
         if not url:
             logging.warning(f"[MacOSInstallerList] No download URL for {title}")
@@ -462,7 +463,7 @@ class MacOSInstallerList(ScrollArea):
             )
             return
 
-        if not integrity_data_url:
+        if not integrity_data_url and not legacy_installer:
             logging.warning(f"[MacOSInstallerList] No IntegrityDataURL for {title}")
 
         logging.info(f"[MacOSInstaller] Starting download: {title} ({version} - {build})")
@@ -485,11 +486,46 @@ class MacOSInstallerList(ScrollArea):
 
         # macOS installers must be downloaded to payload_path for validation to work
         save_path = str(self.constants.payload_path)
-        filename = f"InstallAssistant.pkg"
+        if legacy_installer:
+            packages = install_assistant.get("Packages") or [{"URL": url, "IntegrityDataURL": integrity_data_url}]
+            package_count = 0
+            for package in packages:
+                package_url = package.get("URL")
+                if not package_url:
+                    continue
+                filename = Path(package_url).name
+                download_obj = DownloadObject(package_url, save_path, filename)
+                download_obj.chunklist_url = package.get("IntegrityDataURL")
+                download_obj.legacy_installer = True
+                TaskManager.start_download(download_obj, icon=png_path)
+                package_count += 1
+
+            if package_count == 0:
+                logging.warning(f"[MacOSInstallerList] No legacy packages for {title}")
+                InfoBar.error(
+                    "Download Failed",
+                    "No download packages available for this installer.",
+                    duration=3000,
+                    position=InfoBarPosition.BOTTOM_RIGHT,
+                    parent=self,
+                )
+                return
+
+            InfoBar.success(
+                "Download Started",
+                f"{title} ({version} - {build}) is downloading ({package_count} packages).",
+                duration=2000,
+                position=InfoBarPosition.BOTTOM_RIGHT,
+                parent=self,
+            )
+            return
+
+        filename = "InstallAssistant.pkg"
         download_obj = DownloadObject(url, save_path, filename)
 
         # Store chunklist URL for validation
         download_obj.chunklist_url = integrity_data_url
+        download_obj.legacy_installer = legacy_installer
 
         TaskManager.start_download(download_obj, icon=png_path)
 

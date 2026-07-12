@@ -82,9 +82,12 @@ class NavigationPanel(QFrame):
         self.scrollWidget = QWidget()
 
         self.menuButton = NavigationToolButton(FIF.MENU, self)
-        self.returnButton = NavigationToolButton(FIF.RETURN, self)
+        self.returnButton = NavigationToolButton(FIF.LEFT_ARROW, self)
+        self.forwardButton = NavigationToolButton(FIF.RIGHT_ARROW, self)
 
         self.vBoxLayout = NavigationItemLayout(self)
+        self.arrowLayout = NavigationItemLayout()
+        self.menuButtonLayout = NavigationItemLayout()
         self.topLayout = NavigationItemLayout()
         self.bottomLayout = NavigationItemLayout()
         self.scrollLayout = NavigationItemLayout(self.scrollWidget)
@@ -116,6 +119,8 @@ class NavigationPanel(QFrame):
 
         self.returnButton.hide()
         self.returnButton.setDisabled(True)
+        self.forwardButton.hide()
+        self.forwardButton.setDisabled(True)
 
         self.scrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scrollArea.horizontalScrollBar().setEnabled(False)
@@ -129,12 +134,17 @@ class NavigationPanel(QFrame):
         self.menuButton.clicked.connect(self.toggle)
         self.expandAni.finished.connect(self._onExpandAniFinished)
         self.history.emptyChanged.connect(self.returnButton.setDisabled)
+        self.history.forwardEmptyChanged.connect(self.forwardButton.setDisabled)
         self.returnButton.clicked.connect(self.history.pop)
+        self.forwardButton.clicked.connect(self.history.forward)
         self.indicator.aniFinished.connect(self._onIndicatorAniFinished)
 
         # add tool tip
         self.returnButton.installEventFilter(ToolTipFilter(self.returnButton, 1000))
         self.returnButton.setToolTip(self.tr('Back'))
+
+        self.forwardButton.installEventFilter(ToolTipFilter(self.forwardButton, 1000))
+        self.forwardButton.setToolTip(self.tr('Forward'))
 
         self.menuButton.installEventFilter(ToolTipFilter(self.menuButton, 1000))
         self.menuButton.setToolTip(self.tr('Open Navigation'))
@@ -147,14 +157,21 @@ class NavigationPanel(QFrame):
 
     def __initLayout(self):
         self.vBoxLayout.setContentsMargins(0, 5, 0, 5)
+        self.arrowLayout.setContentsMargins(4, 0, 4, 0)
+        self.menuButtonLayout.setContentsMargins(4, 0, 4, 0)
         self.topLayout.setContentsMargins(4, 0, 4, 0)
         self.bottomLayout.setContentsMargins(4, 0, 4, 0)
         self.scrollLayout.setContentsMargins(4, 0, 4, 0)
         self.vBoxLayout.setSpacing(4)
+        self.arrowLayout.setSpacing(4)
+        self.menuButtonLayout.setSpacing(4)
         self.topLayout.setSpacing(4)
         self.bottomLayout.setSpacing(4)
         self.scrollLayout.setSpacing(4)
 
+        self.vBoxLayout.addLayout(self.menuButtonLayout, 0)
+        self.vBoxLayout.addSpacing(16)
+        self.vBoxLayout.addLayout(self.arrowLayout, 0)
         self.vBoxLayout.addLayout(self.topLayout, 0)
         self.vBoxLayout.addWidget(self.scrollArea, 1)
         self.vBoxLayout.addLayout(self.bottomLayout, 0)
@@ -164,8 +181,17 @@ class NavigationPanel(QFrame):
         self.scrollLayout.setAlignment(Qt.AlignVCenter)
         self.bottomLayout.setAlignment(Qt.AlignBottom)
 
-        self.topLayout.addWidget(self.returnButton, 0, Qt.AlignTop)
-        self.topLayout.addWidget(self.menuButton, 0, Qt.AlignTop)
+        self.menuButtonLayout.addWidget(self.menuButton, 0, Qt.AlignLeft | Qt.AlignTop)
+        self.arrowLayout.addWidget(self.returnButton, 0, Qt.AlignLeft | Qt.AlignTop)
+        self.arrowLayout.addWidget(self.forwardButton, 0, Qt.AlignLeft | Qt.AlignTop)
+        self._setControlLayoutAlignment(Qt.AlignLeft | Qt.AlignTop)
+
+    def _setControlLayoutAlignment(self, alignment):
+        self.arrowLayout.setAlignment(alignment)
+        self.menuButtonLayout.setAlignment(alignment)
+        self.arrowLayout.setAlignment(self.returnButton, alignment)
+        self.arrowLayout.setAlignment(self.forwardButton, alignment)
+        self.menuButtonLayout.setAlignment(self.menuButton, alignment)
 
     def _updateAcrylicColor(self):
         if isDarkTheme():
@@ -473,6 +499,7 @@ class NavigationPanel(QFrame):
         """ set whether the return button is visible """
         self._isReturnButtonVisible = isVisible
         self.returnButton.setVisible(isVisible)
+        self.forwardButton.setVisible(isVisible)
 
     def setCollapsible(self, on: bool):
         self._isCollapsible = on
@@ -507,6 +534,7 @@ class NavigationPanel(QFrame):
     def expand(self, useAni=True):
         """ expand navigation panel """
         self._stopIndicatorAnimation()
+        self._setControlLayoutAlignment(Qt.AlignLeft | Qt.AlignTop)
         self._setWidgetCompacted(False)
         self._restoreTreeExpandState(useAni)
         self.expandAni.setProperty('expand', True)
@@ -532,6 +560,12 @@ class NavigationPanel(QFrame):
                 self.setParent(self.window())
                 self.move(pos)
 
+            self.show()
+
+        if not self._parent.isWindow() and self.parent() is not self.window():
+            pos = self.mapTo(self.window(), QPoint(0, 0))
+            self.setParent(self.window())
+            self.move(pos)
             self.show()
 
         if useAni:
@@ -560,6 +594,7 @@ class NavigationPanel(QFrame):
                 w.saveExpandState()
                 w.setExpanded(False)
 
+        self._setControlLayoutAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.expandAni.setStartValue(
             QRect(self.pos(), QSize(self.width(), self.height())))
         self.expandAni.setEndValue(
@@ -645,12 +680,21 @@ class NavigationPanel(QFrame):
         return rect.translated(pos)
 
     def _onIndicatorAniFinished(self):
-        item = self.currentItem()
+        try:
+            item = self.currentItem()
+        except RouteKeyError:
+            self.indicator.hide()
+            return
+
         if not item:
             return
 
+        indicatorItem = self._findIndicatorItem(item)
+        if not indicatorItem:
+            return
+
         item.setSelected(True)
-        self._findIndicatorItem(item).setAboutSelected(False)
+        indicatorItem.setAboutSelected(False)
         self.indicator.hide()
 
     def _onWidgetClicked(self):
@@ -766,12 +810,17 @@ class NavigationPanel(QFrame):
             item.setCompacted(isCompacted)
 
     def layoutMinHeight(self):
+        ah = self.arrowLayout.minimumSize().height()
+        mh = self.menuButtonLayout.minimumSize().height()
         th = self.topLayout.minimumSize().height()
         bh = self.bottomLayout.minimumSize().height()
         sh = sum(w.height() for w in self.findChildren(NavigationSeparator))
-        spacing = self.topLayout.count() * self.topLayout.spacing()
+        spacing = 16
+        spacing += self.arrowLayout.count() * self.arrowLayout.spacing()
+        spacing += self.menuButtonLayout.count() * self.menuButtonLayout.spacing()
+        spacing += self.topLayout.count() * self.topLayout.spacing()
         spacing += self.bottomLayout.count() * self.bottomLayout.spacing()
-        return 36 + th + bh + sh + spacing
+        return 36 + ah + mh + th + bh + sh + spacing
 
     def _canDrawAcrylic(self):
         return self.acrylicBrush.isAvailable() and self.isAcrylicEnabled()
@@ -780,10 +829,10 @@ class NavigationPanel(QFrame):
         if rect.isNull() or rect.height() <= 0:
             return
 
-        fill = QColor(38, 38, 38, 132) if isDarkTheme() else QColor(255, 255, 255, 132)
+        fill = QColor(38, 38, 38, 96) if isDarkTheme() else QColor(255, 255, 255, 104)
         outline = QColor(255, 255, 255, 24 if isDarkTheme() else 178)
         if self.displayMode == NavigationDisplayMode.MENU:
-            fill = QColor(38, 38, 38, 176) if isDarkTheme() else QColor(255, 255, 255, 168)
+            fill = QColor(38, 38, 38, 132) if isDarkTheme() else QColor(255, 255, 255, 132)
             outline = QColor(255, 255, 255, 32 if isDarkTheme() else 190)
 
         painter.setBrush(fill)
@@ -829,6 +878,8 @@ class NavigationPanel(QFrame):
             self._updateAcrylicColor()
             self.acrylicBrush.paint()
 
+        self._paintPanelRegion(painter, self._layoutRegionRect(self.arrowLayout))
+        self._paintPanelRegion(painter, self._layoutRegionRect(self.menuButtonLayout))
         self._paintPanelRegion(painter, self._layoutRegionRect(self.topLayout))
         self._paintPanelRegion(painter, self._scrollRegionRect())
         self._paintPanelRegion(painter, self._layoutRegionRect(self.bottomLayout))

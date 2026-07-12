@@ -121,6 +121,11 @@ class FluentWindowBase(FluentWidget):
         self.hBoxLayout = QHBoxLayout(self)
         self.stackedWidget = StackedWidget(self)
         self.navigationInterface = None
+        self._interfaceBatchDepth = 0
+        self._pendingStackedBackgroundUpdate = False
+        self._wasUpdatesEnabled = True
+        self._wasStackAnimationEnabled = True
+        self._wasIndicatorAnimationEnabled = True
 
         # initialize layout
         self.hBoxLayout.setSpacing(0)
@@ -132,6 +137,64 @@ class FluentWindowBase(FluentWidget):
                         position=NavigationItemPosition.TOP):
         """ add sub interface """
         raise NotImplementedError
+
+    def beginAddSubInterfaceBatch(self):
+        """Suspend expensive UI updates while adding multiple sub interfaces."""
+        if self._interfaceBatchDepth == 0:
+            self._wasUpdatesEnabled = self.updatesEnabled()
+            self._wasStackAnimationEnabled = self.stackedWidget.isAnimationEnabled()
+            indicatorController = self._indicatorAnimationController()
+            self._wasIndicatorAnimationEnabled = bool(
+                indicatorController and indicatorController.isIndicatorAnimationEnabled()
+            )
+
+            self.setUpdatesEnabled(False)
+            self.stackedWidget.setAnimationEnabled(False)
+            if indicatorController:
+                indicatorController.setIndicatorAnimationEnabled(False)
+
+        self._interfaceBatchDepth += 1
+
+    def endAddSubInterfaceBatch(self):
+        """Resume UI updates after adding multiple sub interfaces."""
+        if self._interfaceBatchDepth == 0:
+            return
+
+        self._interfaceBatchDepth -= 1
+        if self._interfaceBatchDepth:
+            return
+
+        if self._pendingStackedBackgroundUpdate:
+            self._pendingStackedBackgroundUpdate = False
+            self._requestStackedBackgroundUpdate()
+
+        indicatorController = self._indicatorAnimationController()
+        if indicatorController:
+            indicatorController.setIndicatorAnimationEnabled(self._wasIndicatorAnimationEnabled)
+
+        self.stackedWidget.setAnimationEnabled(self._wasStackAnimationEnabled)
+        self.setUpdatesEnabled(self._wasUpdatesEnabled)
+        self.update()
+
+    def _indicatorAnimationController(self):
+        if not self.navigationInterface:
+            return None
+
+        panel = getattr(self.navigationInterface, 'panel', None)
+        if panel and hasattr(panel, 'setIndicatorAnimationEnabled'):
+            return panel
+
+        if hasattr(self.navigationInterface, 'setIndicatorAnimationEnabled'):
+            return self.navigationInterface
+
+        return None
+
+    def _requestStackedBackgroundUpdate(self):
+        if self._interfaceBatchDepth:
+            self._pendingStackedBackgroundUpdate = True
+            return
+
+        self._updateStackedBackground()
 
     def removeInterface(self, interface: QWidget, isDelete=False):
         """ remove sub interface
@@ -154,7 +217,7 @@ class FluentWindowBase(FluentWidget):
         self.navigationInterface.setCurrentItem(widget.objectName())
         qrouter.push(self.stackedWidget, widget.objectName())
 
-        self._updateStackedBackground()
+        self._requestStackedBackgroundUpdate()
 
     def _updateStackedBackground(self):
         isTransparent = self.stackedWidget.currentWidget().property("isStackedTransparent")
@@ -303,7 +366,8 @@ class FluentWindow(FluentWindowBase):
             self.navigationInterface.setCurrentItem(routeKey)
             qrouter.setDefaultRouteKey(self.stackedWidget, routeKey)
 
-        self._updateStackedBackground()
+        if self.stackedWidget.currentWidget() is interface:
+            self._requestStackedBackgroundUpdate()
 
         return item
 
@@ -407,7 +471,8 @@ class MSFluentWindow(FluentWindowBase):
             self.navigationInterface.setCurrentItem(routeKey)
             qrouter.setDefaultRouteKey(self.stackedWidget, routeKey)
 
-        self._updateStackedBackground()
+        if self.stackedWidget.currentWidget() is interface:
+            self._requestStackedBackgroundUpdate()
 
         return item
 
