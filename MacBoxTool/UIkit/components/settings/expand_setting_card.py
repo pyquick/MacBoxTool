@@ -42,7 +42,7 @@ class ExpandButton(QAbstractButton):
             painter.setOpacity(0.36)
 
         painter.setBrush(color)
-        painter.drawRoundedRect(self.rect(), 12, 12)
+        painter.drawRoundedRect(self.rect(), 16, 16)
 
         # draw icon
         painter.translate(self.width()//2, self.height()//2)

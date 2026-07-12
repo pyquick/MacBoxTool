@@ -1,14 +1,14 @@
 ExpandSettingCard {
     border: 1px solid transparent;
-    border-radius: 12px;
+    border-radius: 16px;
     background-color: transparent;
 }
 
 #view {
     background: rgba(255, 255, 255, 0.051);
     border: none;
-    border-bottom-left-radius: 12px;
-    border-bottom-right-radius: 12px;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
 }
 
 #scrollWidget {
@@ -47,7 +47,7 @@ QPushButton {
     background: rgba(255, 255, 255, 0.0605);
     border: 1px solid rgba(255, 255, 255, 0.053);
     border-top: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
+    border-radius: 16px;
     padding: 5px 36px 5px 36px;
     font: 14px --FontFamilies;
     color: white;

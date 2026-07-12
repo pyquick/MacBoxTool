@@ -105,7 +105,7 @@ class ScrollBarGroove(QWidget):
         painter.setPen(Qt.NoPen)
 
         painter.setBrush(self.darkBackgroundColor if isDarkTheme() else self.lightBackgroundColor)
-        painter.drawRoundedRect(self.rect(), 12, 12)
+        painter.drawRoundedRect(self.rect(), 16, 16)
 
     def setOpacity(self, opacity: float):
         self._opacity = opacity

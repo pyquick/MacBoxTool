@@ -52,7 +52,7 @@ MaximizeButton {
     qproperty-normalColor: black;
     qproperty-normalBackgroundColor: transparent;
     qproperty-hoverColor: black;
-    border-radius: 12px;
+    border-radius: 16px;
     margin-left: 8px;
     margin-bottom: 8px;
     qproperty-hoverBackgroundColor: rgba(0, 0, 0, 26);
@@ -63,5 +63,5 @@ MaximizeButton {
 CloseButton {
     qproperty-normalColor: black;
     qproperty-normalBackgroundColor: transparent;
-    border-radius: 12px;
+    border-radius: 16px;
 }

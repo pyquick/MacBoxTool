@@ -6,7 +6,7 @@ RoundMenu {
 
 MenuActionListWidget {
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
+    border-radius: 16px;
     background-color: rgb(43, 43, 43);
     outline: none;
     font: 14px --FontFamilies;
@@ -19,7 +19,7 @@ MenuActionListWidget[transparent=true] {
 MenuActionListWidget::item {
     padding-left: 10px;
     padding-right: 10px;
-    border-radius: 12px;
+    border-radius: 16px;
     margin-left: 6px;
     margin-right: 6px;
     border: none;
@@ -29,7 +29,7 @@ MenuActionListWidget::item {
 MenuActionListWidget::item:disabled {
     padding-left: 10px;
     padding-right: 10px;
-    border-radius: 12px;
+    border-radius: 16px;
     border: none;
     color: rgba(255, 255, 255, 0.4);
 }
@@ -50,24 +50,24 @@ MenuActionListWidget::item:selected:active {
 
 #completerListWidget[dropDown=true],
 #commandListWidget[dropDown=true][long=false] {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
 }
 
 #commandListWidget[dropDown=true][long=true] {
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
 }
 
 #commandListWidget[dropDown=false][long=true] {
-    border-bottom-left-radius: 12px;
-    border-bottom-right-radius: 12px;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
 }
 
 #completerListWidget[dropDown=false],
 #commandListWidget[dropDown=false][long=false] {
-    border-bottom-left-radius: 12px;
-    border-bottom-right-radius: 12px;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
 }
 
 #completerListWidget::item,

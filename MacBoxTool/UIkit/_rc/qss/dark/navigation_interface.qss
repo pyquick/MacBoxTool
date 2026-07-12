@@ -5,13 +5,13 @@ NavigationInterface {
 NavigationPanel[menu=true] {
     background-color: transparent;
     border: none;
-    border-radius: 12px;
+    border-radius: 16px;
 }
 
 NavigationPanel[menu=false] {
     background-color: transparent;
     border: none;
-    border-radius: 12px;
+    border-radius: 16px;
 }
 
 NavigationPanel[transparent=true] {

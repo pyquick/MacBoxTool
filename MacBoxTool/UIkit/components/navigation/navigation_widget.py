@@ -45,7 +45,7 @@ class NavigationWidget(QWidget):
         self.lightIndicatorColor = QColor()
         self.darkIndicatorColor = QColor()
 
-        self.setFixedSize(40, 36)
+        self.setFixedSize(40, 40)
 
     def enterEvent(self, e):
         self.isEnter = True
@@ -77,9 +77,9 @@ class NavigationWidget(QWidget):
 
         self.isCompacted = isCompacted
         if isCompacted:
-            self.setFixedSize(40, 36)
+            self.setFixedSize(40, 40)
         else:
-            self.setFixedSize(self.EXPAND_WIDTH, 36)
+            self.setFixedSize(self.EXPAND_WIDTH, 40)
 
         self.update()
 
@@ -203,6 +203,16 @@ class NavigationPushButton(NavigationWidget):
     def _canDrawIndicator(self):
         return self.isSelected
 
+    def _drawBackground(self, painter: QPainter, color: QColor):
+        painter.setBrush(color)
+        side = min(self.width(), self.height())
+        if self.isCompacted:
+            rect = QRectF((self.width() - side) / 2, (self.height() - side) / 2, side, side)
+            painter.drawEllipse(rect)
+        else:
+            radius = min(14, side / 2)
+            painter.drawRoundedRect(self.rect(), radius, radius)
+
     def paintEvent(self, e):
         painter = QPainter(self)
         painter.setRenderHints(QPainter.Antialiasing |
@@ -221,17 +231,19 @@ class NavigationPushButton(NavigationWidget):
         globalRect = QRect(self.mapToGlobal(QPoint()), self.size())
 
         if self._canDrawIndicator():
-            painter.setBrush(QColor(c, c, c, 6 if self.isEnter else 10))
-            painter.drawRoundedRect(self.rect(), 12, 12)
+            self._drawBackground(painter, QColor(c, c, c, 6 if self.isEnter else 10))
 
             # draw indicator
             painter.setBrush(autoFallbackThemeColor(self.lightIndicatorColor, self.darkIndicatorColor))
             painter.drawRoundedRect(self.indicatorRect(), 1.5, 1.5)
         elif ((self.isEnter and globalRect.contains(QCursor.pos())) or self.isAboutSelected) and self.isEnabled():
-            painter.setBrush(QColor(c, c, c, 6 if self.isAboutSelected else 10))
-            painter.drawRoundedRect(self.rect(), 12, 12)
+            self._drawBackground(painter, QColor(c, c, c, 6 if self.isAboutSelected else 10))
 
-        self._drawIcon(painter, QRectF(11.5+pl, 10, 16, 16))
+        if self.isCompacted:
+            iconRect = QRectF((self.width() - 16) / 2 + pl - pr, (self.height() - 16) / 2, 16, 16)
+        else:
+            iconRect = QRectF(11.5 + pl, (self.height() - 16) / 2, 16, 16)
+        self._drawIcon(painter, iconRect)
 
         # draw text
         if self.isCompacted:
@@ -251,7 +263,7 @@ class NavigationToolButton(NavigationPushButton):
         super().__init__(icon, '', False, parent)
 
     def setCompacted(self, isCompacted: bool):
-        self.setFixedSize(40, 36)
+        self.setFixedSize(40, 40)
 
 
 class NavigationSeparator(NavigationWidget):
@@ -771,7 +783,13 @@ class NavigationAvatarWidget(NavigationWidget):
         c = 255 if isDarkTheme() else 0
         painter.setBrush(QColor(c, c, c, 10))
         painter.setPen(Qt.NoPen)
-        painter.drawRoundedRect(self.rect(), 12, 12)
+        if self.isCompacted:
+            side = min(self.width(), self.height())
+            rect = QRectF((self.width() - side) / 2, (self.height() - side) / 2, side, side)
+            painter.drawEllipse(rect)
+        else:
+            radius = min(self.width(), self.height()) / 2
+            painter.drawRoundedRect(self.rect(), radius, radius)
 
 
 @InfoBadgeManager.register(InfoBadgePosition.NAVIGATION_ITEM)
@@ -920,7 +938,7 @@ class NavigationUserCard(NavigationAvatarWidget):
         self._animationGroup.finished.connect(self.update)
 
         # initial size
-        self.setFixedSize(40, 36)
+        self.setFixedSize(40, 40)
 
     def setAvatarIcon(self, icon: FIF):
         """ set avatar icon when no image is set """
@@ -976,7 +994,7 @@ class NavigationUserCard(NavigationAvatarWidget):
 
         if isCompacted:
             # compact mode: 24x24 avatar like NavigationAvatarWidget
-            self.setFixedSize(40, 36)
+            self.setFixedSize(40, 40)
             self._radiusAni.setStartValue(self.avatar.radius)
             self._radiusAni.setEndValue(12)  # 24px diameter
             self._opacityAni.setStartValue(self._textOpacity)

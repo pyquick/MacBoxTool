@@ -12,13 +12,13 @@ QDialog {
 
 MessageBoxBase #buttonGroup,
 MessageBox #buttonGroup {
-    border-bottom-left-radius: 12px;
-    border-bottom-right-radius: 12px;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
 }
 
 #centerWidget {
     border: 1px solid rgb(144, 144, 142);
-    border-radius: 12px;
+    border-radius: 16px;
     background-color: white;
 }
 
@@ -52,7 +52,7 @@ QLabel#windowTitleLabel {
     background: rgb(251, 251, 251);
     border: 1px solid rgb(229, 229, 229);
     border-bottom: 1px solid rgb(204, 204, 204);
-    border-radius: 12px;
+    border-radius: 16px;
     font: 14px --FontFamilies;
     padding: 5px 9px 6px 9px;
     outline: none;

@@ -6,13 +6,13 @@ QWidget {
 
 QScrollArea {
     border: 1px solid transparent;
-    border-radius: 12px;
+    border-radius: 16px;
     background-color: transparent;
 }
 
 #centerWidget {
     border: 1px solid rgb(58, 58, 58);
-    border-radius: 12px;
+    border-radius: 16px;
     background-color: rgb(43, 43, 43);
 }
 
@@ -22,8 +22,8 @@ QScrollArea {
     border-left: none;
     border-right: none;
     border-bottom: none;
-    border-bottom-left-radius: 12px;
-    border-bottom-right-radius: 12px;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
 }
 
 QLabel {
@@ -54,7 +54,7 @@ QSlider:horizontal {
 
 QSlider::groove:horizontal {
     height: 12px;
-    border-radius: 12px;
+    border-radius: 16px;
     background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, x3:2, y3:0,
             stop:0 hsv(--slider-hue, --slider-saturation, 0),
             stop:1 hsv(--slider-hue, --slider-saturation, 255));
@@ -67,7 +67,7 @@ QSlider::handle:horizontal {
     width: 16px;
     min-height: 10px;
     margin: -3px 0;
-    border-radius: 12px;
+    border-radius: 16px;
     background-color: qradialgradient(spread:pad, cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
             stop:0 rgb(255, 255, 255),
             stop:0.55 rgb(255, 255, 255),
@@ -90,7 +90,7 @@ QSlider::handle:horizontal:disabled {
     background: rgb(45, 45, 45);
     border: 1px solid rgb(48, 48, 48);
     border-top: 1px solid rgb(53, 53, 53);
-    border-radius: 12px;
+    border-radius: 16px;
     color: white;
     font: 14px --FontFamilies;
     padding: 5px 9px 6px 9px;

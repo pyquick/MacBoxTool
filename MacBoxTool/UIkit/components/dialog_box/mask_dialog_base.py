@@ -1,8 +1,8 @@
 # coding:utf-8
 from PySide6.QtCore import QEasingCurve, QPropertyAnimation, Qt, QEvent, QPoint
-from PySide6.QtGui import QColor, QResizeEvent
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (QDialog, QGraphicsDropShadowEffect,
-                             QGraphicsOpacityEffect, QHBoxLayout, QWidget, QFrame)
+                             QGraphicsOpacityEffect, QHBoxLayout, QWidget, QFrame, QApplication)
 
 from ...common.config import isDarkTheme
 
@@ -11,7 +11,9 @@ class MaskDialogBase(QDialog):
     """ Dialog box base class with a mask """
 
     def __init__(self, parent=None):
-        super().__init__(parent=parent)
+        host = parent.window() if parent is not None else QApplication.activeWindow()
+        super().__init__(parent=host)
+        self._hostWindow = host
         self._isClosableOnMaskClicked = False
         self._isDraggable = False
         self._dragPos = QPoint()
@@ -22,7 +24,9 @@ class MaskDialogBase(QDialog):
         self.widget = QFrame(self, objectName='centerWidget')
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setGeometry(0, 0, parent.width(), parent.height())
+        if host:
+            self.setGeometry(0, 0, host.width(), host.height())
+            self.windowMask.resize(host.size())
 
         c = 0 if isDarkTheme() else 255
         self.windowMask.resize(self.size())
@@ -30,7 +34,8 @@ class MaskDialogBase(QDialog):
         self._hBoxLayout.addWidget(self.widget)
         self.setShadowEffect()
 
-        self.window().installEventFilter(self)
+        if self._hostWindow:
+            self._hostWindow.installEventFilter(self)
         self.windowMask.installEventFilter(self)
         self.widget.installEventFilter(self)
 
@@ -92,12 +97,13 @@ class MaskDialogBase(QDialog):
 
     def resizeEvent(self, e):
         self.windowMask.resize(self.size())
+        super().resizeEvent(e)
 
     def eventFilter(self, obj, e: QEvent):
-        if obj is self.window():
+        if obj is self._hostWindow:
             if e.type() == QEvent.Resize:
-                re = QResizeEvent(e)
-                self.resize(re.size())
+                self.resize(obj.size())
+                self.windowMask.resize(obj.size())
         elif obj is self.windowMask:
             if e.type() == QEvent.MouseButtonRelease and e.button() == Qt.LeftButton \
                     and self.isClosableOnMaskClicked():

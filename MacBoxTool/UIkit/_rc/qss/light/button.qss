@@ -3,7 +3,7 @@ PushButton, ToolButton, ToggleButton, ToggleToolButton {
     background: rgba(255, 255, 255, 0.7);
     border: 1px solid rgba(0, 0, 0, 0.073);
     border-bottom: 1px solid rgba(0, 0, 0, 0.183);
-    border-radius: 12px;
+    border-radius: 16px;
     padding: 5px 12px 6px 12px;
     outline: none;
 }
@@ -96,16 +96,16 @@ ToggleToolButton:checked:disabled {
 SplitDropButton,
 PrimarySplitDropButton {
     border-left: none;
-    border-top-left-radius: 12px;
-    border-bottom-left-radius: 12px;
+    border-top-left-radius: 16px;
+    border-bottom-left-radius: 16px;
 }
 
 #splitPushButton,
 #splitToolButton,
 #primarySplitPushButton,
 #primarySplitToolButton {
-    border-top-right-radius: 12px;
-    border-bottom-right-radius: 12px;
+    border-top-right-radius: 16px;
+    border-bottom-right-radius: 16px;
 }
 
 #splitPushButton:pressed,
@@ -130,7 +130,7 @@ HyperlinkButton {
     padding: 6px 12px 6px 12px;
     color: --ThemeColorPrimary;
     border: none;
-    border-radius: 12px;
+    border-radius: 16px;
     background-color: transparent;
 }
 
@@ -172,7 +172,7 @@ RadioButton {
 RadioButton::indicator {
     width: 18px;
     height: 18px;
-    border-radius: 12px;
+    border-radius: 16px;
     border: 2px solid #999999;
     background-color: rgba(0, 0, 0, 5);
     margin-right: 4px;
@@ -195,7 +195,7 @@ RadioButton::indicator:checked {
     height: 22px;
     width: 22px;
     border: none;
-    border-radius: 12px;
+    border-radius: 16px;
     background-color: qradialgradient(spread:pad, cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
             stop:0 rgb(255, 255, 255),
             stop:0.5 rgb(255, 255, 255),
@@ -245,7 +245,7 @@ TransparentDropDownPushButton,
 TransparentTogglePushButton {
     background-color: transparent;
     border: none;
-    border-radius: 12px;
+    border-radius: 16px;
     margin: 0;
 }
 

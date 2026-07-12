@@ -62,5 +62,5 @@ SplitFluentWindow > StackedWidget {
 
 FluentWindowBase {
     background-color: transparent;
-    border-radius: 12px;
+    border-radius: 16px;
 }

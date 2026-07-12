@@ -21,7 +21,7 @@ class CardWidget(BackgroundAnimationWidget, QFrame):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self._isClickEnabled = False
-        self._borderRadius = 12
+        self._borderRadius = 16
 
     def mouseReleaseEvent(self, e):
         super().mouseReleaseEvent(e)
@@ -132,7 +132,8 @@ class SimpleCardWidget(CardWidget):
             painter.setPen(QColor(0, 0, 0, 12))
 
         r = self.borderRadius
-        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), r, r)
+        rect = self.rect().adjusted(1, 1, -1, -1)
+        painter.drawRoundedRect(rect, r, r)
 
 
 

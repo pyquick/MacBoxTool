@@ -322,6 +322,7 @@ class SysPatch(ScrollArea):
         ):
             logging.info("No applicable patches available")
             self.patches = {}
+            self.can_unpatch = False
 
         self.no_new_patches = not self._check_if_new_patches_needed(self.patches) if self.patches else False
         self._render_patch_list()
@@ -346,6 +347,7 @@ class SysPatch(ScrollArea):
         if not self.patches:
             self._set_status("Available patches for your system", "No patches required", "success")
             self.available_patches = False
+            self.can_unpatch = False
             return
 
         patch_names = [

@@ -2,7 +2,7 @@
 from enum import Enum
 
 from PySide6.QtCore import Qt, QSize, QRectF, QPoint
-from PySide6.QtGui import QPainter, QPainterPath, QColor
+from PySide6.QtGui import QPainter, QColor
 from PySide6.QtWidgets import (QSpinBox, QDoubleSpinBox, QToolButton, QHBoxLayout,
                                QDateEdit, QDateTimeEdit, QTimeEdit, QVBoxLayout, QApplication)
 
@@ -11,7 +11,7 @@ from ...common.icon import FluentIconBase, Theme, getIconColor
 from ...common.font import setFont
 from ...common.color import FluentSystemColor, autoFallbackThemeColor
 from .button import TransparentToolButton
-from .line_edit import LineEditMenu
+from .line_edit import LineEditMenu, _drawBottomRoundedBorder
 from .flyout import Flyout, FlyoutViewBase, FlyoutAnimationType
 
 
@@ -106,7 +106,7 @@ class SpinFlyoutView(FlyoutViewBase):
             QColor(0, 0, 0, 51) if isDarkTheme() else QColor(0, 0, 0, 15))
 
         rect = self.rect().adjusted(1, 1, -1, -1)
-        painter.drawRoundedRect(rect, 12, 12)
+        painter.drawRoundedRect(rect, 16, 16)
 
 
 class SpinBoxBase:
@@ -180,15 +180,8 @@ class SpinBoxBase:
         painter.setRenderHints(QPainter.Antialiasing)
         painter.setPen(Qt.NoPen)
 
-        path = QPainterPath()
-        w, h = self.width(), self.height()
-        path.addRoundedRect(QRectF(0, h-10, w, 10), 5, 5)
-
-        rectPath = QPainterPath()
-        rectPath.addRect(0, h-10, w, 8)
-        path = path.subtracted(rectPath)
-
-        painter.fillPath(path, self.focusedBorderColor())
+        rect = QRectF(0, 0, self.width(), self.height()).adjusted(1, 1, -1, -1)
+        _drawBottomRoundedBorder(painter, rect, self.focusedBorderColor())
 
     def paintEvent(self, e):
         super().paintEvent(e)

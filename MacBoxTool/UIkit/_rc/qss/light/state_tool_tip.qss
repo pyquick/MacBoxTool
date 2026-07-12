@@ -2,7 +2,7 @@ StateToolTip,
 ToastToolTip {
     background-color: --ThemeColorDark1;
     border: none;
-    border-radius: 12px;
+    border-radius: 16px;
 }
 
 QLabel {

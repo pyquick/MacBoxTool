@@ -24,6 +24,7 @@ if sys.platform != "darwin":
 # Constants
 HELPER_NAME = "com.pyquick.macboxtool.privileged-helper"
 HELPER_DEST_PATH = f"/Library/PrivilegedHelperTools/{HELPER_NAME}"
+HELPER_BASE_PATH = "/Library/PrivilegedHelperTools"
 HELPER_SOURCE_PATHS = [
     # From PKG installer payload
     "/Applications/MacBoxTool.app/Contents/Library/LaunchServices/com.pyquick.macboxtool.privileged-helper",
@@ -120,7 +121,8 @@ def install_privileged_helper(source_path: Optional[str] = None, verbose: bool =
                 subprocess.run(["rm", "-rf", HELPER_DEST_PATH], check=True)
             else:
                 os.remove(HELPER_DEST_PATH)
-
+        if not os.path.exists(HELPER_BASE_PATH):
+            os.makedirs(HELPER_BASE_PATH, exist_ok=True)
         # Copy helper to destination
         subprocess.run(["cp", "-R", source_path, HELPER_DEST_PATH], check=True)
 

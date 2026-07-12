@@ -322,7 +322,7 @@ class TeachingTipManager(QObject):
     def draw(self, tip: TeachTipBubble, painter: QPainter):
         """ draw the shape of bubble """
         rect = tip.rect().adjusted(1, 1, -1, -1)
-        painter.drawRoundedRect(rect, 12, 12)
+        painter.drawRoundedRect(rect, 16, 16)
 
     def _pos(self, tip: TeachingTip):
         """ return the poisition of tip """

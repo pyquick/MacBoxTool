@@ -1,7 +1,7 @@
 # coding: utf-8
 from typing import List, Union
 from PySide6.QtCore import QSize, Qt, QRectF, Signal, QPoint, QTimer, QEvent, QAbstractItemModel, Property, QModelIndex
-from PySide6.QtGui import QPainter, QPainterPath, QIcon, QColor, QAction
+from PySide6.QtGui import QPainter, QPainterPath, QIcon, QColor, QAction, QPen
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLineEdit, QToolButton, QTextEdit,
                                QPlainTextEdit, QCompleter, QStyle, QWidget, QTextBrowser)
 
@@ -14,6 +14,37 @@ from ...common.color import FluentSystemColor, autoFallbackThemeColor
 from .tool_tip import ToolTipFilter
 from .menu import LineEditMenu, TextEditMenu, RoundMenu, MenuAnimationType, IndicatorMenuItemDelegate
 from .scroll_bar import SmoothScrollDelegate
+
+
+_INPUT_BORDER_RADIUS = 16
+_FOCUS_BORDER_THICKNESS = 3
+
+
+def _bottomRoundedBorderPath(rect: QRectF, radius: int = _INPUT_BORDER_RADIUS,
+                             thickness: int = _FOCUS_BORDER_THICKNESS):
+    inset = thickness / 2
+    r = max(0, radius - inset)
+    left = rect.left() + inset
+    right = rect.right() - inset
+    bottom = rect.bottom() - inset
+
+    path = QPainterPath()
+    path.moveTo(left, bottom - r)
+    path.arcTo(left, bottom - 2 * r, 2 * r, 2 * r, 180, 90)
+    path.lineTo(right - r, bottom)
+    path.arcTo(right - 2 * r, bottom - 2 * r, 2 * r, 2 * r, 270, 90)
+    return path
+
+
+def _drawBottomRoundedBorder(painter: QPainter, rect: QRectF, color: QColor,
+                             radius: int = _INPUT_BORDER_RADIUS,
+                             thickness: int = _FOCUS_BORDER_THICKNESS):
+    pen = QPen(color, thickness)
+    pen.setCapStyle(Qt.RoundCap)
+    pen.setJoinStyle(Qt.RoundJoin)
+    painter.setPen(pen)
+    painter.setBrush(Qt.NoBrush)
+    painter.drawPath(_bottomRoundedBorderPath(rect, radius, thickness))
 
 
 class LineEditButton(QToolButton):
@@ -255,15 +286,8 @@ class LineEdit(QLineEdit):
         painter.setPen(Qt.NoPen)
 
         m = self.contentsMargins()
-        path = QPainterPath()
-        w, h = self.width()-m.left()-m.right(), self.height()
-        path.addRoundedRect(QRectF(m.left(), h-10, w, 10), 5, 5)
-
-        rectPath = QPainterPath()
-        rectPath.addRect(m.left(), h-10, w, 8)
-        path = path.subtracted(rectPath)
-
-        painter.fillPath(path, self.focusedBorderColor())
+        rect = QRectF(m.left(), 0, self.width() - m.left() - m.right(), self.height()).adjusted(1, 1, -1, -1)
+        _drawBottomRoundedBorder(painter, rect, self.focusedBorderColor())
 
 
 class CompleterMenu(RoundMenu):
@@ -436,15 +460,8 @@ class EditLayer(QWidget):
         painter.setPen(Qt.NoPen)
 
         m = self.contentsMargins()
-        path = QPainterPath()
-        w, h = self.width()-m.left()-m.right(), self.height()
-        path.addRoundedRect(QRectF(m.left(), h-10, w, 10), 5, 5)
-
-        rectPath = QPainterPath()
-        rectPath.addRect(m.left(), h-10, w, 7.5)
-        path = path.subtracted(rectPath)
-
-        painter.fillPath(path, themeColor())
+        rect = QRectF(m.left(), 0, self.width() - m.left() - m.right(), self.height()).adjusted(1, 1, -1, -1)
+        _drawBottomRoundedBorder(painter, rect, themeColor())
 
 
 class TextEdit(QTextEdit):

@@ -235,7 +235,7 @@ class FluentWindowBase(FluentWidget):
         size: QSize
             original system title bar rect
         """
-        return QRect(22, 9 if self.isFullScreen() else 11, 54, size.height())
+        return QRect(size.width() - 90, 8, 54, size.height())
 
 
 class FluentTitleBar(TitleBar):
@@ -251,7 +251,7 @@ class FluentTitleBar(TitleBar):
         # add window icon
         self.iconLabel = QLabel(self)
         self.iconLabel.setFixedSize(18, 18)
-        self.hBoxLayout.setContentsMargins(128, 0, 0, 0)
+        self.hBoxLayout.setContentsMargins(12, 0, 0, 0)
         self.hBoxLayout.insertWidget(0, self.iconLabel, 0, Qt.AlignLeft | Qt.AlignVCenter)
         self.window().windowIconChanged.connect(self.setIcon)
 
@@ -276,7 +276,7 @@ class FluentTitleBar(TitleBar):
         FluentStyleSheet.FLUENT_WINDOW.apply(self)
 
     def canDrag(self, pos):
-        if sys.platform == "darwin" and QRect(0, 0, 100, self.height()).contains(pos):
+        if sys.platform == "darwin" and QRect(self.width() - 110, 0, 110, self.height()).contains(pos):
             return False
 
         return super().canDrag(pos)
@@ -305,7 +305,7 @@ class FluentWindow(FluentWindowBase):
         self.hBoxLayout.setStretchFactor(self.widgetLayout, 1)
 
         self.widgetLayout.addWidget(self.stackedWidget)
-        self.widgetLayout.setContentsMargins(0, 32, 0, 0)
+        self.widgetLayout.setContentsMargins(0, self.titleBar.height(), 0, 0)
 
         self.navigationInterface.displayModeChanged.connect(self.titleBar.raise_)
         self.titleBar.raise_()

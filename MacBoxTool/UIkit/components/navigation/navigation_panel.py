@@ -74,7 +74,7 @@ class NavigationPanel(QFrame):
         self._isUpdateIndicatorPosOnCollapseFinished = False
 
         self.indicator = NavigationIndicator(self)
-        self.shadowEffect = QGraphicsDropShadowEffect(self)
+        self.shadowEffect = None
 
         self.acrylicBrush = AcrylicBrush(self, 30)
 
@@ -111,10 +111,7 @@ class NavigationPanel(QFrame):
     def __initWidget(self):
         self.resize(48, self.height())
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.shadowEffect.setBlurRadius(28)
-        self.shadowEffect.setOffset(0, 8)
-        self.shadowEffect.setColor(QColor(0, 0, 0, 70 if isDarkTheme() else 38))
-        self.setGraphicsEffect(self.shadowEffect)
+        self._updatePanelShadow()
         self.window().installEventFilter(self)
 
         self.returnButton.hide()
@@ -192,6 +189,21 @@ class NavigationPanel(QFrame):
         self.arrowLayout.setAlignment(self.returnButton, alignment)
         self.arrowLayout.setAlignment(self.forwardButton, alignment)
         self.menuButtonLayout.setAlignment(self.menuButton, alignment)
+
+    def _createPanelShadowEffect(self):
+        effect = QGraphicsDropShadowEffect(self)
+        effect.setBlurRadius(28)
+        effect.setOffset(0, 8)
+        effect.setColor(QColor(0, 0, 0, 70 if isDarkTheme() else 38))
+        return effect
+
+    def _updatePanelShadow(self):
+        if self.displayMode in (NavigationDisplayMode.COMPACT, NavigationDisplayMode.MINIMAL):
+            self.setGraphicsEffect(None)
+            self.shadowEffect = None
+        else:
+            self.shadowEffect = self._createPanelShadowEffect()
+            self.setGraphicsEffect(self.shadowEffect)
 
     def _updateAcrylicColor(self):
         if isDarkTheme():
@@ -545,10 +557,12 @@ class NavigationPanel(QFrame):
         expandWidth = self.minimumExpandWidth + self.expandWidth - 322
         if (self.window().width() >= expandWidth and not self.isMinimalEnabled) or not self._isCollapsible:
             self.displayMode = NavigationDisplayMode.EXPAND
+            self._updatePanelShadow()
         else:
             self.setProperty('menu', True)
             self.setStyle(QApplication.style())
             self.displayMode = NavigationDisplayMode.MENU
+            self._updatePanelShadow()
 
             # grab acrylic image
             if self._canDrawAcrylic():
@@ -778,8 +792,10 @@ class NavigationPanel(QFrame):
         if not self.expandAni.property('expand'):
             if self.isMinimalEnabled:
                 self.displayMode = NavigationDisplayMode.MINIMAL
+                self._updatePanelShadow()
             else:
                 self.displayMode = NavigationDisplayMode.COMPACT
+                self._updatePanelShadow()
 
             self.displayModeChanged.emit(self.displayMode)
 
@@ -825,7 +841,7 @@ class NavigationPanel(QFrame):
     def _canDrawAcrylic(self):
         return self.acrylicBrush.isAvailable() and self.isAcrylicEnabled()
 
-    def _paintPanelRegion(self, painter: QPainter, rect: QRectF):
+    def _paintPanelRegion(self, painter: QPainter, rect: QRectF, preserveExpandedRadius: bool = False):
         if rect.isNull() or rect.height() <= 0:
             return
 
@@ -839,10 +855,18 @@ class NavigationPanel(QFrame):
         pen = QPen(outline)
         pen.setWidthF(1)
         painter.setPen(pen)
-        painter.drawRoundedRect(rect.adjusted(0.5, 0.5, -0.5, -0.5), 12, 12)
+
+        adjustedRect = rect.adjusted(0.5, 0.5, -0.5, -0.5)
+        useCompactRadius = preserveExpandedRadius or self.displayMode in (NavigationDisplayMode.COMPACT, NavigationDisplayMode.MINIMAL)
+        radius = min(rect.width(), rect.height()) / 2 if useCompactRadius else min(14, rect.height() / 2)
+        if useCompactRadius and abs(rect.width() - rect.height()) < 0.01:
+            painter.drawEllipse(adjustedRect)
+        else:
+            painter.drawRoundedRect(adjustedRect, radius, radius)
 
     def _layoutRegionRect(self, layout: QVBoxLayout):
         region = QRectF()
+        visibleCount = 0
         for i in range(layout.count()):
             item = layout.itemAt(i)
             widget = item.widget() if item else None
@@ -851,9 +875,18 @@ class NavigationPanel(QFrame):
 
             widgetRect = QRectF(QRect(widget.mapTo(self, QPoint(0, 0)), widget.size()))
             region = widgetRect if region.isNull() else region.united(widgetRect)
+            visibleCount += 1
 
         if region.isNull() or region.height() <= 0:
             return QRectF()
+
+        if visibleCount == 1:
+            if self.displayMode in (NavigationDisplayMode.COMPACT, NavigationDisplayMode.MINIMAL):
+                diameter = max(region.width(), region.height()) + 8
+                center = region.center()
+                return QRectF(center.x() - diameter / 2, center.y() - diameter / 2, diameter, diameter)
+
+            return region.adjusted(-4, -4, 4, 4)
 
         return region.adjusted(-4, -3, 4, 3)
 
@@ -878,8 +911,8 @@ class NavigationPanel(QFrame):
             self._updateAcrylicColor()
             self.acrylicBrush.paint()
 
-        self._paintPanelRegion(painter, self._layoutRegionRect(self.arrowLayout))
-        self._paintPanelRegion(painter, self._layoutRegionRect(self.menuButtonLayout))
+        self._paintPanelRegion(painter, self._layoutRegionRect(self.arrowLayout), True)
+        self._paintPanelRegion(painter, self._layoutRegionRect(self.menuButtonLayout), True)
         self._paintPanelRegion(painter, self._layoutRegionRect(self.topLayout))
         self._paintPanelRegion(painter, self._scrollRegionRect())
         self._paintPanelRegion(painter, self._layoutRegionRect(self.bottomLayout))

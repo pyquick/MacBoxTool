@@ -484,4 +484,4 @@ class FastCalendarView(FlyoutViewBase):
             QColor(23, 23, 23) if isDarkTheme() else QColor(234, 234, 234))
 
         rect = self.rect().adjusted(1, 1, -1, -1)
-        painter.drawRoundedRect(rect, 12, 12)
+        painter.drawRoundedRect(rect, 16, 16)

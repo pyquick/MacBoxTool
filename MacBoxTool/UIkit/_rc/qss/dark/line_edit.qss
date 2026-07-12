@@ -2,7 +2,7 @@ LineEdit, TextEdit, PlainTextEdit, TextBrowser {
     background-color: rgba(255, 255, 255, 0.0605);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-bottom: 1px solid rgba(255, 255, 255, 0.5442);
-    border-radius: 12px;
+    border-radius: 16px;
     padding: 0px 10px;
     color: white;
     selection-background-color: --ThemeColorPrimary;
@@ -39,7 +39,7 @@ LineEdit:disabled, TextEdit:disabled, PlainTextEdit:disabled, TextBrowser:disabl
 
 #lineEditButton {
     background-color: transparent;
-    border-radius: 12px;
+    border-radius: 16px;
     margin: 0;
 }
 

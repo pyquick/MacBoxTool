@@ -19,7 +19,7 @@ QSlider::handle:horizontal {
     width: 21px;
     min-height: 22px;
     margin: -9px 0;
-    border-radius: 12px;
+    border-radius: 16px;
     background-color: qradialgradient(spread:pad, cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
         stop:0 --ThemeColorPrimary,
         stop:0.5 --ThemeColorPrimary,
@@ -65,7 +65,7 @@ QSlider::handle:vertical {
     height: 20px;
     min-width: 22px;
     margin: 0 -9px;
-    border-radius: 12px;
+    border-radius: 16px;
     background-color: qradialgradient(spread:pad, cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
             stop:0 --ThemeColorPrimary,
             stop:0.5 --ThemeColorPrimary,

@@ -216,7 +216,7 @@ class ClickableWindow(QWidget):
 
         if not self._isEnter:
             painter.setBrush(brush)
-            painter.drawRoundedRect(self.rect(), 12, 12)
+            painter.drawRoundedRect(self.rect(), 16, 16)
         else:
             painter.setPen(QPen(QColor(bg, bg, bg), 2))
             painter.drawRect(1, 1, self.width() - 2, self.height() - 2)

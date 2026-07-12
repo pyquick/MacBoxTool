@@ -68,7 +68,7 @@ class FlyoutViewBase(QWidget):
         painter.setPen(self.borderColor())
 
         rect = self.rect().adjusted(1, 1, -1, -1)
-        painter.drawRoundedRect(rect, 12, 12)
+        painter.drawRoundedRect(rect, 16, 16)
 
 
 class FlyoutView(FlyoutViewBase):

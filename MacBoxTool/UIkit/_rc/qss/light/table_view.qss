@@ -22,7 +22,7 @@ QTableView::item {
 QTableView::indicator {
     width: 18px;
     height: 18px;
-    border-radius: 12px;
+    border-radius: 16px;
     border: none;
     background-color: transparent;
 }

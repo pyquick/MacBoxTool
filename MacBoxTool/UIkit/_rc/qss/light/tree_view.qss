@@ -1,7 +1,7 @@
 QTreeView {
     background-color: transparent;
     border: none;
-    border-radius: 12px;
+    border-radius: 16px;
     outline: 0;
     padding-right: 5px;
     selection-background-color: transparent;
@@ -16,7 +16,7 @@ QTreeView::item {
     margin-top: 2px;
     margin-bottom: 2px;
     padding-left: 20px;
-    border-radius: 12px;
+    border-radius: 16px;
     background-color: transparent;
     /* color: black; */
 }
@@ -38,7 +38,7 @@ QTreeView:disabled {
 QTreeView::indicator {
     width: 18px;
     height: 18px;
-    border-radius: 12px;
+    border-radius: 16px;
     border: none;
     background-color: transparent;
 }

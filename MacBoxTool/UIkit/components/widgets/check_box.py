@@ -193,7 +193,7 @@ class CheckBox(QCheckBox):
         # draw shape
         painter.setPen(self._borderColor())
         painter.setBrush(self._backgroundColor())
-        painter.drawRoundedRect(rect, 12, 12)
+        painter.drawRoundedRect(rect, 16, 16)
 
         if not self.isEnabled():
             painter.setOpacity(0.8)
