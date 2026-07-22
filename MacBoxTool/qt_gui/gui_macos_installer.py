@@ -8,6 +8,44 @@ from .gui_support import DefGUI
 from .gui_task import TaskManager
 
 
+def _installer_icon_path(installer_data: dict, constants: Constants) -> str:
+    install_assistant = installer_data.get("InstallAssistant") or {}
+    xnu_major = install_assistant.get("XNUMajor", 0)
+
+    if not xnu_major:
+        from ..datasets.os_data import os_conversion
+        version = installer_data.get("Version", "0.0.0")
+        try:
+            if version.startswith("10."):
+                xnu_major = os_conversion.os_to_kernel(version)
+            else:
+                xnu_major = int(version.split(".")[0]) + 9
+        except (TypeError, ValueError, IndexError):
+            xnu_major = 0
+
+    if 11 <= xnu_major < 20:
+        icon_paths = constants.icon_path_legacy
+        icon_index = 20 - xnu_major
+    elif xnu_major >= 20:
+        icon_paths = constants.icons_path
+        icon_index = xnu_major - 19
+    else:
+        icon_paths = constants.icons_path
+        icon_index = 0
+
+    try:
+        icon_path = icon_paths[icon_index]
+    except (IndexError, TypeError):
+        icon_path = constants.icon_path_macos_generic
+
+    png_path = str(Path(icon_path).with_suffix(".png"))
+    if not Path(png_path).exists():
+        logging.warning(f"Icon not found: {png_path}, falling back to Generic")
+        png_path = str(Path(constants.icon_path_macos_generic).with_suffix(".png"))
+
+    return png_path
+
+
 class InstallerCard(CardWidget):
     """Installer card widget for displaying macOS installer info"""
 
@@ -25,30 +63,6 @@ class InstallerCard(CardWidget):
         self._init_download_button()
         self._init_layout()
 
-    # ── Icon Helper ──
-
-    def _macos_version_to_icon(self, version: int) -> int:
-        """Convert macOS XNUMajor version to icon index
-
-        Args:
-            version: Darwin major version (e.g., 19 for Catalina, 20 for Big Sur)
-
-        Returns:
-            int: Icon index (0=Generic, or calculated index for specific icon paths)
-        """
-        # Legacy versions (Lion to Catalina: Darwin 11-19)
-        if 11 <= version < 20:
-            # Calculate index for icon_path_legacy: index = 20 - darwin_version
-            # Darwin 19 → index 1, Darwin 11 → index 9
-            return 20 - version
-
-        # Modern versions (Big Sur and later: Darwin 20+)
-        try:
-            self.constants.icons_path[version - 19]
-            return version - 19
-        except IndexError:
-            return 0
-
     # ── Sub-init Methods ──
 
     def _init_card(self):
@@ -57,55 +71,16 @@ class InstallerCard(CardWidget):
 
     def _init_icon(self):
         """Initialize macOS icon widget using XNUMajor"""
-        install_assistant = self.installer_data.get("InstallAssistant") or {}
-        xnu_major = install_assistant.get("XNUMajor", 0)
-
-        # Fallback: If XNUMajor is not available, convert Version string
-        if xnu_major == 0:
-            from ..datasets.os_data import os_conversion
-            version_str = self.installer_data.get("Version", "0.0.0")
-            try:
-                if version_str.startswith("10."):
-                    # Legacy macOS (10.x): 10.7 → 11, 10.15 → 19
-                    xnu_major = os_conversion.os_to_kernel(version_str)
-                elif version_str.startswith("11.") or version_str.startswith("12.") or version_str.startswith("13.") or version_str.startswith("14.") or version_str.startswith("15.") or version_str.startswith("26."):
-                    # Modern macOS (11.x = Big Sur, etc.): 11 → 20, 15 → 24, 26 → 35
-                    major = int(version_str.split(".")[0])
-                    xnu_major = major + 9  # 11 → 20, 15 → 24
-            except (ValueError, IndexError):
-                xnu_major = 0
-
-        icon_index = self._macos_version_to_icon(xnu_major)
-
-        # Select appropriate icon path based on version
-        if 11 <= xnu_major < 20:
-            # Legacy versions: use icon_path_legacy
-            icon_path_list = self.constants.icon_path_legacy
-        else:
-            # Modern versions: use icons_path
-            icon_path_list = self.constants.icons_path
-
-        # Get icon path from list (with fallback to generic)
-        try:
-            icon_path = icon_path_list[icon_index]
-        except IndexError:
-            icon_path = icon_path_list[0]  # Generic icon
-
-        png_path = str(Path(icon_path).with_suffix(".png"))
-
-        # Verify PNG file exists, fallback to generic if not
-        if not Path(png_path).exists():
-            logging.warning(f"Icon not found: {png_path}, falling back to Generic")
-            generic_icon = str(self.constants.icon_path_macos_generic)
-            png_path = str(Path(generic_icon).with_suffix(".png"))
-
-        self.icon_widget = ImageLabel(png_path, self)
+        self.icon_widget = ImageLabel(
+            _installer_icon_path(self.installer_data, self.constants), self
+        )
         self.icon_widget.setFixedSize(48, 48)
 
     def _init_info_labels(self):
         """Initialize title, date, and version labels"""
         title = self.installer_data.get("Title", "Unknown")
-        self.title_label = BodyLabel(title)
+        build = self.installer_data.get("Build", "Unknown")
+        self.title_label = BodyLabel(f"{title} {build}")
         self.title_label.setStyleSheet("font-weight: 600;")
 
         post_date = self.installer_data.get("PostDate")
@@ -319,10 +294,28 @@ class MacOSInstallerList(ScrollArea):
                 logging.error("Failed to download Installer Catalog from Apple")
                 return
 
+            did_find_latest = False
+            for catalog_version in sucatalog.CatalogVersion:
+                if did_find_latest is False:
+                    if catalog_version != sucatalog.CatalogVersion.GOLDEN_GATE:
+                        continue
+                    did_find_latest = True
+
+                if catalog_version == sucatalog.CatalogVersion.BIG_SUR:
+                    continue
+
+                if catalog_version != sucatalog.CatalogVersion.GOLDEN_GATE:
+                    logging.info(f"[MacOSInstallerList] Loading catalog from: {catalog_version.name} {sucatalog.SeedType.DeveloperSeed.name}")
+                    seed_contents = sucatalog.CatalogURL(version=catalog_version, seed=sucatalog.SeedType.DeveloperSeed).url_contents
+                    if seed_contents is not None:
+                        sucatalog_contents["Products"].update(seed_contents.get("Products", {}))
+
+                if catalog_version == sucatalog.CatalogVersion.SONOMA:
+                    break
+
             self.available_installers = sucatalog.CatalogProducts(sucatalog_contents).products
             self.available_installers.sort(key=lambda x: x.get("Build", ""), reverse=True)
             self.available_installers_latest = sucatalog.CatalogProducts(sucatalog_contents).latest_products
-            self.available_installers_latest.sort(key=lambda x: x.get("Build", ""), reverse=True)
 
         thread = threading.Thread(target=_fetch_installers)
         self._loading_thread = thread
@@ -451,6 +444,9 @@ class MacOSInstallerList(ScrollArea):
         url = install_assistant.get("URL")
         integrity_data_url = install_assistant.get("IntegrityDataURL")  # Get chunklist URL
         legacy_installer = install_assistant.get("LegacyInstaller", False)
+        requires_validation = install_assistant.get("RequiresValidation", False)
+        requires_extraction = install_assistant.get("RequiresExtraction", False)
+        legacy_components = install_assistant.get("LegacyComponents", [])
 
         if not url:
             logging.warning(f"[MacOSInstallerList] No download URL for {title}")
@@ -469,63 +465,49 @@ class MacOSInstallerList(ScrollArea):
         logging.info(f"[MacOSInstaller] Starting download: {title} ({version} - {build})")
         logging.info(f"[MacOSInstaller] URL: {url}")
 
-        # Resolve macOS version icon for DownloadCard
-        xnu_major = install_assistant.get("XNUMajor", 0)
-        try:
-            icon_index = xnu_major - 19
-            self.constants.icons_path[icon_index]
-        except (IndexError, TypeError):
-            icon_index = 0
-        icon_path = self.constants.icons_path[icon_index]
-        png_path = str(Path(icon_path).with_suffix(".png"))
+        png_path = _installer_icon_path(installer_data, self.constants)
 
-        if not Path(png_path).exists():
-            logging.warning(f"[MacOSInstaller] Icon not found: {png_path}, using generic")
-            generic_icon = str(self.constants.icon_path_macos_generic)
-            png_path = str(Path(generic_icon).with_suffix(".png"))
-
-        # macOS installers must be downloaded to payload_path for validation to work
         save_path = str(self.constants.payload_path)
-        if legacy_installer:
-            packages = install_assistant.get("Packages") or [{"URL": url, "IntegrityDataURL": integrity_data_url}]
-            package_count = 0
-            for package in packages:
-                package_url = package.get("URL")
-                if not package_url:
-                    continue
-                filename = Path(package_url).name
-                download_obj = DownloadObject(package_url, save_path, filename)
-                download_obj.chunklist_url = package.get("IntegrityDataURL")
-                download_obj.legacy_installer = True
-                TaskManager.start_download(download_obj, icon=png_path)
-                package_count += 1
-
-            if package_count == 0:
-                logging.warning(f"[MacOSInstallerList] No legacy packages for {title}")
-                InfoBar.error(
-                    "Download Failed",
-                    "No download packages available for this installer.",
-                    duration=3000,
-                    position=InfoBarPosition.BOTTOM_RIGHT,
-                    parent=self,
-                )
-                return
-
-            InfoBar.success(
-                "Download Started",
-                f"{title} ({version} - {build}) is downloading ({package_count} packages).",
-                duration=2000,
-                position=InfoBarPosition.BOTTOM_RIGHT,
-                parent=self,
-            )
-            return
-
-        filename = "InstallAssistant.pkg"
+        direct_download = install_assistant.get("DirectDownload", False)
+        filename = Path(url).name if direct_download else "InstallAssistant.pkg"
         download_obj = DownloadObject(url, save_path, filename)
+        download_obj.display_name = f"{title} {build}"
+
+        if legacy_components:
+            app_names = {
+                "10.13": "Install macOS High Sierra.app",
+                "10.14": "Install macOS Mojave.app",
+                "10.15": "Install macOS Catalina.app",
+            }
+            download_obj.components = legacy_components
+            download_obj.installer_app_name = next(
+                (
+                    app_name for version_prefix, app_name in app_names.items()
+                    if version.startswith(version_prefix)
+                ),
+                None,
+            )
+            destination = (
+                Path("/Applications") / download_obj.installer_app_name
+                if download_obj.installer_app_name else None
+            )
+            if destination and destination.exists():
+                answer = QMessageBox.question(
+                    self.window(),
+                    "Replace Existing Installer",
+                    f"{destination} already exists. Replace it after downloading?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
+                )
+                if answer != QMessageBox.StandardButton.Yes:
+                    return
+                download_obj.replace_existing_app = True
 
         # Store chunklist URL for validation
         download_obj.chunklist_url = integrity_data_url
         download_obj.legacy_installer = legacy_installer
+        download_obj.requires_validation = requires_validation
+        download_obj.requires_extraction = requires_extraction
 
         TaskManager.start_download(download_obj, icon=png_path)
 

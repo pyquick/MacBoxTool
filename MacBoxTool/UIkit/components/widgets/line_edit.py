@@ -23,16 +23,14 @@ _FOCUS_BORDER_THICKNESS = 3
 def _bottomRoundedBorderPath(rect: QRectF, radius: int = _INPUT_BORDER_RADIUS,
                              thickness: int = _FOCUS_BORDER_THICKNESS):
     inset = thickness / 2
-    r = max(0, radius - inset)
+    r = max(0, radius)
     left = rect.left() + inset
     right = rect.right() - inset
     bottom = rect.bottom() - inset
 
     path = QPainterPath()
-    path.moveTo(left, bottom - r)
-    path.arcTo(left, bottom - 2 * r, 2 * r, 2 * r, 180, 90)
+    path.moveTo(left + r, bottom)
     path.lineTo(right - r, bottom)
-    path.arcTo(right - 2 * r, bottom - 2 * r, 2 * r, 2 * r, 270, 90)
     return path
 
 

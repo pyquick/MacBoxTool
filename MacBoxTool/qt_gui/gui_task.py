@@ -12,6 +12,8 @@ from ..support.network_handler import (
 )
 from ..support.workers.validation_worker import ValidationWorker
 from ..support.workers.extraction_worker import ExtractionWorker
+from ..support.workers.group_download_worker import GroupDownloadWorker
+from ..support.workers.legacy_installer_setup_worker import LegacyInstallerSetupWorker
 
 
 class NetworkCheckWorker(QThread):
@@ -41,9 +43,9 @@ class TaskManager:
     """Global task manager for download tasks"""
     _instance = None
     _downloads: list[DownloadObject] = []
-    _workers: dict[int, DownloadWorker] = {}
+    _workers: dict[int, QThread] = {}
     _validation_workers: dict[int, ValidationWorker] = {}
-    _extraction_workers: dict[int, ExtractionWorker] = {}
+    _extraction_workers: dict[int, QThread] = {}
     _icons: dict[int, object] = {}  # download id -> icon for DownloadCard
     _shutting_down = False
     aconstants: Constants = None
@@ -61,27 +63,90 @@ class TaskManager:
         cls.aconstants = global_constants
 
     @classmethod
-    def start_download(cls, download: DownloadObject, icon=None) -> DownloadWorker:
+    def _destination_path(cls, download: DownloadObject) -> str:
+        if download.installer_app_name:
+            return os.path.realpath(os.path.join("/Applications", download.installer_app_name))
+        return os.path.realpath(os.path.join(download.save_path, download.filename))
+
+    @classmethod
+    def can_start_download(cls, download: DownloadObject) -> bool:
+        """Return whether no active task owns the same destination file."""
+        destination = cls._destination_path(download)
+        active_statuses = {
+            DownloadStatus.PENDING,
+            DownloadStatus.DOWNLOADING,
+            DownloadStatus.PAUSED,
+            DownloadStatus.VALIDATING,
+            DownloadStatus.EXTRACTING,
+        }
+        for active_download in cls._downloads:
+            if active_download is download:
+                continue
+            if (
+                active_download.status in active_statuses
+                and cls._destination_path(active_download) == destination
+            ):
+                return False
+
+        for active_worker in cls._workers.values():
+            try:
+                if cls._destination_path(active_worker.download) == destination:
+                    return False
+            except RuntimeError:
+                continue
+
+        if (
+            id(download) in cls._validation_workers
+            or id(download) in cls._extraction_workers
+        ):
+            return False
+
+        return True
+
+    @classmethod
+    def start_download(cls, download: DownloadObject, icon=None) -> Optional[DownloadWorker]:
         """Start a download and register it for display in TaskInterface.
 
         Usage:
             download = DownloadObject(url, save_path, filename)
             TaskManager.start_download(download, icon="/path/to/icon.png")
         """
+        if not cls.can_start_download(download):
+            logging.warning(
+                f"Download already active for destination: "
+                f"{cls._destination_path(download)}"
+            )
+            return None
+
         cls._shutting_down = False
         cls.register_download(download)
         if icon is not None:
             cls._icons[id(download)] = icon
             download.icon_path = icon
 
-        worker = DownloadWorker(download, cls.aconstants)
+        worker = (
+            GroupDownloadWorker(download, cls.aconstants)
+            if download.components
+            else DownloadWorker(download, cls.aconstants)
+        )
         cls._workers[id(download)] = worker
 
         worker.finished_signal.connect(
-            lambda success, msg: cls._on_download_finished(download, success, msg)
+            lambda success, msg, w=worker: cls._on_download_finished(
+                download, w, success, msg
+            )
+        )
+        worker.finished.connect(
+            lambda w=worker: cls._release_download_worker(download, w)
         )
         worker.start()
         return worker
+
+    @classmethod
+    def _release_download_worker(cls, download: DownloadObject, worker: DownloadWorker):
+        if cls._workers.get(id(download)) is worker:
+            cls._workers.pop(id(download), None)
+        worker.deleteLater()
 
 
     @classmethod
@@ -96,11 +161,11 @@ class TaskManager:
             if hasattr(worker, "requestInterruption"):
                 worker.requestInterruption()
             if worker.isRunning() and not worker.wait(timeout):
-                logging.warning(f"Worker {worker.__class__.__name__} did not stop in {timeout}ms; terminating")
-                worker.terminate()
-                worker.wait(1000)
+                logging.warning(
+                    f"Worker {worker.__class__.__name__} did not stop in {timeout}ms"
+                )
+                return False
             if not worker.isRunning():
-                worker.deleteLater()
                 return True
         except RuntimeError:
             return True
@@ -112,32 +177,38 @@ class TaskManager:
     @classmethod
     def cancel_download(cls, download: DownloadObject):
         """Cancel active download, validation, and extraction workers for a download."""
-        worker = cls._workers.pop(id(download), None)
+        worker = cls._workers.get(id(download))
         cls._stop_worker(worker, 5000)
 
-        validation_worker = cls._validation_workers.pop(id(download), None)
+        validation_worker = cls._validation_workers.get(id(download))
         cls._stop_worker(validation_worker, 5000)
 
-        extraction_worker = cls._extraction_workers.pop(id(download), None)
+        extraction_worker = cls._extraction_workers.get(id(download))
         cls._stop_worker(extraction_worker, 5000)
 
     @classmethod
     def shutdown_all(cls):
         """Stop all task workers before application shutdown."""
         cls._shutting_down = True
-        for download in cls.get_downloads():
-            cls.cancel_download(download)
+        workers = list({
+            *cls._workers.values(),
+            *cls._validation_workers.values(),
+            *cls._extraction_workers.values(),
+        })
 
-        for worker in list(cls._workers.values()):
-            cls._stop_worker(worker, 5000)
-        for worker in list(cls._validation_workers.values()):
-            cls._stop_worker(worker, 5000)
-        for worker in list(cls._extraction_workers.values()):
+        for worker in workers:
             cls._stop_worker(worker, 5000)
 
-        cls._workers.clear()
-        cls._validation_workers.clear()
-        cls._extraction_workers.clear()
+        for worker in workers:
+            try:
+                if worker.isRunning():
+                    logging.warning(
+                        f"Waiting for {worker.__class__.__name__} to finish shutdown"
+                    )
+                    worker.wait()
+            except RuntimeError:
+                pass
+
         cls._icons.clear()
 
     @classmethod
@@ -155,41 +226,91 @@ class TaskManager:
             worker.resume()
 
     @classmethod
-    def _on_download_finished(cls, download: DownloadObject, success: bool, message: str):
+    def _on_download_finished(
+        cls,
+        download: DownloadObject,
+        finished_worker: DownloadWorker,
+        success: bool,
+        message: str,
+    ):
         """Handle download completion — auto-start validation if successful"""
-        worker = cls._workers.pop(id(download), None)
+        current_worker = cls._workers.get(id(download))
+        if current_worker is not finished_worker:
+            return
 
-        # 清理 worker
-        if worker:
-            worker.deleteLater()
         cls._icons.pop(id(download), None)
 
         if success and not cls._shutting_down:
             logging.info(f"Download completed: {download.filename}")
-            # Automatically start validation for modern macOS installers
-            if download.filename == "InstallAssistant.pkg":
-                # Use the stored chunklist URL from download object
+            if download.components:
+                download.status = DownloadStatus.VALIDATING
+                cls.start_legacy_setup(download)
+                return
+
+            requires_validation = download.requires_validation or (
+                download.filename == "InstallAssistant.pkg"
+                and not download.legacy_installer
+            )
+            if requires_validation:
                 chunklist_url = download.chunklist_url
-                if not chunklist_url:
-                    logging.error(f"No chunklist URL available for {download.filename}")
-                    download.status = DownloadStatus.FAILED
-                    download.error_message = "No chunklist URL available"
-                else:
-                    # Switch to VALIDATING so DownloadCard shows indeterminate progress bar
-                    download.status = DownloadStatus.VALIDATING
-                    cls.start_validation(download, chunklist_url)
+                download.status = DownloadStatus.VALIDATING
+                cls.start_validation(download, chunklist_url)
             else:
                 download.status = DownloadStatus.COMPLETED
         else:
             logging.warning(f"Download failed: {download.filename} - {message}")
 
     @classmethod
-    def start_validation(cls, download: DownloadObject, chunklist_url: str) -> ValidationWorker:
+    def start_legacy_setup(cls, download: DownloadObject) -> LegacyInstallerSetupWorker:
+        worker = LegacyInstallerSetupWorker(download)
+        cls._extraction_workers[id(download)] = worker
+        worker.finished_signal.connect(
+            lambda success, message, w=worker: cls._on_legacy_setup_finished(
+                download, w, success, message
+            )
+        )
+        worker.finished.connect(
+            lambda w=worker: cls._release_extraction_worker(download, w)
+        )
+        worker.progress_signal.connect(
+            lambda current, total: cls._on_validation_progress(download, current, total)
+        )
+        worker.status_changed_signal.connect(
+            lambda status: cls._on_status_changed(download, status)
+        )
+        worker.start()
+        return worker
+
+    @classmethod
+    def _on_legacy_setup_finished(
+        cls,
+        download: DownloadObject,
+        finished_worker: LegacyInstallerSetupWorker,
+        success: bool,
+        message: str,
+    ):
+        if cls._extraction_workers.get(id(download)) is not finished_worker:
+            return
+        if success:
+            download.status = DownloadStatus.COMPLETED
+            download.downloaded_size = download.total_size
+            logging.info(f"Legacy installer created: {message}")
+        else:
+            download.status = DownloadStatus.FAILED
+            download.error_message = message
+            logging.error(f"Legacy installer setup failed: {message}")
+
+    @classmethod
+    def start_validation(
+        cls,
+        download: DownloadObject,
+        chunklist_url: str = None,
+    ) -> ValidationWorker:
         """Start validation worker for downloaded installer
 
         Args:
             download: DownloadObject with completed installer
-            chunklist_url: URL to download chunklist from
+            chunklist_url: URL to download CNKL integrity data from
 
         Returns:
             ValidationWorker instance
@@ -201,7 +322,12 @@ class TaskManager:
         cls._validation_workers[id(download)] = worker
 
         worker.finished_signal.connect(
-            lambda success, msg: cls._on_validation_finished(download, success, msg)
+            lambda success, msg, w=worker: cls._on_validation_finished(
+                download, w, success, msg
+            )
+        )
+        worker.finished.connect(
+            lambda w=worker: cls._release_validation_worker(download, w)
         )
         worker.progress_signal.connect(
             lambda current, total: cls._on_validation_progress(download, current, total)
@@ -211,6 +337,12 @@ class TaskManager:
         )
         worker.start()
         return worker
+
+    @classmethod
+    def _release_validation_worker(cls, download: DownloadObject, worker: ValidationWorker):
+        if cls._validation_workers.get(id(download)) is worker:
+            cls._validation_workers.pop(id(download), None)
+        worker.deleteLater()
 
     @classmethod
     def _on_validation_progress(cls, download: DownloadObject, current_chunk: int, total_chunks: int):
@@ -233,20 +365,27 @@ class TaskManager:
             download.status = new_status
 
     @classmethod
-    def _on_validation_finished(cls, download: DownloadObject, success: bool, message: str):
+    def _on_validation_finished(
+        cls,
+        download: DownloadObject,
+        finished_worker: ValidationWorker,
+        success: bool,
+        message: str,
+    ):
         """Handle validation completion - auto-start extraction on success"""
-        worker = cls._validation_workers.pop(id(download), None)
-
-        if worker:
-            worker.deleteLater()
+        current_worker = cls._validation_workers.get(id(download))
+        if current_worker is not finished_worker:
+            return
 
         if success and not cls._shutting_down:
             logging.info(f"Validation completed: {download.filename}")
-            # Automatically start extraction
-            download.status = DownloadStatus.EXTRACTING
-            from pathlib import Path
-            pkg_path = Path(download.save_path) / download.filename
-            cls.start_extraction(download, pkg_path)
+            if download.requires_extraction or download.filename == "InstallAssistant.pkg":
+                download.status = DownloadStatus.EXTRACTING
+                from pathlib import Path
+                pkg_path = Path(download.save_path) / download.filename
+                cls.start_extraction(download, pkg_path)
+            else:
+                download.status = DownloadStatus.COMPLETED
         else:
             logging.error(f"Validation failed: {download.filename} - {message}")
             download.status = DownloadStatus.FAILED
@@ -269,7 +408,12 @@ class TaskManager:
         cls._extraction_workers[id(download)] = worker
 
         worker.finished_signal.connect(
-            lambda success, msg: cls._on_extraction_finished(download, success, msg)
+            lambda success, msg, w=worker: cls._on_extraction_finished(
+                download, w, success, msg
+            )
+        )
+        worker.finished.connect(
+            lambda w=worker: cls._release_extraction_worker(download, w)
         )
         worker.status_changed_signal.connect(
             lambda status: cls._on_status_changed(download, status)
@@ -278,12 +422,23 @@ class TaskManager:
         return worker
 
     @classmethod
-    def _on_extraction_finished(cls, download: DownloadObject, success: bool, message: str):
-        """Handle extraction completion"""
-        worker = cls._extraction_workers.pop(id(download), None)
+    def _release_extraction_worker(cls, download: DownloadObject, worker: ExtractionWorker):
+        if cls._extraction_workers.get(id(download)) is worker:
+            cls._extraction_workers.pop(id(download), None)
+        worker.deleteLater()
 
-        if worker:
-            worker.deleteLater()
+    @classmethod
+    def _on_extraction_finished(
+        cls,
+        download: DownloadObject,
+        finished_worker: ExtractionWorker,
+        success: bool,
+        message: str,
+    ):
+        """Handle extraction completion"""
+        current_worker = cls._extraction_workers.get(id(download))
+        if current_worker is not finished_worker:
+            return
 
         if success:
             logging.info(f"Extraction completed: {download.filename}")
@@ -304,10 +459,6 @@ class TaskManager:
         """Unregister a download task"""
         if download in cls._downloads:
             cls._downloads.remove(download)
-        cls._workers.pop(id(download), None)
-        # Also cleanup validation and extraction workers
-        cls._validation_workers.pop(id(download), None)
-        cls._extraction_workers.pop(id(download), None)
 
     @classmethod
     def get_downloads(cls) -> list[DownloadObject]:
@@ -316,11 +467,10 @@ class TaskManager:
 
     @classmethod
     def clear(cls):
-        """Clear all registered downloads"""
+        """Clear registered tasks after stopping their workers safely."""
+        cls.shutdown_all()
         cls._downloads.clear()
-        cls._workers.clear()
-        cls._validation_workers.clear()
-        cls._extraction_workers.clear()
+        cls._icons.clear()
 
 
 class TaskInterface(ScrollArea):
@@ -565,7 +715,7 @@ class TaskInterface(ScrollArea):
 
     def _on_open_file(self, download: DownloadObject):
         """Handle open file action"""
-        file_path = os.path.join(download.save_path, download.filename)
+        file_path = download.output_path or os.path.join(download.save_path, download.filename)
         if os.path.exists(file_path):
             QDesktopServices.openUrl(QUrl.fromLocalFile(file_path))
         else:
@@ -581,7 +731,10 @@ class TaskInterface(ScrollArea):
 
     def _on_open_folder(self, download: DownloadObject):
         """Handle open folder action"""
-        folder_path = download.save_path
+        folder_path = (
+            str(Path(download.output_path).parent)
+            if download.output_path else download.save_path
+        )
         if os.path.exists(folder_path):
             QDesktopServices.openUrl(QUrl.fromLocalFile(folder_path))
         else:
@@ -597,6 +750,7 @@ class TaskInterface(ScrollArea):
 
     def _on_cancel_download(self, download: DownloadObject):
         """Handle cancel download action"""
+        cancelled_worker = self.task_manager._workers.get(id(download))
         self.task_manager.cancel_download(download)
 
         InfoBar.warning(
@@ -607,8 +761,12 @@ class TaskInterface(ScrollArea):
             parent=self,
         )
 
-        # Auto-delete card after cancel
-        QTimer.singleShot(500, lambda: self._on_remove_download(download))
+        # Auto-delete the cancelled task only if it has not been replaced.
+        QTimer.singleShot(
+            500,
+            self,
+            lambda: self._on_remove_download(download, cancelled_worker),
+        )
 
     def _on_pause_download(self, download: DownloadObject):
         """Handle pause download action"""
@@ -624,23 +782,41 @@ class TaskInterface(ScrollArea):
 
         logging.info(f"Retrying download: {download.filename}")
 
-        # Delete corrupted file
-        file_path = Path(download.save_path) / download.filename
-        if file_path.exists():
-            try:
-                file_path.unlink()
-                logging.info(f"Deleted corrupted file: {file_path}")
-            except Exception as e:
-                logging.error(f"Failed to delete corrupted file: {e}")
+        if not self.task_manager.can_start_download(download):
+            InfoBar.warning(
+                "Download Still Stopping",
+                f"Wait for {download.filename} to stop before retrying.",
+                duration=3000,
+                position=InfoBarPosition.BOTTOM_RIGHT,
+                parent=self,
+            )
+            return
+
+        # Delete corrupted file(s)
+        paths = (
+            [Path(download.save_path) / Path(component["URL"]).name for component in download.components]
+            if download.components else
+            [Path(download.save_path) / download.filename]
+        )
+        for file_path in paths:
+            if file_path.exists():
+                try:
+                    file_path.unlink()
+                    logging.info(f"Deleted corrupted file: {file_path}")
+                except Exception as e:
+                    logging.error(f"Failed to delete corrupted file: {e}")
 
         # Reset download status
         download.status = DownloadStatus.PENDING
         download.downloaded_size = 0
+        download.component_progress = []
         download.error_message = ""
 
         # Restart download
         icon = self.task_manager._icons.get(id(download))
-        self.task_manager.start_download(download, icon=icon)
+        worker = self.task_manager.start_download(download, icon=icon)
+        if worker is None:
+            return
 
         InfoBar.info(
             "Download Restarted",
@@ -650,8 +826,16 @@ class TaskInterface(ScrollArea):
             parent=self,
         )
 
-    def _on_remove_download(self, download: DownloadObject):
+    def _on_remove_download(
+        self,
+        download: DownloadObject,
+        cancelled_worker: DownloadWorker = None,
+    ):
         """Handle remove download action"""
+        current_worker = self.task_manager._workers.get(id(download))
+        if cancelled_worker is not None and current_worker not in (None, cancelled_worker):
+            return
+
         # Cancel if still running
         self.task_manager.cancel_download(download)
         # Unregister from task manager
@@ -760,7 +944,35 @@ class TaskInterface(ScrollArea):
     def _on_redownload(self, download: DownloadObject, icon=None):
         """Re-download a file from history"""
         new_download = DownloadObject(download.url, download.save_path, download.filename)
-        TaskManager.start_download(new_download, icon=icon)
+        new_download.display_name = download.display_name
+        new_download.components = download.components
+        new_download.installer_app_name = download.installer_app_name
+        if new_download.installer_app_name:
+            destination = Path("/Applications") / new_download.installer_app_name
+            if destination.exists():
+                answer = QMessageBox.question(
+                    self.window(),
+                    "Replace Existing Installer",
+                    f"{destination} already exists. Replace it after downloading?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
+                )
+                if answer != QMessageBox.StandardButton.Yes:
+                    return
+                new_download.replace_existing_app = True
+        new_download.chunklist_url = download.chunklist_url
+        new_download.legacy_installer = download.legacy_installer
+        new_download.requires_validation = download.requires_validation
+        new_download.requires_extraction = download.requires_extraction
+        if TaskManager.start_download(new_download, icon=icon) is None:
+            InfoBar.warning(
+                "Download Already Active",
+                f"{download.filename} is already downloading or stopping.",
+                duration=3000,
+                position=InfoBarPosition.BOTTOM_RIGHT,
+                parent=self,
+            )
+            return
 
         InfoBar.success(
             "Download Started",
@@ -800,10 +1012,12 @@ class TaskInterface(ScrollArea):
         if worker is not None:
             try:
                 worker.cancel()
+                worker.requestInterruption()
                 if worker.isRunning() and not worker.wait(2000):
-                    logging.warning("NetworkCheckWorker did not stop in 2000ms; terminating")
-                    worker.terminate()
-                    worker.wait(1000)
+                    logging.warning(
+                        "Waiting for NetworkCheckWorker to finish shutdown"
+                    )
+                    worker.wait()
                 worker.deleteLater()
             except RuntimeError:
                 pass

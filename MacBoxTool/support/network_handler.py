@@ -22,6 +22,9 @@ MAX_REDIRECTS = 10
 MAX_MEMORY_USAGE = 1024 * 1024 * 1024 * 1024  # 1TB max memory for multipart downloads
 SENSITIVE_PARAMS = {'token', 'key', 'api_key', 'apikey', 'secret', 'password', 'auth', 'access_token'}
 
+MAX_RANGE_RETRIES = 5
+RANGE_RETRY_BACKOFF = 1.0
+
 class DownloadStatus:
     """Download task status enum"""
     PENDING = "pending"
@@ -52,11 +55,20 @@ class DownloadObject:
         self.last_downloaded_size = 0
         self.download_speed = 0
         self.icon_path = None
+        self.display_name = self.filename
+        self.components = []
+        self.component_progress = []
+        self.output_path = None
+        self.installer_app_name = None
+        self.replace_existing_app = False
 
         # Validation progress tracking
         self.current_validation_chunk = 0
         self.total_validation_chunks = 0
         self.chunklist_url = None  # URL to download chunklist for validation
+        self.legacy_installer = False
+        self.requires_validation = False
+        self.requires_extraction = False
 
     def update_progress(self, downloaded: int, total: int):
         """Update download progress and calculate speed"""
@@ -84,6 +96,14 @@ class DownloadObject:
         """Get download progress percentage"""
         if self.status == DownloadStatus.VALIDATING and self.total_validation_chunks > 0:
             return int((self.current_validation_chunk / self.total_validation_chunks) * 100)
+        if self.components and self.component_progress:
+            combined_total = sum(total for _, total in self.component_progress)
+            if combined_total == 0:
+                return 0
+            combined_downloaded = sum(
+                downloaded for downloaded, _ in self.component_progress
+            )
+            return int((combined_downloaded / combined_total) * 100)
         if self.total_size == 0:
             return 0
         return int((self.downloaded_size / self.total_size) * 100)
@@ -272,7 +292,7 @@ class NetworkUtilities:
 
 
 class DownloadWorker(QThread):
-    """Multi-threaded download worker (16 threads)"""
+    """Multi-threaded download worker"""
     progress_signal = Signal(object, object)  # downloaded, total (object to avoid 32-bit int overflow)
     finished_signal = Signal(bool, str)  # success, message
     status_changed_signal = Signal(str)  # DownloadStatus
@@ -285,9 +305,11 @@ class DownloadWorker(QThread):
         self._is_cancelled = False
         self._is_paused = False
         self._lock = threading.Lock()
+        self._download_errors = []
+        self._range_failed = threading.Event()
 
     def run(self):
-        """Execute multi-threaded download with 16 threads"""
+        """Execute multi-threaded download"""
         try:
             # Unified logging: Download start
             logging.info(f"[DownloadWorker] Starting: {self.download.filename}")
@@ -318,8 +340,10 @@ class DownloadWorker(QThread):
 
             self.download.total_size = total_size
 
+            thread_count = max(1, self.download.thread_count)
+
             # Fall back to single-thread for small files
-            if total_size < 16 * 8192:
+            if total_size < thread_count * 8192:
                 self._download_single_thread(total_size)
                 return
 
@@ -328,15 +352,14 @@ class DownloadWorker(QThread):
             temp_dir = os.path.join(self.download.save_path, f".temp_{safe_name}")
             os.makedirs(temp_dir, exist_ok=True)
 
-            # Calculate chunk size for 16 threads
-            chunk_size = total_size // 16
+            # Split the file across the configured worker threads
+            chunk_size = total_size // thread_count
             threads = []
             parts = []
 
-            # Start 16 threads to download different parts
-            for i in range(16):
+            for i in range(thread_count):
                 start = i * chunk_size
-                end = total_size if i == 15 else (i + 1) * chunk_size
+                end = total_size if i == thread_count - 1 else (i + 1) * chunk_size
                 part_file = os.path.join(temp_dir, f"part_{i}")
 
                 if self._is_cancelled:
@@ -358,6 +381,10 @@ class DownloadWorker(QThread):
             # Wait for all threads to complete
             for thread in threads:
                 thread.join()
+
+            if self._download_errors:
+                self._cleanup_temp(temp_dir)
+                raise RuntimeError(self._download_errors[0])
 
             if self._is_cancelled:
                 self._cleanup_temp(temp_dir)
@@ -394,84 +421,186 @@ class DownloadWorker(QThread):
             utilities.enable_sleep_after_running()
 
     def _download_range(self, url: str, start: int, end: int, part_file: str, thread_id: int):
-        """Download a specific range of bytes"""
-        try:
-            headers = {'Range': f'bytes={start}-{end}'}
-            response = self.network_utilities.custom_get(url, headers=headers, stream=True)
+        """Download a byte range and resume it after transient stream failures."""
+        expected_size = end - start + 1
+        bytes_written = 0
 
-            with open(part_file, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if self._is_cancelled:
-                        response.close()
-                        return
-                    while self._is_paused:
-                        if self._is_cancelled:
-                            response.close()
+        with open(part_file, 'wb') as output:
+            for attempt in range(MAX_RANGE_RETRIES + 1):
+                response = None
+                try:
+                    range_start = start + bytes_written
+                    headers = {
+                        'Range': f'bytes={range_start}-{end}',
+                        'Accept-Encoding': 'identity',
+                    }
+                    response = self.network_utilities.custom_get(
+                        url,
+                        headers=headers,
+                        stream=True,
+                        timeout=(30, 120),
+                    )
+                    response.raise_for_status()
+
+                    expected_range = f"bytes {range_start}-{end}/"
+                    content_range = response.headers.get('Content-Range', '')
+                    if response.status_code != 206 or not content_range.startswith(expected_range):
+                        raise RuntimeError(
+                            f"Server returned an invalid range for part {thread_id}: "
+                            f"HTTP {response.status_code}, Content-Range={content_range!r}"
+                        )
+
+                    for chunk in response.iter_content(chunk_size=64 * 1024):
+                        if self._is_cancelled or self._range_failed.is_set():
                             return
-                        threading.Event().wait(0.1)
-                    f.write(chunk)
-                    with self._lock:
-                        self.download.downloaded_size += len(chunk)
-                        self.progress_signal.emit(self.download.downloaded_size, self.download.total_size)
-                        self.download.update_progress(self.download.downloaded_size, self.download.total_size)
-            response.close()
-        except Exception as e:
-            logging.error(f"[DownloadWorker] Thread {thread_id} failed: {e}")
-            utilities.enable_sleep_after_running()
+                        while self._is_paused:
+                            if self._is_cancelled:
+                                return
+                            threading.Event().wait(0.1)
+                        if not chunk:
+                            continue
+                        output.write(chunk)
+                        bytes_written += len(chunk)
+                        with self._lock:
+                            self.download.update_progress(
+                                self.download.downloaded_size + len(chunk),
+                                self.download.total_size,
+                            )
+                            self.progress_signal.emit(
+                                self.download.downloaded_size,
+                                self.download.total_size,
+                            )
+
+                    if bytes_written == expected_size:
+                        return
+                    raise requests.exceptions.ChunkedEncodingError(
+                        f"Incomplete response: expected {expected_size}, got {bytes_written}"
+                    )
+                except (
+                    requests.exceptions.ConnectionError,
+                    requests.exceptions.ChunkedEncodingError,
+                    requests.exceptions.ReadTimeout,
+                    requests.exceptions.Timeout,
+                ) as error:
+                    if attempt >= MAX_RANGE_RETRIES:
+                        self._record_range_error(thread_id, error)
+                        return
+                    logging.warning(
+                        f"[DownloadWorker] Part {thread_id} interrupted after "
+                        f"{bytes_written}/{expected_size} bytes; resuming "
+                        f"(attempt {attempt + 2}/{MAX_RANGE_RETRIES + 1}): {error}"
+                    )
+                    threading.Event().wait(RANGE_RETRY_BACKOFF * (attempt + 1))
+                except Exception as error:
+                    self._record_range_error(thread_id, error)
+                    return
+                finally:
+                    if response is not None:
+                        response.close()
+
+    def _record_range_error(self, thread_id: int, error: Exception) -> None:
+        error_message = f"Download part {thread_id} failed: {error}"
+        logging.error(f"[DownloadWorker] {error_message}")
+        self._range_failed.set()
+        with self._lock:
+            self._download_errors.append(error_message)
 
     def _download_single_thread(self, total_size: int):
-        """Fallback single-thread download"""
-        response = None
-        try:
-            # Unified logging: Single-thread fallback
-            logging.info(f"[DownloadWorker] Starting (single-thread): {self.download.filename}")
+        """Fallback single-thread download with stream retry support."""
+        final_path = os.path.join(self.download.save_path, self.download.filename)
+        self.download.total_size = total_size
 
-            final_path = os.path.join(self.download.save_path, self.download.filename)
-            response = self.network_utilities.custom_get(self.download.url, stream=True)
+        for attempt in range(MAX_RANGE_RETRIES + 1):
+            response = None
+            try:
+                downloaded = os.path.getsize(final_path) if os.path.exists(final_path) else 0
+                headers = {'Accept-Encoding': 'identity'}
+                if downloaded:
+                    headers['Range'] = f'bytes={downloaded}-'
+                response = self.network_utilities.custom_get(
+                    self.download.url,
+                    headers=headers,
+                    stream=True,
+                    timeout=(30, 120),
+                )
+                response.raise_for_status()
 
-            # Try to get total size from response headers if not known
-            if total_size == 0:
-                total_size = int(response.headers.get('content-length', 0))
-                self.download.total_size = total_size
+                if downloaded:
+                    content_range = response.headers.get('Content-Range', '')
+                    if response.status_code != 206 or not content_range.startswith(
+                        f'bytes {downloaded}-'
+                    ):
+                        raise RuntimeError(
+                            f"Server did not honor resume request: {content_range!r}"
+                        )
+                elif total_size == 0:
+                    total_size = int(response.headers.get('content-length', 0))
+                    self.download.total_size = total_size
 
-            with open(final_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if self._is_cancelled:
-                        self.download.status = DownloadStatus.CANCELLED
-                        self.status_changed_signal.emit(DownloadStatus.CANCELLED)
-                        self.finished_signal.emit(False, "Download cancelled")
-                        utilities.enable_sleep_after_running()
-                        return
-                    while self._is_paused:
+                with open(final_path, 'ab' if downloaded else 'wb') as output:
+                    for chunk in response.iter_content(chunk_size=64 * 1024):
                         if self._is_cancelled:
                             self.download.status = DownloadStatus.CANCELLED
                             self.status_changed_signal.emit(DownloadStatus.CANCELLED)
                             self.finished_signal.emit(False, "Download cancelled")
                             utilities.enable_sleep_after_running()
                             return
-                        threading.Event().wait(0.1)
-                    f.write(chunk)
-                    self.download.downloaded_size += len(chunk)
-                    self.progress_signal.emit(self.download.downloaded_size, total_size)
-                    self.download.update_progress(self.download.downloaded_size, total_size)
+                        while self._is_paused:
+                            if self._is_cancelled:
+                                self.download.status = DownloadStatus.CANCELLED
+                                self.status_changed_signal.emit(DownloadStatus.CANCELLED)
+                                self.finished_signal.emit(False, "Download cancelled")
+                                utilities.enable_sleep_after_running()
+                                return
+                            threading.Event().wait(0.1)
+                        if not chunk:
+                            continue
+                        output.write(chunk)
+                        downloaded += len(chunk)
+                        self.download.update_progress(downloaded, total_size)
+                        self.progress_signal.emit(downloaded, total_size)
 
-            # Correct total_size to match actual downloaded bytes
-            self.download.total_size = self.download.downloaded_size
+                if total_size and downloaded != total_size:
+                    raise requests.exceptions.ChunkedEncodingError(
+                        f"Incomplete response: expected {total_size}, got {downloaded}"
+                    )
 
-            self.download.status = DownloadStatus.COMPLETED
-            self.download.completed_at = QDateTime.currentDateTime()
-            self.status_changed_signal.emit(DownloadStatus.COMPLETED)
-            self.finished_signal.emit(True, final_path)
-
-        except Exception as e:
-            self.download.status = DownloadStatus.FAILED
-            self.download.error_message = str(e)
-            self.status_changed_signal.emit(DownloadStatus.FAILED)
-            self.finished_signal.emit(False, str(e))
-        finally:
-            utilities.enable_sleep_after_running()
-            if response:
-                response.close()
+                self.download.total_size = downloaded
+                self.download.downloaded_size = downloaded
+                self.download.status = DownloadStatus.COMPLETED
+                self.download.completed_at = QDateTime.currentDateTime()
+                self.status_changed_signal.emit(DownloadStatus.COMPLETED)
+                self.finished_signal.emit(True, final_path)
+                utilities.enable_sleep_after_running()
+                return
+            except (
+                requests.exceptions.ConnectionError,
+                requests.exceptions.ChunkedEncodingError,
+                requests.exceptions.ReadTimeout,
+                requests.exceptions.Timeout,
+            ) as error:
+                if attempt >= MAX_RANGE_RETRIES:
+                    self.download.status = DownloadStatus.FAILED
+                    self.download.error_message = str(error)
+                    self.status_changed_signal.emit(DownloadStatus.FAILED)
+                    self.finished_signal.emit(False, str(error))
+                    utilities.enable_sleep_after_running()
+                    return
+                logging.warning(
+                    f"[DownloadWorker] Stream interrupted; resuming "
+                    f"(attempt {attempt + 2}/{MAX_RANGE_RETRIES + 1}): {error}"
+                )
+                threading.Event().wait(RANGE_RETRY_BACKOFF * (attempt + 1))
+            except Exception as error:
+                self.download.status = DownloadStatus.FAILED
+                self.download.error_message = str(error)
+                self.status_changed_signal.emit(DownloadStatus.FAILED)
+                self.finished_signal.emit(False, str(error))
+                utilities.enable_sleep_after_running()
+                return
+            finally:
+                if response is not None:
+                    response.close()
 
     def _combine_parts(self, parts: list, final_path: str):
         """Combine downloaded parts into final file"""
@@ -549,7 +678,15 @@ class DownloadHistory:
                     "downloaded_size": d.downloaded_size,
                     "status": d.status,
                     "completed_at": d.completed_at.toSecsSinceEpoch() if d.completed_at else None,
-                    "icon_path": d.icon_path
+                    "icon_path": d.icon_path,
+                    "display_name": d.display_name,
+                    "components": d.components,
+                    "output_path": d.output_path,
+                    "installer_app_name": d.installer_app_name,
+                    "chunklist_url": d.chunklist_url,
+                    "legacy_installer": d.legacy_installer,
+                    "requires_validation": d.requires_validation,
+                    "requires_extraction": d.requires_extraction,
                 })
 
             with open(history_path, 'w') as f:
@@ -574,6 +711,27 @@ class DownloadHistory:
                 download.downloaded_size = item.get("downloaded_size", 0)
                 download.status = item.get("status", DownloadStatus.COMPLETED)
                 download.icon_path = item.get("icon_path")
+                download.display_name = item.get("display_name", download.filename)
+                download.components = item.get("components", [])
+                download.output_path = item.get("output_path")
+                download.installer_app_name = item.get("installer_app_name")
+                download.chunklist_url = item.get("chunklist_url")
+                download.legacy_installer = item.get(
+                    "legacy_installer",
+                    os.path.basename(download.url) == "InstallAssistantAuto.pkg",
+                )
+                download.requires_validation = item.get(
+                    "requires_validation",
+                    download.filename in {"InstallAssistant.pkg", "InstallESDDmg.pkg"}
+                    and not (
+                        download.filename == "InstallAssistant.pkg"
+                        and download.legacy_installer
+                    ),
+                )
+                download.requires_extraction = item.get(
+                    "requires_extraction",
+                    download.requires_validation,
+                )
                 if item.get("completed_at"):
                     download.completed_at = QDateTime.fromSecsSinceEpoch(item["completed_at"])
                 self.history.append(download)

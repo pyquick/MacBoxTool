@@ -4,6 +4,7 @@ Handles chunklist verification in background thread
 """
 
 import logging
+import subprocess
 import requests
 from pathlib import Path
 from io import BytesIO
@@ -27,13 +28,13 @@ class ValidationWorker(QThread):
     finished_signal = Signal(bool, str)  # success, message
     status_changed_signal = Signal(str)  # status string
 
-    def __init__(self, pkg_path: Path, chunklist_url: str):
+    def __init__(self, pkg_path: Path, chunklist_url: str = None):
         """
         Initialize validation worker
 
         Args:
-            pkg_path: Path to InstallAssistant.pkg to validate
-            chunklist_url: URL to download chunklist from
+            pkg_path: Path to installer package to validate
+            chunklist_url: URL to download CNKL integrity data from
         """
         super().__init__()
         self.pkg_path = pkg_path
@@ -57,10 +58,14 @@ class ValidationWorker(QThread):
                 self.finished_signal.emit(False, "Validation cancelled")
                 return
 
-            # Validate chunklist URL
             if not self.chunklist_url:
-                logging.error("No chunklist URL provided")
-                self.finished_signal.emit(False, "No chunklist URL available - cannot validate installer")
+                if self._verify_package_signature():
+                    logging.info("Apple package signature validation completed successfully")
+                    self.finished_signal.emit(True, "Validation successful")
+                elif self._is_cancelled:
+                    self.finished_signal.emit(False, "Validation cancelled")
+                else:
+                    self.finished_signal.emit(False, "Apple package signature validation failed")
                 return
 
             # Download chunklist
@@ -110,6 +115,24 @@ class ValidationWorker(QThread):
         except Exception as e:
             logging.error(f"Validation worker error: {e}")
             self.finished_signal.emit(False, f"Validation error: {str(e)}")
+
+    def _verify_package_signature(self) -> bool:
+        """Validate the XAR contents and Apple signing chain for a package."""
+        if self._is_cancelled:
+            return False
+
+        result = subprocess.run(
+            ["/usr/sbin/pkgutil", "--check-signature", str(self.pkg_path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        if result.returncode != 0:
+            logging.error(
+                "Package signature validation failed: "
+                f"{result.stdout.decode(errors='replace').strip()}"
+            )
+            return False
+        return True
 
     def _download_chunklist(self) -> Optional[BytesIO]:
         """

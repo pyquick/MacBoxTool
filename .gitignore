@@ -129,6 +129,7 @@ docs/_build/
 KDK.dmg
 KDKInfo.plist
 # PyBuilder
+InstallESD.dmg
 .pybuilder/
 target/
 

@@ -179,6 +179,7 @@ class MenuActionListWidget(QListWidget):
         super().__init__(parent)
         self._itemHeight = 28
         self._maxVisibleItems = -1  # adjust visible items according to the size of screen
+        self._contentSize = None
 
         self.setViewportMargins(0, 6, 0, 6)
         self.setTextElideMode(Qt.ElideNone)
@@ -193,28 +194,47 @@ class MenuActionListWidget(QListWidget):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
+    def invalidateSizeHint(self):
+        self._contentSize = None
+
     def insertItem(self, row, item):
         """ inserts menu item at the position in the list given by row """
+        self.invalidateSizeHint()
         super().insertItem(row, item)
         self.adjustSize()
 
     def addItem(self, item):
         """ add menu item at the end """
+        self.invalidateSizeHint()
         super().addItem(item)
         self.adjustSize()
 
     def takeItem(self, row):
         """ delete item from list """
+        self.invalidateSizeHint()
         item = super().takeItem(row)
         self.adjustSize()
         return item
 
+    def clear(self):
+        self.invalidateSizeHint()
+        super().clear()
+
     def adjustSize(self, pos=None, aniType=MenuAnimationType.NONE):
-        size = QSize()
-        for i in range(self.count()):
-            s = self.item(i).sizeHint()
-            size.setWidth(max(s.width(), size.width(), 1))
-            size.setHeight(max(1, size.height() + s.height()))
+        if self._contentSize is None:
+            size = QSize()
+            uniformItemSizes = self.uniformItemSizes()
+            for i in range(self.count()):
+                s = self.item(i).sizeHint()
+                size.setWidth(max(s.width(), size.width(), 1))
+                if not uniformItemSizes:
+                    size.setHeight(max(1, size.height() + s.height()))
+
+            if uniformItemSizes:
+                size.setHeight(max(1, self.count() * self._itemHeight))
+            self._contentSize = size
+        else:
+            size = QSize(self._contentSize)
 
         # adjust the height of viewport
         w, h = MenuAnimationManager.make(self, aniType).availableViewSize(pos)
@@ -245,6 +265,7 @@ class MenuActionListWidget(QListWidget):
                 item.setSizeHint(QSize(item.sizeHint().width(), height))
 
         self._itemHeight = height
+        self.invalidateSizeHint()
         self.adjustSize()
 
     def setMaxVisibleItems(self, num: int):
@@ -264,7 +285,10 @@ class MenuActionListWidget(QListWidget):
     def itemsHeight(self):
         """ Return the height of all items """
         N = self.count() if self.maxVisibleItems() < 0 else min(self.maxVisibleItems(), self.count())
-        h = sum(self.item(i).sizeHint().height() for i in range(N))
+        if self.uniformItemSizes():
+            h = N * self._itemHeight
+        else:
+            h = sum(self.item(i).sizeHint().height() for i in range(N))
         m = self.viewportMargins()
         return h + m.top() + m.bottom()
 
@@ -280,6 +304,8 @@ class RoundMenu(QMenu):
         self._icon = QIcon()
         self._actions = []  # type: List[QAction]
         self._subMenus = []
+        self._batchHasItemIcon = None
+        self._batchShortcutWidth = None
 
         self.isSubMenu = False
         self.parentMenu = None
@@ -411,6 +437,7 @@ class RoundMenu(QMenu):
 
         item = self._createActionItem(action)
         item.setSizeHint(widget.size())
+        self.view.invalidateSizeHint()
 
         self.view.addItem(item)
         self.view.setItemWidget(item, widget)
@@ -450,6 +477,9 @@ class RoundMenu(QMenu):
         return item
 
     def _hasItemIcon(self):
+        if self._batchHasItemIcon is not None:
+            return self._batchHasItemIcon
+
         return any(not i.icon().isNull() for i in self._actions+self._subMenus)
 
     def _adjustItemText(self, item: QListWidgetItem, action: QAction):
@@ -477,20 +507,24 @@ class RoundMenu(QMenu):
 
     def _longestShortcutWidth(self):
         """ longest shortcut key """
+        if self._batchShortcutWidth is not None:
+            return self._batchShortcutWidth
+
         fm = QFontMetrics(getFont(12))
         return max(fm.horizontalAdvance(a.shortcut().toString(QKeySequence.NativeText)) for a in self.menuActions())
 
     def _createItemIcon(self, w):
         """ create the icon of menu item """
         hasIcon = self._hasItemIcon()
+        if not hasIcon:
+            return QIcon()
+
         icon = QIcon(FluentIconEngine(w.icon()))
 
-        if hasIcon and w.icon().isNull():
+        if w.icon().isNull():
             pixmap = QPixmap(self.view.iconSize())
             pixmap.fill(Qt.transparent)
             icon = QIcon(pixmap)
-        elif not hasIcon:
-            icon = QIcon()
 
         return icon
 
@@ -516,8 +550,36 @@ class RoundMenu(QMenu):
         actions: Iterable[QAction]
             menu actions
         """
-        for action in actions:
-            self.addAction(action)
+        actions = list(actions)
+        if not actions:
+            return
+
+        allActions = self.menuActions() + actions
+        self._batchHasItemIcon = self._hasItemIcon() or any(
+            not action.icon().isNull() for action in actions
+        )
+        if isinstance(self.view.itemDelegate(), ShortcutMenuItemDelegate):
+            shortcutFontMetrics = QFontMetrics(getFont(12))
+            self._batchShortcutWidth = max(
+                shortcutFontMetrics.horizontalAdvance(
+                    action.shortcut().toString(QKeySequence.NativeText)
+                )
+                for action in allActions
+            )
+
+        self.view.setUpdatesEnabled(False)
+        try:
+            for action in actions:
+                item = self._createActionItem(action)
+                QListWidget.addItem(self.view, item)
+        finally:
+            self._batchHasItemIcon = None
+            self._batchShortcutWidth = None
+            self.view.invalidateSizeHint()
+            self.view.setUpdatesEnabled(True)
+
+        self.view.adjustSize()
+        self.adjustSize()
 
     def insertActions(self, before: Union[QAction, Action], actions: List[Union[QAction, Action]]):
         """ inserts the actions actions to menu, before the action before """
@@ -750,6 +812,7 @@ class RoundMenu(QMenu):
             item.setToolTip(action.toolTip())
 
         self._adjustItemText(item, action)
+        self.view.invalidateSizeHint()
 
         if action.isEnabled():
             item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)

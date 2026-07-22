@@ -30,7 +30,7 @@ class CatalogURL:
     """
     def __init__(self,
                  version: CatalogVersion = CatalogVersion.GOLDEN_GATE,
-                 seed: SeedType = SeedType.PublicRelease,
+                 seed: SeedType = SeedType.DeveloperSeed,
                  extension: CatalogExtension = CatalogExtension.PLIST
                  ) -> None:
         self.version   = version

@@ -98,7 +98,6 @@ class Introduction(ScrollArea):
             self.navigation_callback(target)
 
     def update_theme(self):
-        setTheme(Theme.AUTO)
         self.update()
 
 

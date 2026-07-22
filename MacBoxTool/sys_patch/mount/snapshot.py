@@ -42,6 +42,7 @@ class APFSSnapshot:
         else:
             args += ["--folder", f"{self.mount_path}/System/Library/CoreServices", "--bootefi", "--create-snapshot"]
 
+        logging.info("- Creating APFS snapshot")
         result = subprocess_wrapper.run_as_root(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         if result.returncode != 0:
             logging.error("Failed to create APFS snapshot")

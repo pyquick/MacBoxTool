@@ -314,10 +314,12 @@ class ComboBoxBase:
             return
 
         menu = self._createComboMenu()
+        actions = []
         for item in self.items:
             action = QAction(item.icon, item.text)
             action.setEnabled(item.isEnabled)
-            menu.addAction(action)
+            actions.append(action)
+        menu.addActions(actions)
 
         # fixes issue #468
         menu.view.itemClicked.connect(lambda i: self._onItemClicked(self.findText(i.text().lstrip())))
@@ -545,6 +547,7 @@ class ComboBoxMenu(RoundMenu):
 
         self.view.setViewportMargins(0, 2, 0, 6)
         self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.view.setUniformItemSizes(True)
         self.view.setItemDelegate(IndicatorMenuItemDelegate())
         self.view.setObjectName('comboListWidget')
 

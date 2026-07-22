@@ -27,6 +27,7 @@ class CatalogProducts:
     """
 
     LEGACY_INSTALL_ASSISTANT_PACKAGE = "InstallAssistantAuto.pkg"
+    LEGACY_INSTALL_ESD_PACKAGE = "InstallESDDmg.pkg"
     INSTALL_ASSISTANT_VERSION_MAP = {
         CatalogVersion.MOUNTAIN_LION: "10.8",
         CatalogVersion.LION: "10.7",
@@ -248,89 +249,57 @@ class CatalogProducts:
 
 
     def _list_latest_installers_only(self, products: list) -> list:
-        """
-        List only the latest installers per macOS version
-
-        macOS versions capped at n-3 (n being the latest macOS version)
-        """
-
+        """Return the newest installer for each of the four latest macOS families."""
         supported_versions = []
-
-        # Build list of supported versions (n to n-3, where n is the latest macOS version set)
         did_find_latest = False
         for version in CatalogVersion:
-            if did_find_latest is False:
+            if not did_find_latest:
                 if version != self.max_ia_catalog:
                     continue
                 did_find_latest = True
 
             supported_versions.append(version)
-
             if len(supported_versions) == 4:
                 break
 
-        # Invert the list
-        supported_versions = supported_versions[::-1]
-
-        # Create duplicate product list
-        products_copy = products.copy()
-
-        # Remove all but the newest version
-        for version in supported_versions:
-            _newest_version = packaging.version.parse("0.0.0")
-
-            # First, determine largest version
-            for installer in products:
-                if installer["Version"] is None:
-                    continue
-                if not installer["Version"].startswith(version.value):
-                    continue
-                if installer["Catalog"] in [SeedType.CustomerSeed, SeedType.DeveloperSeed, SeedType.PublicSeed]:
-                    continue
-                try:
-                    if packaging.version.parse(installer["Version"]) > _newest_version:
-                        _newest_version = packaging.version.parse(installer["Version"])
-                except packaging.version.InvalidVersion:
-                    pass
-
-            # Next, remove all installers that are not the newest version
-            for installer in products:
-                if installer["Version"] is None:
-                    continue
-                if not installer["Version"].startswith(version.value):
-                    continue
-                try:
-                    if packaging.version.parse(installer["Version"]) < _newest_version:
-                        if installer in products_copy:
-                            products_copy.pop(products_copy.index(installer))
-                except packaging.version.InvalidVersion:
-                    pass
-
-                # Remove beta versions if a public release is available
-                if _newest_version != packaging.version.parse("0.0.0"):
-                    if installer["Catalog"] in [SeedType.CustomerSeed, SeedType.DeveloperSeed, SeedType.PublicSeed]:
-                        if installer in products_copy:
-                            products_copy.pop(products_copy.index(installer))
-
-        # Remove duplicates of the same version (i.e. multiple betas still in catalog), keep only latest
-        version_map = {}
-        for installer in products_copy:
-            version = installer.get("Version")
-            post_date = installer.get("PostDate")
-            if version is None:
-                continue
-            if version not in version_map or post_date > version_map[version].get("PostDate", ""):
-                version_map[version] = installer
-
-        products_copy = list(version_map.values())
-
-        # Remove EOL versions (older than n-3)
+        latest_by_family = {}
         for installer in products:
-            if installer["Version"].split(".")[0] < supported_versions[-4].value:
-                if installer in products_copy:
-                    products_copy.pop(products_copy.index(installer))
+            installer_version = installer.get("Version")
+            if not installer_version:
+                continue
 
-        return products_copy
+            family = next(
+                (
+                    version for version in supported_versions
+                    if installer_version == version.value or installer_version.startswith(f"{version.value}.")
+                ),
+                None,
+            )
+            if family is None:
+                continue
+
+            try:
+                version_key = packaging.version.parse(installer_version)
+            except packaging.version.InvalidVersion:
+                continue
+
+            current = latest_by_family.get(family)
+            if current is None:
+                latest_by_family[family] = installer
+                continue
+
+            current_key = self._version_sort_key(current.get("Version", ""))
+            if version_key > current_key or (
+                version_key == current_key
+                and installer.get("PostDate", "") > current.get("PostDate", "")
+            ):
+                latest_by_family[family] = installer
+
+        return [
+            latest_by_family[version]
+            for version in supported_versions
+            if version in latest_by_family
+        ]
 
 
     def _official_legacy_products(self, products: list) -> list:
@@ -397,7 +366,10 @@ class CatalogProducts:
             if self.ia_only:
                 packages = catalog["Products"][product].get("Packages", [])
                 has_legacy_install_assistant = any(
-                    Path(package.get("URL", "")).name == self.LEGACY_INSTALL_ASSISTANT_PACKAGE
+                    Path(package.get("URL", "")).name in {
+                        self.LEGACY_INSTALL_ASSISTANT_PACKAGE,
+                        self.LEGACY_INSTALL_ESD_PACKAGE,
+                    }
                     for package in packages
                 )
                 if "ExtendedMetaInfo" not in catalog["Products"][product]:
@@ -433,10 +405,15 @@ class CatalogProducts:
 
             # InstallAssistant logic
             if "Packages" in catalog["Products"][product]:
+                packages = catalog["Products"][product]["Packages"]
+                packages_by_name = {
+                    Path(package.get("URL", "")).name: package
+                    for package in packages
+                }
                 # Add packages to product map if not InstallAssistant only
                 if self.ia_only is False:
-                    _product_map["Packages"] = catalog["Products"][product]["Packages"]
-                for package in catalog["Products"][product]["Packages"]:
+                    _product_map["Packages"] = packages
+                for package in packages:
                     if "URL" in package:
                         package_name = Path(package["URL"]).name
                         if package_name == "InstallAssistant.pkg":
@@ -444,24 +421,54 @@ class CatalogProducts:
                                 "URL":               package["URL"],
                                 "Size":              package["Size"],
                                 "IntegrityDataURL":  package["IntegrityDataURL"],
-                                "IntegrityDataSize": package["IntegrityDataSize"]
+                                "IntegrityDataSize": package["IntegrityDataSize"],
+                                "RequiresValidation": True,
+                                "RequiresExtraction": True,
                             }
-                        elif package_name == self.LEGACY_INSTALL_ASSISTANT_PACKAGE:
-                            legacy_packages = [
+                        elif (
+                            package_name == self.LEGACY_INSTALL_ESD_PACKAGE
+                            and "InstallAssistant.pkg" not in packages_by_name
+                        ):
+                            assistant_package = packages_by_name.get(
+                                self.LEGACY_INSTALL_ASSISTANT_PACKAGE, {}
+                            )
+                            legacy_components = [
                                 {
-                                    "URL": legacy_package["URL"],
-                                    "Size": legacy_package.get("Size", 0),
-                                    "IntegrityDataURL": legacy_package.get("IntegrityDataURL"),
-                                    "IntegrityDataSize": legacy_package.get("IntegrityDataSize", 0),
-                                }
-                                for legacy_package in catalog["Products"][product]["Packages"]
-                                if "URL" in legacy_package
+                                    "URL": assistant_package.get("URL"),
+                                    "Size": assistant_package.get("Size", 0),
+                                    "IntegrityDataURL": assistant_package.get("IntegrityDataURL"),
+                                },
+                                {
+                                    "URL": package["URL"],
+                                    "Size": package.get("Size", 0),
+                                    "IntegrityDataURL": package.get("IntegrityDataURL"),
+                                },
+                            ]
+                            legacy_components = [
+                                component for component in legacy_components
+                                if component["URL"]
                             ]
                             _product_map["InstallAssistant"] = {
-                                "URL":             package["URL"],
-                                "Size":            sum(legacy_package["Size"] for legacy_package in legacy_packages),
-                                "LegacyInstaller": True,
-                                "Packages":        legacy_packages,
+                                "URL":                  package["URL"],
+                                "Size":                 package.get("Size", 0),
+                                "IntegrityDataURL":     package.get("IntegrityDataURL"),
+                                "IntegrityDataSize":    package.get("IntegrityDataSize", 0),
+                                "LegacyInstaller":      True,
+                                "LegacyComponents":     legacy_components,
+                                "DirectDownload":       True,
+                                "RequiresValidation":  True,
+                                "RequiresExtraction":  True,
+                            }
+                        elif (
+                            package_name == self.LEGACY_INSTALL_ASSISTANT_PACKAGE
+                            and "InstallAssistant" not in _product_map
+                        ):
+                            _product_map["InstallAssistant"] = {
+                                "URL":                  package["URL"],
+                                "Size":                 package.get("Size", 0),
+                                "IntegrityDataURL":     package.get("IntegrityDataURL"),
+                                "IntegrityDataSize":    package.get("IntegrityDataSize", 0),
+                                "LegacyInstaller":      True,
                             }
 
                         if package_name not in ["Info.plist", "com_apple_MobileAsset_MacSoftwareUpdate.plist"]:
@@ -554,6 +561,22 @@ class CatalogProducts:
             # If version is still None, set to 0.0.0
             if _product_map["Version"] is None:
                 _product_map["Version"] = "0.0.0"
+
+            install_assistant = _product_map.get("InstallAssistant")
+            if (
+                install_assistant
+                and Path(install_assistant.get("URL", "")).name == self.LEGACY_INSTALL_ESD_PACKAGE
+            ):
+                try:
+                    version = packaging.version.parse(_product_map["Version"])
+                except packaging.version.InvalidVersion:
+                    continue
+                if not (
+                    packaging.version.parse("10.13")
+                    <= version
+                    < packaging.version.parse("10.16")
+                ):
+                    continue
 
             _products.append(_product_map)
 

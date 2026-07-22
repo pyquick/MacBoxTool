@@ -348,10 +348,12 @@ class ModelComboBoxBase:
             return
 
         menu = self._createComboMenu()
-        for i in range(self.count()):
-            action = QAction(self.itemIcon(i), self.itemText(i),
-                             triggered=lambda c=True, x=i: self._onItemClicked(x))
-            menu.addAction(action)
+        actions = [
+            QAction(self.itemIcon(i), self.itemText(i),
+                    triggered=lambda c=True, x=i: self._onItemClicked(x))
+            for i in range(self.count())
+        ]
+        menu.addActions(actions)
 
         if menu.view.width() < self.width():
             menu.view.setMinimumWidth(self.width())

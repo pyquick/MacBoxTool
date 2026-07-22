@@ -3,7 +3,7 @@ gui_sys_patch.py: Root patching interface
 """
 
 from ..include import *
-from .gui_support import AutoUpdateStages, DefGUI, PayloadMount, RestartHost
+from .gui_support import AutoUpdateStages, DefGUI, PayloadMount, ProgressStatusHelper, RestartHost
 
 from ..datasets import os_data
 from ..support import kdk_handler, metallib_handler
@@ -96,6 +96,7 @@ class SysPatch(ScrollArea):
         self.no_new_patches = False
         self.can_unpatch = False
         self.is_busy = False
+        self.page_state = "initial"
         self.pending_auto_patch = bool(getattr(self.constants, "start_sys_patch_now", False))
         self.patch_checkboxes = {}
         self.detection_worker = None
@@ -107,6 +108,14 @@ class SysPatch(ScrollArea):
         self.download_progress_bar = None
         self.download_percent_label = None
         self.download_cancel_button = None
+        self.patch_progress_card = None
+        self.patch_progress_bar = None
+        self.patch_progress_status_icon = None
+        self.patch_progress_detail_label = None
+        self.patch_progress_helper = None
+        self.patch_progress_value = 0
+        self.patch_progress_patchset_count = 0
+        self.patch_progress_total_patchsets = 1
 
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
@@ -116,7 +125,7 @@ class SysPatch(ScrollArea):
         self.enableTransparentBackground()
 
         self.init_ui()
-        self.refresh()
+        self.refresh(force=True)
 
     def init_ui(self):
         self.expandLayout.setContentsMargins(
@@ -163,7 +172,7 @@ class SysPatch(ScrollArea):
         button_layout.addWidget(self.revert_button)
 
         self.refresh_button = ToolButton(FIF.SYNC)
-        self.refresh_button.clicked.connect(self.refresh)
+        self.refresh_button.clicked.connect(lambda: self.refresh(force=True))
         button_layout.addWidget(self.refresh_button)
         button_layout.addStretch()
         self.expandLayout.addWidget(button_row)
@@ -236,6 +245,94 @@ class SysPatch(ScrollArea):
         self.download_percent_label = None
         self.download_cancel_button = None
 
+    def _remove_patch_progress_card(self):
+        if self.patch_progress_card and is_qt_object_valid(self.patch_progress_card):
+            self.expandLayout.removeWidget(self.patch_progress_card)
+            self.patch_progress_card.deleteLater()
+        self.patch_progress_card = None
+        self.patch_progress_bar = None
+        self.patch_progress_status_icon = None
+        self.patch_progress_detail_label = None
+        self.patch_progress_helper = None
+        self.patch_progress_value = 0
+        self.patch_progress_patchset_count = 0
+        self.patch_progress_total_patchsets = 1
+
+    def _show_patch_progress_card(self, title: str = "Preparing root patching..."):
+        self._remove_patch_progress_card()
+        card = CardWidget(self)
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(SPACING["large"], SPACING["large"], SPACING["large"], SPACING["large"])
+        layout.setSpacing(6)
+
+        status_row = QHBoxLayout()
+        status_row.setContentsMargins(0, 0, 0, 0)
+        status_icon = QLabel()
+        detail_label = BodyLabel("")
+        status_row.addWidget(status_icon)
+        status_row.addWidget(detail_label, 1)
+
+        progress_bar = ProgressBar()
+        layout.addLayout(status_row)
+        layout.addWidget(progress_bar)
+
+        self.patch_progress_card = card
+        self.patch_progress_status_icon = status_icon
+        self.patch_progress_detail_label = detail_label
+        self.patch_progress_bar = progress_bar
+        self.patch_progress_helper = ProgressStatusHelper(
+            status_icon, detail_label, progress_bar, card
+        )
+        self.expandLayout.insertWidget(self.expandLayout.indexOf(self.log_box), card)
+        self.patch_progress_helper.update("loading", title, 0)
+
+    def _set_patch_progress(self, value: int, detail: str = None, status: str = "loading"):
+        if not self.patch_progress_bar or not is_qt_object_valid(self.patch_progress_bar):
+            return
+        value = max(self.patch_progress_value, min(100, value))
+        self.patch_progress_value = value
+        if self.patch_progress_helper:
+            self.patch_progress_helper.update(status, detail or self.patch_progress_detail_label.text(), value)
+
+    def _update_patch_progress_from_log(self, msg: str):
+        if not msg:
+            return
+
+        progress_keywords = [
+            ("- Starting Patch Process", 5, "Starting patch process..."),
+            ("- Determining Required Patch set", 8, "Determining required patch set..."),
+            ("- Verifying whether Root Patching possible", 12, "Verifying root patching support..."),
+            ("- Patcher is capable of patching", 16, "Preparing patch resources..."),
+            ("- Running sanity checks before patching", 22, "Running sanity checks..."),
+            ("- Running patches for", 28, "Preparing selected patches..."),
+            ("- Running Preflight Checks before patching", 34, "Running preflight checks..."),
+            ("- Found KDK at:", 42, "Preparing Kernel Debug Kit..."),
+            ("- Merging KDK with Root Volume", 48, "Merging Kernel Debug Kit with root volume..."),
+            ("- Successfully merged KDK with Root Volume", 55, "Kernel Debug Kit merged."),
+            ("- Finished Preflight, starting patching", 58, "Installing selected patch files..."),
+            ("- Writing patchset information to Root Volume", 72, "Writing patch metadata..."),
+            ("- Rebuilding", 80, "Rebuilding system caches..."),
+            ("- Syncing Kernel Cache to Preboot", 84, "Syncing kernel cache to preboot..."),
+            ("- Building new Auxiliary Kernel Collection", 86, "Building auxiliary kernel collection..."),
+            ("- Creating APFS snapshot", 92, "Creating APFS snapshot..."),
+            ("- Unmounting root volume", 96, "Unmounting root volume..."),
+            ("- Patching complete", 100, "Root patching complete."),
+        ]
+
+        for keyword, value, detail in progress_keywords:
+            if keyword in msg:
+                self._set_patch_progress(value, detail)
+                break
+
+        if "- Installing Patchset:" in msg:
+            patch_name = msg.split("- Installing Patchset:", 1)[1].strip()
+            self.patch_progress_patchset_count += 1
+            patchset_progress = 58
+            if self.patch_progress_total_patchsets > 0:
+                patchset_progress = 58 + int((self.patch_progress_patchset_count / self.patch_progress_total_patchsets) * 12)
+            detail = f"Installing patchset {self.patch_progress_patchset_count}/{self.patch_progress_total_patchsets}: {patch_name}"
+            self._set_patch_progress(patchset_progress, detail)
+
     def _cancel_download(self):
         worker = self.download_worker
         if worker and is_qt_object_valid(worker):
@@ -292,12 +389,30 @@ class SysPatch(ScrollArea):
         self.download_percent_label.setText(f"{percent}%")
         self.download_detail_label.setText(f"{self._format_size(downloaded)} / {self._format_size(total)}")
 
-    def refresh(self):
+    def _reset_to_initial_state(self):
         self._clear_layout(self.patch_layout)
-        self._set_status("Root Patching", "Fetching patches for host...")
+        self.patch_checkboxes = {}
+        self.patch_container.hide()
+        self._remove_download_card()
+        self._remove_patch_progress_card()
+        self.log_box.clear()
+        self.log_box.hide()
+        self.patches = {}
         self.available_patches = False
         self.no_new_patches = False
         self.can_unpatch = False
+        self.page_state = "initial"
+        self.verticalScrollBar().setValue(0)
+
+    def refresh(self, force: bool = False):
+        if not force and (self.is_busy or self.page_state in ("patching", "error")):
+            return
+        if self.detection_worker and is_qt_object_valid(self.detection_worker) and self.detection_worker.isRunning():
+            return
+
+        self._reset_to_initial_state()
+        self.page_state = "detecting"
+        self._set_status("Root Patching", "Fetching patches for host...")
         self._set_busy(True, show_progress_ring=True)
 
         self.detection_worker = PatchDetectionWorker(self.constants, self)
@@ -309,10 +424,12 @@ class SysPatch(ScrollArea):
 
     def _on_detection_error(self, error: str):
         logging.error(error)
+        self.page_state = "error"
         self._set_status("Detection Failed", error, "error")
         self._set_busy(False)
 
     def _on_patches_detected(self, patches: dict):
+        self.page_state = "ready"
         self.patches = patches or {}
         self.can_unpatch = bool(self.patches) and not self.patches[HardwarePatchsetValidation.UNPATCHING_NOT_POSSIBLE]
 
@@ -544,13 +661,26 @@ class SysPatch(ScrollArea):
         logging.info("Metallib installation complete")
         return True
 
-    def _prepare_patch_run(self, title: str, body: str):
+    def _prepare_patch_run(self, title: str, body: str, patches: dict = None, show_progress: bool = True):
+        self.page_state = "patching"
         self.log_box.clear()
         self.log_box.show()
+        if show_progress:
+            patchset_count = max(1, len([
+                patch for patch, enabled in (patches or {}).items()
+                if not patch.startswith("Settings") and not patch.startswith("Validation") and enabled is True
+            ]))
+            self._show_patch_progress_card()
+            self.patch_progress_total_patchsets = patchset_count
+            self.patch_progress_patchset_count = 0
+            self._set_patch_progress(0, "Preparing root patching...")
+        else:
+            self._remove_patch_progress_card()
         self._set_status(title, body)
         self._set_busy(True)
 
     def _append_patch_log(self, msg: str):
+        self._update_patch_progress_from_log(msg)
         self.log_box.append(msg)
         sb = self.log_box.verticalScrollBar()
         sb.setValue(sb.maximum())
@@ -560,9 +690,17 @@ class SysPatch(ScrollArea):
 
         if self.constants.root_patcher_succeeded is False:
             if success is False:
+                self.page_state = "error"
+                self._set_patch_progress(
+                    self.patch_progress_value,
+                    "Root patching did not complete successfully.",
+                    "error",
+                )
                 self._set_status("Root Patcher", "Root patching did not complete successfully.", "error")
             return
 
+        self.page_state = "complete"
+        self._set_patch_progress(100, "Root patching complete.", "success")
         self._post_patch()
 
     def start_root_patching(self):
@@ -579,15 +717,19 @@ class SysPatch(ScrollArea):
 
         if selected_patches[HardwarePatchsetSettings.KERNEL_DEBUG_KIT_REQUIRED] is True:
             if self._kdk_download() is False:
+                self.page_state = "error"
+                self._set_status("Root Patcher", "Kernel Debug Kit preparation failed.", "error")
                 self._set_busy(False)
                 return
 
         if selected_patches[HardwarePatchsetSettings.METALLIB_SUPPORT_PKG_REQUIRED] is True:
             if self._metallib_download() is False:
+                self.page_state = "error"
+                self._set_status("Root Patcher", "Metal library preparation failed.", "error")
                 self._set_busy(False)
                 return
 
-        self._prepare_patch_run("Root Patching", self._patch_summary("Root Patching will patch the following:", selected_patches))
+        self._prepare_patch_run("Root Patching", self._patch_summary("Root Patching will patch the following:", selected_patches), selected_patches)
         self.patch_worker = PatchRunWorker(self.constants, selected_patches, revert=False, parent=self)
         self.patch_worker.log_signal.connect(self._append_patch_log)
         self.patch_worker.finished_signal.connect(self._finish_patch_run)
@@ -597,7 +739,7 @@ class SysPatch(ScrollArea):
 
     def revert_root_patching(self):
         logging.info("Reverting root patches")
-        self._prepare_patch_run("Revert Root Patches", "Reverting to last sealed snapshot")
+        self._prepare_patch_run("Revert Root Patches", "Reverting to last sealed snapshot", show_progress=False)
         self.patch_worker = PatchRunWorker(self.constants, self.patches, revert=True, parent=self)
         self.patch_worker.log_signal.connect(self._append_patch_log)
         self.patch_worker.finished_signal.connect(self._finish_patch_run)

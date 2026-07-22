@@ -36,25 +36,21 @@ class InstallerCreation:
     def __init__(self, global_constants: Constants) -> None:
         pass
 
-    def install_macOS_installer(self, download_path: str) -> bool:
-        """
-        Installs InstallAssistant.pkg
-
-        Parameters:
-            download_path (str): Path to InstallAssistant.pkg
-
-        Returns:
-            bool: True if successful, False otherwise
-        """
-
-        logging.info("Extracting macOS installer from InstallAssistant.pkg")
-        result = subprocess_wrapper.run_as_root(["/usr/sbin/installer", "-pkg", f"{Path(download_path)}/InstallAssistant.pkg", "-target", "/"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    def install_macOS_installer(self, pkg_path: str | Path) -> bool:
+        """Install a downloaded macOS installer package."""
+        pkg_path = Path(pkg_path)
+        logging.info(f"Extracting macOS installer from {pkg_path.name}")
+        result = subprocess_wrapper.run_as_root(
+            ["/usr/sbin/installer", "-pkg", str(pkg_path), "-target", "/"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         if result.returncode != 0:
-            logging.info("Failed to install InstallAssistant")
+            logging.info(f"Failed to install {pkg_path.name}")
             subprocess_wrapper.log(result)
             return False
 
-        logging.info("InstallAssistant installed")
+        logging.info(f"{pkg_path.name} installed")
         return True
 
 

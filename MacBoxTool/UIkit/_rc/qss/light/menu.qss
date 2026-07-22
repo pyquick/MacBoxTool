@@ -78,6 +78,12 @@ MenuActionListWidget::item:selected:active {
     margin-top: 4px;
 }
 
+#comboListWidget::item:hover,
+#comboListWidget::item:selected,
+#comboListWidget::item:selected:active {
+    border-radius: 14px;
+}
+
 #checkableListWidget::item {
     padding-left: 36px;
 }

@@ -26,8 +26,8 @@ class Constants:
         self.launcher_script:           str = None
         # OpenCore Version
         self.opencore_version:           str = "1.0.6"
-        self.nightly_build:              str = "4538.1000"
-        self.support_version:            str = "1.0.245834435prefix" # prefix: unstable core.
+        self.nightly_build:              str = "4544.1000"
+        self.support_version:            str = "1.0.245834436prefix" # prefix: unstable core.
 
         # Kext Versioning
         ## Acidanthera
@@ -1107,6 +1107,12 @@ class Constants:
     @property
     def package_icns_path_tahoe(self):
         return self.icns_resource_path / Path("Package26.icns")
+    
+    @property
+    def icon_path_macos_golden_gate(self):
+        return self.icns_resource_path / Path("GoldenGate.icns")
+
+    
 
     @property
     def gui_path(self):
@@ -1143,6 +1149,7 @@ class Constants:
             str(self.icon_path_macos_sonoma),
             str(self.icon_path_macos_sequoia),
             str(self.icon_path_macos_tahoe),
+            str(self.icon_path_macos_golden_gate)
         ]
     @property
     def icon_path_legacy(self):

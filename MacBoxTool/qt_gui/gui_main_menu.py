@@ -56,9 +56,8 @@ class Window(FluentWindow):
         
         
         qconfig.themeChanged.connect(self.update_theme)
-       
+
     def update_theme(self):
-        setTheme(Theme.AUTO)
         self.update()
 
    

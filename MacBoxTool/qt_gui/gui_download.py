@@ -40,7 +40,7 @@ class DownloadCard(CardWidget):
         self.iconWidget = ImageLabel(icon, self)
         self.iconWidget.setFixedSize(48, 48)
 
-        self.titleLabel = BodyLabel(self.download.filename, self)
+        self.titleLabel = BodyLabel(self.download.display_name, self)
         self.titleLabel.setWordWrap(False)
         self.contentLabel = CaptionLabel(self._get_status_text(), self)
         self.contentLabel.setTextColor("#606060", "#d2d2d2")
@@ -142,7 +142,7 @@ class DownloadCard(CardWidget):
             DownloadStatus.DOWNLOADING: "Downloading...",
             DownloadStatus.PAUSED: "Paused",
             DownloadStatus.VALIDATING: f"Validating chunk {self.download.current_validation_chunk}/{self.download.total_validation_chunks}" if self.download.total_validation_chunks > 0 else "Validating...",
-            DownloadStatus.EXTRACTING: "Extracting installer...",
+            DownloadStatus.EXTRACTING: "Setting up installer in /Applications...",
             DownloadStatus.COMPLETED: "Completed",
             DownloadStatus.FAILED: f"Failed: {self.download.error_message}",
             DownloadStatus.CANCELLED: "Cancelled",

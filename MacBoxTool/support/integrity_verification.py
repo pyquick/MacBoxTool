@@ -24,16 +24,20 @@ class ChunklistVerification:
     Verifies macOS installer integrity using Apple's CNKL binary chunklist format
 
     CNKL binary format:
-    - Header: 36 bytes (magic 'CNKL', header_size, version, chunk_count, ...)
+    - Header: 36 bytes (magic, header size, version/methods, offsets)
     - Entries: chunk_count entries of 36 bytes each:
         - uint32 LE: chunk size
         - bytes[32]: SHA-256 hash of chunk data
-    - Trailer: 32 bytes (overall file SHA-256 hash)
+    - Signature: method-dependent data at the header's signature offset
     """
 
     CHUNKLIST_MAGIC = b'CNKL'
-    HEADER_SIZE = 36
+    HEADER_FORMAT = '<4sIBBBxQQQ'
+    HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
     ENTRY_SIZE = 36  # 4 bytes size + 32 bytes SHA-256
+    CHUNK_METHOD_SHA256 = 1
+    SIGNATURE_METHOD_RSA = 1
+    SIGNATURE_METHOD_SHA256 = 2
 
     def __init__(self, pkg_path: Path, chunklist_stream: BytesIO):
         self.pkg_path = pkg_path
@@ -115,20 +119,46 @@ class ChunklistVerification:
                 logging.error(f"Invalid chunklist magic: {content[:4]!r}")
                 return False
 
-            # Parse header fields
-            magic, header_size = struct.unpack_from('<II', content, 0)
-            version, chunk_count = struct.unpack_from('<II', content, 8)
+            # Parse the fixed CNKL v1 header. Counts and offsets are uint64.
+            (
+                magic,
+                header_size,
+                file_version,
+                chunk_method,
+                signature_method,
+                chunk_count,
+                chunk_offset,
+                signature_offset,
+            ) = struct.unpack_from(self.HEADER_FORMAT, content, 0)
+
+            if header_size < self.HEADER_SIZE or header_size > len(content):
+                logging.error(f"Invalid chunklist header size: {header_size}")
+                return False
+            if file_version != 1:
+                logging.error(f"Unsupported chunklist version: {file_version}")
+                return False
+            if chunk_method != self.CHUNK_METHOD_SHA256:
+                logging.error(f"Unsupported chunk hash method: {chunk_method}")
+                return False
+            if chunk_offset < header_size:
+                logging.error(f"Invalid chunk data offset: {chunk_offset}")
+                return False
 
             self.total_chunks = chunk_count
-            logging.info(f"Chunklist: magic={magic:#x}, header_size={header_size}, "
-                         f"version={version:#x}, chunk_count={self.total_chunks}")
+            logging.info(
+                f"Chunklist: magic={magic!r}, header_size={header_size}, "
+                f"version={file_version}, chunk_method={chunk_method}, "
+                f"signature_method={signature_method}, chunk_count={self.total_chunks}"
+            )
 
-            # Parse entries - each entry is uint32 size + 32 bytes SHA256 = 36 bytes
-            entries_start = self.HEADER_SIZE
+            entries_start = chunk_offset
             entries_end = entries_start + self.total_chunks * self.ENTRY_SIZE
 
-            if entries_end > len(content):
-                logging.error(f"Chunklist truncated: expected {entries_end} bytes, got {len(content)}")
+            if entries_end > len(content) or signature_offset < entries_end:
+                logging.error(
+                    f"Invalid chunklist offsets: entries end at {entries_end}, "
+                    f"signature starts at {signature_offset}, file size is {len(content)}"
+                )
                 return False
 
             for i in range(self.total_chunks):
@@ -136,16 +166,30 @@ class ChunklistVerification:
                 chunk_size = struct.unpack_from('<I', content, entry_offset)[0]
                 chunk_hash = content[entry_offset + 4:entry_offset + self.ENTRY_SIZE]
 
-                # Store with 1-based chunk numbering for display
+                if chunk_size == 0:
+                    logging.error(f"Invalid zero-sized chunk at index {i}")
+                    return False
+
                 self.chunks[i] = {
                     'size': chunk_size,
                     'checksum': chunk_hash.hex()
                 }
 
-            # Verify trailer hash exists
-            trailing_bytes = len(content) - entries_end
-            if trailing_bytes != 32:
-                logging.warning(f"Expected 32-byte trailer, found {trailing_bytes} bytes")
+            signature = content[signature_offset:]
+            if signature_method == self.SIGNATURE_METHOD_SHA256:
+                if len(signature) != hashlib.sha256().digest_size:
+                    logging.error(f"Invalid SHA-256 signature size: {len(signature)}")
+                    return False
+                if hashlib.sha256(content[:signature_offset]).digest() != signature:
+                    logging.error("Chunklist SHA-256 signature mismatch")
+                    return False
+            elif signature_method == self.SIGNATURE_METHOD_RSA:
+                if not signature:
+                    logging.error("Chunklist RSA signature is missing")
+                    return False
+            else:
+                logging.error(f"Unsupported chunklist signature method: {signature_method}")
+                return False
 
             self._parsed = True
             logging.info(f"Parsed {len(self.chunks)} chunk entries")
@@ -170,6 +214,11 @@ class ChunklistVerification:
             pkg_size = self.pkg_path.stat().st_size
             expected_total = sum(c['size'] for c in self.chunks.values())
             logging.info(f"PKG size: {pkg_size}, expected from chunks: {expected_total}")
+            if pkg_size != expected_total:
+                logging.error(
+                    f"Installer size mismatch: expected {expected_total}, got {pkg_size}"
+                )
+                return False
 
             with open(self.pkg_path, 'rb') as f:
                 for chunk_num in range(self.total_chunks):
@@ -185,8 +234,8 @@ class ChunklistVerification:
                     chunk_data = f.read(expected_size)
 
                     if not chunk_data:
-                        logging.warning(f"Reached end of file at chunk {chunk_num}")
-                        break
+                        logging.error(f"Reached end of file at chunk {chunk_num + 1}")
+                        return False
 
                     if len(chunk_data) != expected_size:
                         logging.error(f"Chunk {chunk_num} size mismatch: "
@@ -205,6 +254,8 @@ class ChunklistVerification:
                     # Emit progress via callback
                     if self._progress_callback:
                         self._progress_callback(self.current_chunk, self.total_chunks)
+                        if self.status == ChunklistStatus.FAILURE:
+                            return False
 
             logging.info(f"All {self.total_chunks} chunks verified successfully")
             return True

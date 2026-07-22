@@ -4,6 +4,8 @@ Handles pkg extraction in background thread
 """
 
 import logging
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -16,7 +18,7 @@ class ExtractionWorker(QThread):
     """
     Background worker for extracting macOS installers
 
-    Extracts InstallAssistant.pkg directly into payloads directory
+    Extracts a validated macOS installer package
     Emits completion status when done
     """
 
@@ -37,13 +39,36 @@ class ExtractionWorker(QThread):
         self._is_cancelled = True
 
     def extract_installer(self) -> None:
-        """
-        Extract InstallAssistant.pkg into payloads directory.
-        Result stored in self.result.
-        """
+        """Extract or install the validated package and store the result."""
+        if self.pkg_path.name == "InstallESDDmg.pkg":
+            output_path = self.pkg_path.with_name("InstallESD.dmg")
+            with tempfile.TemporaryDirectory(dir=self.pkg_path.parent) as temp_dir:
+                result = subprocess.run(
+                    ["/usr/bin/xar", "-xf", str(self.pkg_path), "InstallESD.dmg"],
+                    cwd=temp_dir,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                if result.returncode != 0:
+                    logging.error(
+                        f"Failed to extract InstallESD.dmg: "
+                        f"{result.stderr.decode(errors='replace')}"
+                    )
+                    self.result = False
+                    return
+
+                extracted_path = Path(temp_dir) / "InstallESD.dmg"
+                if not extracted_path.exists():
+                    self.result = False
+                    return
+                extracted_path.replace(output_path)
+
+            self.result = output_path.exists()
+            return
+
         self.result = InstallerCreation(
             global_constants=self.constants
-        ).install_macOS_installer(self.constants.payload_path)
+        ).install_macOS_installer(self.pkg_path)
 
     def run(self) -> None:
         """Main extraction workflow"""

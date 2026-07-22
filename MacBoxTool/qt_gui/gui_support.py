@@ -22,6 +22,7 @@ from pathlib import Path
 class ThemeAwareCard(CardWidget):
     def __init__(self, get_style_fn, parent=None):
         super().__init__(parent)
+        self.setBorderRadius(RADIUS["card"])
         self._get_style = get_style_fn
         self._apply_style()
         qconfig.themeChanged.connect(self._apply_style)
@@ -38,51 +39,56 @@ class ThemeAwareCard(CardWidget):
             }}
         """)
 
-class ProgressStatusHelper:
+class ProgressStatusHelper(QObject):
     def __init__(self, status_icon_label, progress_label, progress_bar, progress_container):
-        
-
+        super().__init__(progress_container)
         logging.info("init gui_support")
 
-        
         self.status_icon_label = status_icon_label
         self.progress_label = progress_label
         self.progress_bar = progress_bar
         self.progress_container = progress_container
-        
+        self.status = "loading"
+        self.message = ""
 
-    
-    
-    def update(self, status, message, progress=None):
-        icon_size = 28
+        font = self.progress_label.font()
+        font.setPixelSize(15)
+        font.setWeight(QFont.Weight.DemiBold)
+        self.progress_label.setFont(font)
+
+        qconfig.themeChanged.connect(self._refresh_style)
+        qconfig.themeColorChanged.connect(self._refresh_style)
+
+    def _status_color(self):
+        if self.status == "success" and self.message.lower().startswith("build complete"):
+            return COLORS["success"]
+        return themeColor().name()
+
+    def _refresh_style(self):
         icon_map = {
-            "loading": (FluentIcon.SYNC, COLORS["primary"]),
-            "success": (FluentIcon.COMPLETED, COLORS["success"]),
-            "error": (FluentIcon.CLOSE, COLORS["error"]),
-            "warning": (FluentIcon.INFO, COLORS["warning"]),
+            "loading": FluentIcon.SYNC,
+            "success": FluentIcon.COMPLETED,
+            "error": FluentIcon.CLOSE,
+            "warning": FluentIcon.INFO,
         }
-        
-        if status in icon_map:
-            icon, color = icon_map[status]
-            pixmap = icon.icon(color=color).pixmap(icon_size, icon_size)
-            self.status_icon_label.setPixmap(pixmap)
-        
+        color = self._status_color()
+        icon = icon_map.get(self.status)
+        if icon:
+            self.status_icon_label.setPixmap(icon.icon(color=color).pixmap(28, 28))
+        self.progress_label.setTextColor(color, color)
+
+    def update(self, status, message, progress=None):
+        self.status = status
+        self.message = message
+        self._refresh_style()
         self.progress_label.setText(message)
-        if status == "success":
-            self.progress_label.setStyleSheet("color: {}; font-size: 15px; font-weight: 600;".format(COLORS["success"]))
-        elif status == "error":
-            self.progress_label.setStyleSheet("color: {}; font-size: 15px; font-weight: 600;".format(COLORS["error"]))
-        elif status == "warning":
-            self.progress_label.setStyleSheet("color: {}; font-size: 15px; font-weight: 600;".format(COLORS["warning"]))
-        else:
-            self.progress_label.setStyleSheet("color: {}; font-size: 15px; font-weight: 600;".format(COLORS["primary"]))
-        
+
         if progress is not None:
             self.progress_bar.setRange(0, 100)
             self.progress_bar.setValue(progress)
         else:
             self.progress_bar.setRange(0, 0)
-        
+
         self.progress_container.setVisible(True)
 
 class DefGUI():
