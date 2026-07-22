@@ -1,7 +1,8 @@
 # coding:utf-8
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QThread, Signal, Slot
 
 from .config import Theme, qconfig
+from .style_sheet import updateStyleSheet
 import darkdetect
 import sys
 
@@ -13,6 +14,7 @@ class SystemThemeListener(QThread):
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
+        self.systemThemeChanged.connect(self._applyThemeChange)
 
     def run(self):
         if sys.platform == "win32":
@@ -28,6 +30,12 @@ class SystemThemeListener(QThread):
             else:
                 self.msleep(1000)
 
+    @Slot()
+    def _applyThemeChange(self):
+        qconfig.themeChanged.emit(Theme.AUTO)
+        updateStyleSheet()
+        qconfig.themeChangedFinished.emit()
+
     def _onThemeChanged(self, theme: str):
         theme = Theme.DARK if theme.lower() == "dark" else Theme.LIGHT
 
@@ -35,5 +43,4 @@ class SystemThemeListener(QThread):
             return
 
         qconfig.theme = Theme.AUTO
-        qconfig._cfg.themeChanged.emit(Theme.AUTO)
         self.systemThemeChanged.emit()

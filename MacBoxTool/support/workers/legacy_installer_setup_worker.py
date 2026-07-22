@@ -128,10 +128,15 @@ class LegacyInstallerSetupWorker(QThread):
                 )
 
             app_name = applications[0].name
-            if self.download.installer_app_name and app_name != self.download.installer_app_name:
+            expected_app_name = self.download.installer_app_name
+            accepted_app_names = {expected_app_name}
+            if expected_app_name == "Install macOS High Sierra.app":
+                accepted_app_names.add("Install macOS High Sierra Beta.app")
+
+            if expected_app_name and app_name not in accepted_app_names:
                 raise RuntimeError(
                     f"Unexpected installer application {app_name}; "
-                    f"expected {self.download.installer_app_name}"
+                    f"expected {expected_app_name}"
                 )
 
             staged_app = temp_path / app_name
@@ -166,6 +171,21 @@ class LegacyInstallerSetupWorker(QThread):
                     stderr=subprocess.STDOUT,
                 )
 
+            expected_destination = (
+                Path("/Applications") / expected_app_name
+                if expected_app_name else destination
+            )
+            if (
+                self.download.replace_existing_app
+                and expected_destination != destination
+                and expected_destination.exists()
+            ):
+                subprocess_wrapper.run_as_root_and_verify(
+                    ["/bin/rm", "-rf", str(expected_destination)],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                )
+
             subprocess_wrapper.run_as_root_and_verify(
                 ["/usr/bin/ditto", str(staged_app), str(destination)],
                 stdout=subprocess.PIPE,
@@ -174,6 +194,7 @@ class LegacyInstallerSetupWorker(QThread):
             if not destination.exists():
                 raise RuntimeError(f"Installer application was not created at {destination}")
 
+            self.download.installer_app_name = app_name
             self.download.output_path = str(destination)
 
     def _verify_code_signature(self, executable: Path) -> None:

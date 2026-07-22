@@ -36,7 +36,7 @@ def _signal_handler(_signum, _frame):
             _qt_app.processEvents()
         except:
             pass
-
+    
     logging.info("GUI is destroyed by user.")
     sys.exit(0)
 

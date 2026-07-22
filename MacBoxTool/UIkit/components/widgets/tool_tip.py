@@ -1,13 +1,15 @@
 # coding:utf-8
+import sys
 from enum import Enum
 
 from PySide6.QtCore import QEvent, QObject, QPoint, QTimer, Qt, QPropertyAnimation, QModelIndex, QRect
-from PySide6.QtGui import QColor, QHelpEvent
+from PySide6.QtGui import QColor, QHelpEvent, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (QApplication, QFrame, QGraphicsDropShadowEffect,
                              QHBoxLayout, QLabel, QWidget, QAbstractItemView, QStyleOptionViewItem,
                              QTableView)
 
 from ...common import FluentStyleSheet
+from ...common.config import isDarkTheme
 from ...common.screen import getCurrentScreenGeometry
 
 
@@ -31,6 +33,28 @@ class ItemViewToolTipType(Enum):
     TABLE = 1
 
 
+class ToolTipContainer(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._radius = 16
+
+    def setRadius(self, radius: int):
+        self._radius = radius
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        radius = min(self._radius, self.height() / 2)
+        path = QPainterPath()
+        path.addRoundedRect(self.rect().adjusted(0.5, 0.5, -0.5, -0.5), radius, radius)
+        background = QColor(43, 43, 43) if isDarkTheme() else QColor(249, 249, 249)
+        border = QColor(70, 70, 70) if isDarkTheme() else QColor(0, 0, 0, 31)
+        painter.fillPath(path, background)
+        painter.setPen(QPen(border, 1))
+        painter.drawPath(path)
+
+
 class ToolTip(QFrame):
     """ Tool tip """
 
@@ -47,6 +71,7 @@ class ToolTip(QFrame):
         super().__init__(parent=parent)
         self.__text = text
         self.__duration = 1000
+        self._radius = 999
 
         self.container = self._createContainer()
         self.timer = QTimer(self)
@@ -66,11 +91,13 @@ class ToolTip(QFrame):
         self.opacityAni.setDuration(150)
 
         # add shadow
-        self.shadowEffect = QGraphicsDropShadowEffect(self)
-        self.shadowEffect.setBlurRadius(25)
-        self.shadowEffect.setColor(QColor(0, 0, 0, 50))
-        self.shadowEffect.setOffset(0, 5)
-        self.container.setGraphicsEffect(self.shadowEffect)
+        self.shadowEffect = None
+        if sys.platform != "darwin":
+            self.shadowEffect = QGraphicsDropShadowEffect(self)
+            self.shadowEffect.setBlurRadius(25)
+            self.shadowEffect.setColor(QColor(0, 0, 0, 50))
+            self.shadowEffect.setOffset(0, 5)
+            self.container.setGraphicsEffect(self.shadowEffect)
 
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.hide)
@@ -79,7 +106,12 @@ class ToolTip(QFrame):
         self.setAttribute(Qt.WA_TransparentForMouseEvents)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating)
-        self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        if sys.platform == "darwin":
+            self.setWindowFlags(Qt.ToolTip | Qt.FramelessWindowHint)
+        else:
+            self.setWindowFlags(
+                Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+            )
         self.__setQss()
 
     def text(self):
@@ -105,16 +137,25 @@ class ToolTip(QFrame):
         """
         self.__duration = duration
 
+    def setRadius(self, radius: int):
+        self._radius = radius
+        self.container.setRadius(radius)
+
+    def radius(self):
+        return self._radius
+
     def __setQss(self):
         """ set style sheet """
         self.container.setObjectName("container")
         self.label.setObjectName("contentLabel")
         FluentStyleSheet.TOOL_TIP.apply(self)
+        self.container.setStyleSheet("background: transparent; border: none;")
+        self.container.setRadius(self._radius)
         self.label.adjustSize()
         self.adjustSize()
 
     def _createContainer(self):
-        return QFrame(self)
+        return ToolTipContainer(self)
 
     def showEvent(self, e):
         self.opacityAni.setStartValue(0)
@@ -348,7 +389,9 @@ class ToolTipFilter(QObject):
         self.isEnter = False
         self.timer.stop()
         if self._tooltip:
-            self._tooltip.hide()
+            self._tooltip.close()
+            self._tooltip.deleteLater()
+            self._tooltip = None
 
     def showToolTip(self):
         """ show tool tip """
@@ -356,6 +399,10 @@ class ToolTipFilter(QObject):
             return
 
         parent = self.parent()  # type: QWidget
+        if self._tooltip is None:
+            self._tooltip = self._createToolTip()
+            t = parent.toolTipDuration() if parent.toolTipDuration() > 0 else 1000
+            self._tooltip.setDuration(t)
         self._tooltip.setText(parent.toolTip())
         self._tooltip.adjustPos(parent, self.position)
         self._tooltip.show()

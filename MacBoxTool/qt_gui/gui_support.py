@@ -237,14 +237,14 @@ class DefGUI():
 
         if title:
             title_label = StrongBodyLabel(title)
-            title_style = lambda: "color: {}; font-size: 16px;".format(get_style()["text"])
-            apply_style_if_valid(title_label, title_style())
-
-            # Create proper callback function for theme changes
-            def update_title_with_delay():
-                QTimer.singleShot(40, lambda: apply_style_if_valid(title_label, title_style()))
-
-            qconfig.themeChanged.connect(update_title_with_delay)
+            light_styles = self.card_styles_light()
+            dark_styles = self.card_styles_dark()
+            light_style = light_styles.get(card_type, light_styles["note"])
+            dark_style = dark_styles.get(card_type, dark_styles["note"])
+            title_label.setTextColor(light_style["text"], dark_style["text"])
+            font = title_label.font()
+            font.setPixelSize(16)
+            title_label.setFont(font)
             text_layout.addWidget(title_label)
 
         if body:

@@ -25,11 +25,6 @@ def generate_manifest(commit_info: tuple, manifest_path: Path = DEFAULT_MANIFEST
 
     if is_nightly:
         version = {
-            "Note":"Please update to 0.0.3.2(Nightly) by 2026-07-02-00:00:00 UTC.",
-            "version": constant.macboxtool_version,
-            "build": constant.nightly_build,
-            "core": constant.support_version,
-            "nightly":is_nightly,
             "nightly_latest": {
                 "version":constant.macboxtool_version,
                 "build":constant.nightly_build,

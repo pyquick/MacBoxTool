@@ -127,9 +127,11 @@ class Window(FluentWindow):
             return
 
         self._shutdown_cleanup_done = True
+        utilities.enable_sleep_after_running()
         logging.info("Clean-up")
         self._stop_child_workers()
-
+        
+        utilities.enable_sleep_after_running()
         self.theme_manager.stop()
         self.themeListener.requestInterruption()
         if not self.themeListener.wait(2500):
@@ -138,6 +140,7 @@ class Window(FluentWindow):
         self.themeListener.deleteLater()
 
         app = QApplication.instance()
+        
         if app:
             app.quit()
 
