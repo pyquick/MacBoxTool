@@ -1,7 +1,7 @@
 {
     "nightly_latest": {
         "version": "0.0.4",
-        "build": "4552.1000",
+        "build": "4552.1200",
         "core": "1.0.245834437prefix",
         "branch": "main"
     },
