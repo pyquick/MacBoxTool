@@ -733,6 +733,13 @@ class SettingsInterface(QWidget):
             "Global token for GitHub API requests",
             parent=group
         )
+
+        self.allow_show_build_log = SwitchSettingCard(
+            FIF.COMMAND_PROMPT,
+            "Allow Show Build Log",
+            "Restart to apply changes",
+            parent=group
+        )
         self.github_token_edit = LineEdit(self.github_token_card)
         self.github_token_edit.setPlaceholderText("ghp_... / fine-grained token")
         self.github_token_edit.setClearButtonEnabled(True)
@@ -746,8 +753,10 @@ class SettingsInterface(QWidget):
         group.addSettingCard(self.github_token_card)
         group.addSettingCard(self.trigger_exception_card)
         group.addSettingCard(self.export_constants_card)
+        group.addSettingCard(self.allow_show_build_log)
 
         self.sw_oc_debug.checkedChanged.connect(lambda v: self._save("opencore_debug", v))
+        self.allow_show_build_log.checkedChanged.connect(lambda v: self._save("show_logs", v))
         self.sw_kext_debug.checkedChanged.connect(lambda v: self._save("kext_debug", v))
         self.github_token_edit.editingFinished.connect(self._on_github_token_changed)
         self.trigger_exception_card.clicked.connect(self._on_trigger_exception_clicked)
@@ -913,6 +922,7 @@ class SettingsInterface(QWidget):
 
             self.sw_oc_debug.setChecked(_get("opencore_debug", False))
             self.sw_kext_debug.setChecked(_get("kext_debug", False))
+            self.allow_show_build_log.setChecked(_get("show_logs", False))
 
             self.oc_timeout_spin.setValue(_get("oc_timeout", 5))
             self.sw_apfs_trim.setChecked(_get("apfs_trim_timeout", True))
@@ -1017,7 +1027,6 @@ class SettingsInterface(QWidget):
         # Software Demux: MacBookPro8,2/8,3 only
         self._set_card_enabled(self.sw_demux,
             model in ("MacBookPro8,2", "MacBookPro8,3"))
-        self.allow_ts2_accel_card.setVisible(model in ("MacBookPro8,2", "MacBookPro8,3"))
 
         # dGPU Switch: models with Switchable GPUs
         self._set_card_enabled(self.sw_dgpu_switch,

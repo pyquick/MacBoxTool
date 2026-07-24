@@ -18,6 +18,60 @@ GITHUB_TOKEN_KEY = "github_token"
 KEYCHAIN_SERVICE = "MacBoxTool"
 KEYCHAIN_GITHUB_TOKEN_ACCOUNT = "github_token"
 
+# Settings that directly mirror an attribute on Constants.  They are applied as
+# soon as GlobalSettings is created so every GUI page receives persisted values
+# while it is constructing its controls.
+CONSTANTS_SETTING_KEYS = (
+    "allow_oc_everywhere",
+    "allow_apfs_aligned_patch",
+    "allow_native_spoofs",
+    "allow_nvme_fixing",
+    "allow_ts2_accel",
+    "allow_usb_patch",
+    "amd_gop_injection",
+    "apfs_trim_timeout",
+    "applehda_version",
+    "audio_type",
+    "custom_board_serial_number",
+    "custom_serial_number",
+    "custom_sip_value",
+    "dGPU_switch",
+    "disable_amfi",
+    "disable_connectdrivers",
+    "disable_cs_lv",
+    "disable_fw_throttle",
+    "disable_mediaanalysisd",
+    "disable_tb",
+    "disallow_cpufriend",
+    "drm_support",
+    "enable_wake_on_wlan",
+    "firewire_boot",
+    "force_nv_web",
+    "force_quad_thread",
+    "fu_status",
+    "imac_model",
+    "imac_vendor",
+    "kext_debug",
+    "metal_build",
+    "nvidia_kepler_gop_injection",
+    "nvme_boot",
+    "nvram_write",
+    "oc_timeout",
+    "opencore_debug",
+    "override_smbios",
+    "secure_status",
+    "serial_settings",
+    "set_vmm_cpuid",
+    "show_logs",
+    "showpicker",
+    "sip_status",
+    "software_demux",
+    "verbose_debug",
+    "vault",
+    "xhci_boot",
+)
+
+
 class GlobalSettings:
     def __init__(self, global_constants: Constants):
         super().__init__()
@@ -39,6 +93,13 @@ class GlobalSettings:
 
         self._migrate_github_token_to_keychain()
         setattr(self.constants, GITHUB_TOKEN_KEY, self.get_secure_key(GITHUB_TOKEN_KEY) or "")
+        self.apply_to_constants()
+
+    def apply_to_constants(self) -> None:
+        """Apply persisted build settings before any GUI controls are created."""
+        for key in CONSTANTS_SETTING_KEYS:
+            if key in self.settings:
+                setattr(self.constants, key, self.settings[key])
 
     def is_first_run(self) -> bool:
         """Check if this is the first run of the application."""

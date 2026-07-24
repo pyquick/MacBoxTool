@@ -3,7 +3,9 @@ network_handler.py: Network utilities and download management
 """
 import logging
 import requests
+import urllib3
 from requests.adapters import HTTPAdapter
+from urllib3.exceptions import InsecureRequestWarning
 from urllib3.util.retry import Retry
 import threading
 import MacBoxTool.support.utilities as utilities
@@ -14,6 +16,9 @@ from PySide6.QtCore import *
 from .. import constants
 import json,shutil
 from typing import Optional
+
+urllib3.disable_warnings(InsecureRequestWarning)
+
 SESSION = requests.Session()
 
 # Security constants

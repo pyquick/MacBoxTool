@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 
 from pathlib   import Path
 from functools import cached_property
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .url       import CatalogURL
 from .constants import CatalogVersion, SeedType
@@ -350,6 +351,51 @@ class CatalogProducts:
             return packaging.version.parse("0.0.0")
 
 
+    def _fetch_catalog_metadata(self, products: dict) -> dict:
+        metadata_urls = set()
+        for product in products.values():
+            packages = product.get("Packages", [])
+            package_names = {Path(package.get("URL", "")).name for package in packages}
+            is_installer = (
+                "InstallAssistant.pkg" in package_names
+                or self.LEGACY_INSTALL_ASSISTANT_PACKAGE in package_names
+                or self.LEGACY_INSTALL_ESD_PACKAGE in package_names
+            )
+            if not is_installer:
+                continue
+
+            for package in packages:
+                package_url = package.get("URL")
+                if package_url and Path(package_url).name in {
+                    "Info.plist",
+                    "com_apple_MobileAsset_MacSoftwareUpdate.plist",
+                }:
+                    metadata_urls.add(package_url)
+
+            distributions = product.get("Distributions", {})
+            distribution_url = distributions.get("English") or distributions.get("en")
+            if distribution_url:
+                metadata_urls.add(distribution_url)
+
+            server_metadata_url = product.get("ServerMetadataURL")
+            if server_metadata_url:
+                metadata_urls.add(server_metadata_url)
+
+        metadata = {}
+        if not metadata_urls:
+            return metadata
+
+        with ThreadPoolExecutor(max_workers=min(8, len(metadata_urls))) as executor:
+            futures = {
+                executor.submit(network_handler.NetworkUtilities().get, url): url
+                for url in metadata_urls
+            }
+            for future in as_completed(futures):
+                response = future.result()
+                if response:
+                    metadata[futures[future]] = response.content
+        return metadata
+
     @cached_property
     def products(self) -> None:
         """
@@ -359,8 +405,10 @@ class CatalogProducts:
         catalog = self.catalog
 
         _products = []
+        metadata = self._fetch_catalog_metadata(catalog["Products"])
 
         for product in catalog["Products"]:
+            product_data = catalog["Products"][product]
 
             # InstallAssistants.pkgs (macOS Installers) will have the following keys:
             if self.ia_only:
@@ -474,11 +522,9 @@ class CatalogProducts:
                         if package_name not in ["Info.plist", "com_apple_MobileAsset_MacSoftwareUpdate.plist"]:
                             continue
 
-                        net_obj = network_handler.NetworkUtilities().get(package["URL"])
-                        if net_obj is None:
+                        contents = metadata.get(package["URL"])
+                        if not contents:
                             continue
-
-                        contents = net_obj.content
                         try:
                             plist_contents = plistlib.loads(contents)
                         except plistlib.InvalidFileException:
@@ -514,28 +560,20 @@ class CatalogProducts:
                 if url is None:
                     continue
 
-                net_obj = network_handler.NetworkUtilities().get(url)
-                if net_obj is None:
+                contents = metadata.get(url)
+                if not contents:
                     continue
-
-                contents = net_obj.content
 
                 _product_map.update(self._parse_english_distributions(contents))
 
                 if _product_map["Version"] is None:
-                    if "ServerMetadataURL" in catalog["Products"][product]:
-                        server_metadata_url = catalog["Products"][product]["ServerMetadataURL"]
-
-                        net_obj = network_handler.NetworkUtilities().get(server_metadata_url)
-                        if net_obj is None:
-                            continue
-
-                        server_metadata_contents = net_obj.content
-
+                    server_metadata_url = product_data.get("ServerMetadataURL")
+                    server_metadata_contents = metadata.get(server_metadata_url)
+                    if server_metadata_contents:
                         try:
                             server_metadata_plist = plistlib.loads(server_metadata_contents)
                         except plistlib.InvalidFileException:
-                            pass
+                            server_metadata_plist = {}
 
                         if "CFBundleShortVersionString" in server_metadata_plist:
                             _product_map["Version"] = server_metadata_plist["CFBundleShortVersionString"]

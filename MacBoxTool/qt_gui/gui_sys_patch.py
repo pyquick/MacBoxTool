@@ -186,6 +186,8 @@ class SysPatch(ScrollArea):
         self.log_box.setReadOnly(True)
         self.log_box.setMinimumHeight(320)
         self.log_box.hide()
+        if not self.constants.show_logs:
+            self.log_box.setVisible(False)
         self.expandLayout.addWidget(self.log_box)
 
         self.expandLayout.addStretch()

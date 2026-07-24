@@ -26,8 +26,8 @@ class Constants:
         self.launcher_script:           str = None
         # OpenCore Version
         self.opencore_version:           str = "1.0.6"
-        self.nightly_build:              str = "4547.1000"
-        self.support_version:            str = "1.0.245834436prefix" # prefix: unstable core.
+        self.nightly_build:              str = "4552.1000"
+        self.support_version:            str = "1.0.245834437prefix" # prefix: unstable core.
 
         # Kext Versioning
         ## Acidanthera
@@ -252,7 +252,7 @@ class Constants:
         self.xhci_boot:     bool = False  # Allow UEFI XHCI Boot
 
         ## Graphics Settings
-        self.allow_ts2_accel:             bool = True  #  Set TeraScale 2 Acceleration support
+        self.allow_ts2_accel:             bool = False  #  Set TeraScale 2 Acceleration support
         self.drm_support:                 bool = False  # Set iMac14,x DRM support
         self.force_nv_web:                bool = False  # Force Nvidia Web Drivers on Tesla and Kepler
         self.force_output_support:        bool = False  # Force Output support for Mac Pros with PC VBIOS
@@ -287,6 +287,7 @@ class Constants:
         self.allow_apfs_aligned_patch:           bool = True
         self.allow_nightly_check:                bool = False
         self.stable_available:                   bool = False
+        self.show_logs:                        bool = False
         
         ## Non-Metal OS support
         self.legacy_accel_support = [

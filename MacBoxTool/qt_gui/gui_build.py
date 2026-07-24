@@ -469,11 +469,16 @@ class BuildOCPage(ScrollArea):
             SPACING["xxlarge"], SPACING["xlarge"]
         )
         self.expandLayout.setSpacing(SPACING["large"])
+        self.expandLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         self.expandLayout.addWidget(self._create_title())
         self.expandLayout.addWidget(self._create_model_label())
         self.expandLayout.addWidget(self._create_build_card())
-        self.expandLayout.addWidget(self._create_log_card(), 1)
+
+        self.log_card = self._create_log_card()
+        if self.constants.show_logs:
+            self.expandLayout.addWidget(self.log_card)
+        self.expandLayout.addStretch(1)
 
     def _create_title(self):
         lbl = SubtitleLabel("Build OpenCore for Macs")
@@ -495,8 +500,6 @@ class BuildOCPage(ScrollArea):
         layout.setContentsMargins(SPACING["large"], SPACING["large"],
                                   SPACING["large"], SPACING["large"])
         layout.setSpacing(SPACING["medium"])
-
-        
 
         # Build button - always enabled regardless of physical model
         self.build_btn = PushButton(FluentIcon.DEVELOPER_TOOLS, "Build OpenCore EFI")
@@ -550,7 +553,7 @@ class BuildOCPage(ScrollArea):
         card = CardWidget()
         layout = QVBoxLayout(card)
         layout.setContentsMargins(SPACING["large"], SPACING["large"],
-                                  SPACING["large"], SPACING["large"])
+                                SPACING["large"], SPACING["large"])
 
         lbl = StrongBodyLabel("Build Log")
         layout.addWidget(lbl)
@@ -559,6 +562,7 @@ class BuildOCPage(ScrollArea):
         self.log_text.setReadOnly(True)
         self.log_text.setMinimumHeight(300)
         layout.addWidget(self.log_text)
+        card.setVisible(self.constants.show_logs)
         return card
 
     
@@ -567,13 +571,11 @@ class BuildOCPage(ScrollArea):
         model = self.settings.find_key("MODEL")
         if not model or model == "N/A":
             model = self.constants.computer.real_model or "MacPro7,1"
-
         self.log_text.clear()
         self.build_btn.setEnabled(False)
         self.open_folder_btn.setVisible(False)  # Hide open folder button during build
         self.install_btn.setVisible(False)      # Hide install button during build
         self.progress_helper.update("loading", f"Building EFI for {model}...")
-
         self.worker = BuildWorker(model, self.constants)
         self.worker.log_signal.connect(self._append_log)
         self.worker.progress_signal.connect(self._on_progress)
@@ -581,6 +583,7 @@ class BuildOCPage(ScrollArea):
         self.worker.start()
 
     def _append_log(self, msg: str):
+        
         self.log_text.append(msg)
         # Auto-scroll to bottom
         sb = self.log_text.verticalScrollBar()

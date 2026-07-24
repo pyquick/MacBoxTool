@@ -17,6 +17,8 @@ class StyleSheetManager(QObject):
 
     def __init__(self):
         self.widgets = weakref.WeakKeyDictionary()
+        self._lastAppliedQss = weakref.WeakKeyDictionary()
+        self._overriddenQss = weakref.WeakKeyDictionary()
 
     def register(self, source, widget: QWidget, reset=True):
         """ register widget to manager
@@ -54,6 +56,18 @@ class StyleSheetManager(QObject):
             return
 
         self.widgets.pop(widget)
+        self._lastAppliedQss.pop(widget, None)
+        self._overriddenQss.pop(widget, None)
+
+    def setAppliedQss(self, widget: QWidget, qss: str):
+        self._lastAppliedQss[widget] = qss
+        self._overriddenQss.pop(widget, None)
+
+    def shouldUpdate(self, widget: QWidget) -> bool:
+        last_qss = self._lastAppliedQss.get(widget)
+        if last_qss is not None and widget.styleSheet() != last_qss:
+            self._overriddenQss[widget] = True
+        return widget not in self._overriddenQss
 
     def items(self):
         return self.widgets.items()
@@ -339,7 +353,10 @@ def setStyleSheet(widget: QWidget, source: Union[str, StyleSheetBase], theme=The
     if register:
         styleSheetManager.register(source, widget)
 
-    widget.setStyleSheet(getStyleSheet(source, theme))
+    qss = getStyleSheet(source, theme)
+    widget.setStyleSheet(qss)
+    if register:
+        styleSheetManager.setAppliedQss(widget, qss)
 
 
 def setCustomStyleSheet(widget: QWidget, lightQss: str, darkQss: str):
@@ -387,6 +404,8 @@ def addStyleSheet(widget: QWidget, source: Union[str, StyleSheetBase], theme=The
 
     if qss.rstrip() != widget.styleSheet().rstrip():
         widget.setStyleSheet(qss)
+    if register:
+        styleSheetManager.setAppliedQss(widget, qss)
 
 
 def updateStyleSheet(lazy=False):
@@ -400,6 +419,8 @@ def updateStyleSheet(lazy=False):
     removes = []
     for widget, file in list(styleSheetManager.items()):
         try:
+            if not styleSheetManager.shouldUpdate(widget):
+                continue
             if not (lazy and widget.visibleRegion().isNull()):
                 setStyleSheet(widget, file, qconfig.theme)
             else:

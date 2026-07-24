@@ -103,9 +103,7 @@ class MacBoxTool:
 
         self.settings=GlobalSettings(self.constants)
         self.target_model = self.settings.find_key("MODEL") or "MacPro7,1"
-        self.constants.custom_model=self.target_model if self.target_model !=("" or  None) else None
-        import threading
-        threading.Thread(target=self.hook_model,daemon=True).start()
+        self.constants.custom_model=self.target_model if self.target_model not in ("", "N/A", None) else None
         self.opengui()
         
     def install_requirements(self):

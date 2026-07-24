@@ -6,6 +6,7 @@ from ..include import *
 from .. import sucatalog
 from .gui_support import DefGUI
 from .gui_task import TaskManager
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def _installer_icon_path(installer_data: dict, constants: Constants) -> str:
@@ -294,28 +295,46 @@ class MacOSInstallerList(ScrollArea):
                 logging.error("Failed to download Installer Catalog from Apple")
                 return
 
+            catalog_versions = []
             did_find_latest = False
             for catalog_version in sucatalog.CatalogVersion:
-                if did_find_latest is False:
+                if not did_find_latest:
                     if catalog_version != sucatalog.CatalogVersion.GOLDEN_GATE:
                         continue
                     did_find_latest = True
 
                 if catalog_version == sucatalog.CatalogVersion.BIG_SUR:
                     continue
-
                 if catalog_version != sucatalog.CatalogVersion.GOLDEN_GATE:
-                    logging.info(f"[MacOSInstallerList] Loading catalog from: {catalog_version.name} {sucatalog.SeedType.DeveloperSeed.name}")
-                    seed_contents = sucatalog.CatalogURL(version=catalog_version, seed=sucatalog.SeedType.DeveloperSeed).url_contents
-                    if seed_contents is not None:
-                        sucatalog_contents["Products"].update(seed_contents.get("Products", {}))
-
+                    catalog_versions.append(catalog_version)
                 if catalog_version == sucatalog.CatalogVersion.SONOMA:
                     break
 
-            self.available_installers = sucatalog.CatalogProducts(sucatalog_contents).products
+            def _fetch_catalog(version):
+                logging.info(
+                    f"[MacOSInstallerList] Loading catalog from: {version.name} "
+                    f"{sucatalog.SeedType.DeveloperSeed.name}"
+                )
+                return version, sucatalog.CatalogURL(
+                    version=version,
+                    seed=sucatalog.SeedType.DeveloperSeed,
+                ).url_contents
+
+            with ThreadPoolExecutor(max_workers=min(4, len(catalog_versions))) as executor:
+                futures = [executor.submit(_fetch_catalog, version) for version in catalog_versions]
+                for future in as_completed(futures):
+                    if self._stop_loading:
+                        logging.info("[MacOSInstallerList] Loading was interrupted during catalog fetch")
+                        executor.shutdown(wait=False, cancel_futures=True)
+                        return
+                    catalog_version, seed_contents = future.result()
+                    if seed_contents is not None:
+                        sucatalog_contents["Products"].update(seed_contents.get("Products", {}))
+
+            catalog_products = sucatalog.CatalogProducts(sucatalog_contents)
+            self.available_installers = catalog_products.products
             self.available_installers.sort(key=lambda x: x.get("Build", ""), reverse=True)
-            self.available_installers_latest = sucatalog.CatalogProducts(sucatalog_contents).latest_products
+            self.available_installers_latest = catalog_products.latest_products
 
         thread = threading.Thread(target=_fetch_installers)
         self._loading_thread = thread
