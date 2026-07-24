@@ -22,6 +22,7 @@ def generate_manifest(commit_info: tuple, manifest_path: Path = DEFAULT_MANIFEST
     manifest = response.json()
     nightly_latest = manifest["nightly_latest"]
     stable_latest = manifest["stable_latest"]
+    branch=str(commit_info[0]).split("/")[-1]
 
     if is_nightly:
         version = {
@@ -29,11 +30,13 @@ def generate_manifest(commit_info: tuple, manifest_path: Path = DEFAULT_MANIFEST
                 "version":constant.macboxtool_version,
                 "build":constant.nightly_build,
                 "core":constant.support_version,
+                "branch":branch
             },
             "stable_latest":{
                 "version":stable_latest["version"],
                 "build":stable_latest["build"],
-                "core":stable_latest["core"]
+                "core":stable_latest["core"],
+                "branch":stable_latest["branch"]
             }
         }
     else:
@@ -46,17 +49,17 @@ def generate_manifest(commit_info: tuple, manifest_path: Path = DEFAULT_MANIFEST
             "nightly_latest":{
                 "version":nightly_latest["version"],
                 "build":nightly_latest["build"],
-                "core":nightly_latest["core"]
+                "core":nightly_latest["core"],
+                "branch":nightly_latest["branch"]
             },
             "stable_latest": {
                 "version":constant.macboxtool_version,
                 "build":constant.nightly_build,
                 "core":constant.support_version,
+                "branch":branch
             }
         }
-
+    print(version)
     with open(manifest_path, "w+", encoding="utf-8") as fs:
         json.dump(version, fs, indent=4)
-
-    print("manifest.json is created.")
 

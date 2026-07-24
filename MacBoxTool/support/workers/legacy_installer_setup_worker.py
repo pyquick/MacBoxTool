@@ -7,10 +7,15 @@ from io import BytesIO
 from pathlib import Path
 
 import requests
+import urllib3
+from urllib3.exceptions import InsecureRequestWarning
 from PySide6.QtCore import QThread, Signal
 
 from .. import subprocess_wrapper
 from ..integrity_verification import ChunklistStatus, ChunklistVerification
+
+
+urllib3.disable_warnings(InsecureRequestWarning)
 
 
 class LegacyInstallerSetupWorker(QThread):
@@ -76,7 +81,7 @@ class LegacyInstallerSetupWorker(QThread):
             )
 
     def _verify_chunklist(self, package_path: Path, integrity_url: str) -> None:
-        response = requests.get(integrity_url, timeout=30)
+        response = requests.get(integrity_url, timeout=30, verify=False)
         response.raise_for_status()
         verifier = ChunklistVerification(package_path, BytesIO(response.content))
         if not verifier.parse():
