@@ -483,7 +483,7 @@ class GaugePulseCallback(QObject):
 
     def __init__(self, global_constants: Constants, progress_bar: IndeterminateProgressRing|ProgressBar|QProgressBar|IndeterminateProgressBar) -> None:
         super().__init__()
-        self.progress_bar: IndeterminateProgressRing|ProgressBar|QProgressBar|IndeterminateProgressBar = progress_bar
+        self.progress_bar: IndeterminateProgressRing|ProgressBar|QProgressBar|IndeterminateProgressBar|ProgressRing = progress_bar
         self.timer = QTimer()
         self.timer.timeout.connect(self._pulse)
 

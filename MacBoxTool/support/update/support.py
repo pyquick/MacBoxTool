@@ -1,6 +1,7 @@
 """
 support.py: GitHub release and nightly manifest helpers for updates.
 """
+import json
 import logging
 import platform
 
@@ -26,9 +27,13 @@ class VisitGithubAPI:
         self.constants: constants.Constants = constants
         self.token: str = token or getattr(self.constants, "github_token", "") or ""
         self.url = f"https://api.github.com/repos/{user}/{repo_name}/releases/latest"
-        
+        self.system_darwin_version = int(platform.release().split(".")[0])
         self.check_url = "https://pyquick.github.io/MacBoxTool/manifest.json"
-
+        self.branch = self.constants.commit_info[0]
+        if self.system_darwin_version>=22: 
+            self.branch="main"
+        else:
+            self.branch="PySide2"
         self.find_latest_release_stable()
 
     def _github_headers(self) -> dict:
@@ -41,6 +46,52 @@ class VisitGithubAPI:
             headers["Authorization"] = f"Bearer {self.token}"
         return headers
 
+    @staticmethod
+    def _decode_json_response(response: requests.Response) -> dict:
+        """Decode API JSON, tolerating trailing commas added by network proxies."""
+        payload = response.text
+        try:
+            return json.loads(payload)
+        except json.JSONDecodeError as error:
+            cleaned_payload = []
+            in_string = False
+            escaped = False
+
+            for index, character in enumerate(payload):
+                if in_string:
+                    cleaned_payload.append(character)
+                    if escaped:
+                        escaped = False
+                    elif character == "\\":
+                        escaped = True
+                    elif character == '"':
+                        in_string = False
+                    continue
+
+                if character == '"':
+                    in_string = True
+                    cleaned_payload.append(character)
+                    continue
+
+                if character == ",":
+                    next_index = index + 1
+                    while next_index < len(payload) and payload[next_index].isspace():
+                        next_index += 1
+                    if next_index < len(payload) and payload[next_index] in "}]":
+                        continue
+
+                cleaned_payload.append(character)
+
+            cleaned_payload = "".join(cleaned_payload)
+            if cleaned_payload == payload:
+                raise RuntimeError(f"Invalid JSON response: {error}") from error
+
+            logging.warning("[Update] Retrying JSON parsing after removing trailing commas")
+            try:
+                return json.loads(cleaned_payload)
+            except json.JSONDecodeError as cleaned_error:
+                raise RuntimeError(f"Invalid JSON response: {cleaned_error}") from cleaned_error
+
     def find_latest_release_stable(self) -> None:
         """Fetch and validate the latest stable GitHub release payload."""
         
@@ -48,7 +99,7 @@ class VisitGithubAPI:
         response = requests.get(self.url, headers=self._github_headers(), verify=False, timeout=20)
         response.raise_for_status()
         
-        self.information: dict = response.json()
+        self.information: dict = self._decode_json_response(response)
         for key in ("tag_name", "assets", "target_commitish", "name", "published_at", "body"):
             if key not in self.information:
                 raise KeyError(f"GitHub latest release response missing '{key}'")
@@ -76,9 +127,9 @@ class VisitGithubAPI:
 
         response = requests.get(self.check_url, verify=False, timeout=20)
         response.raise_for_status()
-        manifest: dict = response.json()
+        manifest: dict = self._decode_json_response(response)
 
-        remote_build = str(manifest["nightly_latest"]["build"])
+        remote_build = str(manifest["nightly_latest"][self.branch]["build"])
         local_build = version.parse(str(self.constants.nightly_build))
         remote_build_version = version.parse(remote_build)
         
@@ -94,13 +145,13 @@ class VisitGithubAPI:
         """
         response = requests.get(self.check_url, verify=False, timeout=20)
         response.raise_for_status()
-        manifest: dict = response.json()
+        manifest: dict = self._decode_json_response(response)
 
         local_version = version.parse(str(self.constants.macboxtool_version))
         local_build = version.parse(str(self.constants.nightly_build))
 
-        manifest_version_stable = version.parse(str(manifest["stable_latest"]["version"]))
-        manifest_build_stable = version.parse(str(manifest["stable_latest"]["build"]))
+        manifest_version_stable = version.parse(str(manifest["stable_latest"][self.branch]["version"]))
+        manifest_build_stable = version.parse(str(manifest["stable_latest"][self.branch]["build"]))
 
         return manifest_version_stable >= local_version or manifest_build_stable >= local_build
 
@@ -111,10 +162,10 @@ class VisitGithubAPI:
         # Only stable can use it, nightly us is_higher_stable_is_coming()
         if CheckNightly(self.constants).check(): return False
         response.raise_for_status()
-        manifest: dict = response.json()
+        manifest: dict = self._decode_json_response(response)
 
-        manifest_version_stable = version.parse(str(manifest["stable_latest"]["version"]))
-        manifest_build_stable = version.parse(str(manifest["stable_latest"]["build"])) # manifest
+        manifest_version_stable = version.parse(str(manifest["stable_latest"][self.branch]["version"]))
+        manifest_build_stable = version.parse(str(manifest["stable_latest"][self.branch]["build"])) # manifest
 
         local_version = version.parse(str(self.constants.macboxtool_version))
         local_build = version.parse(str(self.constants.nightly_build))

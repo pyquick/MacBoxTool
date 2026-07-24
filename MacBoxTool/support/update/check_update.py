@@ -37,6 +37,7 @@ class CheckUpdate:
         if not hasattr(self.vg, "latest_tag_name"):
             self.vg.find_latest_release_stable()
 
+
         if self.constants.allow_nightly_check and not self.stable_is_coming:
             nightly = self.vg.find_and_compare_latest_release_nightly()
             if nightly[0]:
