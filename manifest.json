@@ -2,11 +2,13 @@
     "nightly_latest": {
         "version": "0.0.4",
         "build": "4552.1000",
-        "core": "1.0.245834437prefix"
+        "core": "1.0.245834437prefix",
+        "branch": "main"
     },
     "stable_latest": {
         "version": "0.0.3.2",
         "build": "4444.1001",
-        "core": "1.0.23780094prefix"
+        "core": "1.0.23780094prefix",
+        "branch": "main"
     }
 }
