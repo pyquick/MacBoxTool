@@ -1,8 +1,8 @@
 {
     "nightly_latest": {
         "version": "0.0.4",
-        "build": "4547.1000",
-        "core": "1.0.245834436prefix"
+        "build": "4552.1000",
+        "core": "1.0.245834437prefix"
     },
     "stable_latest": {
         "version": "0.0.3.2",
