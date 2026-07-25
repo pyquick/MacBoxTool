@@ -204,6 +204,9 @@ class MacBoxTool:
 
 
 def main():
+    import platform
+    if int(platform.release().split(".")[0]) < 22:
+        sys.exit(1)
     # Handle CLI commands using parsed args
     args = _parse_cli_args()
     
