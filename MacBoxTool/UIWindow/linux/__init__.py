@@ -1,6 +1,6 @@
 # coding:utf-8
-from PySide6.QtCore import QCoreApplication, QEvent, Qt, QSize, QRect
-from PySide6.QtWidgets import QWidget, QMainWindow, QDialog
+from PySide2.QtCore import QCoreApplication, QEvent, Qt, QSize, QRect
+from PySide2.QtWidgets import QWidget, QMainWindow, QDialog
 
 from ..titlebar import TitleBar
 from ..utils.linux_utils import LinuxMoveResize

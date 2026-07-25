@@ -5,7 +5,7 @@ multiprocess_data_handler.py: Multi-process data processing for KDK and MetalLib
 import logging
 import multiprocessing
 import requests
-from PySide6.QtCore import QThread, QTimer, Signal
+from PySide2.QtCore import QThread, QTimer, Signal
 
 
 def _process_data(api_url: str, data_type: str, queue: multiprocessing.Queue) -> None:

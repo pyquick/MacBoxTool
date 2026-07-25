@@ -3,9 +3,9 @@ from ctypes import c_void_p
 
 import Cocoa
 import objc
-from PySide6.QtCore import qVersion, QEvent, QObject
-from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QWidget
+from PySide2.QtCore import qVersion, QEvent, QObject
+from PySide2.QtGui import QColor
+from PySide2.QtWidgets import QWidget
 from Quartz.CoreGraphics import (CGEventCreateMouseEvent,
                                  kCGEventLeftMouseDown, kCGMouseButtonLeft)
 
@@ -105,7 +105,7 @@ class MacScreenCaptureFilter(QObject):
 
     def eventFilter(self, watched, event):
         if watched == self.parent():
-            if event.type() == QEvent.Type.WinIdChange:
+            if event.type() == QEvent.WinIdChange:
                 self.setScreenCaptureEnabled(self.isScreenCaptureEnabled)
 
         return super().eventFilter(watched, event)

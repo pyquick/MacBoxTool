@@ -1,7 +1,7 @@
 # coding:utf-8
-from PySide6.QtCore import QSize, Qt, Signal, QPoint, QRectF, QPropertyAnimation, Property, QEasingCurve
-from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPainterPath
-from PySide6.QtWidgets import QProxyStyle, QSlider, QStyle, QStyleOptionSlider, QWidget
+from PySide2.QtCore import QSize, Qt, Signal, QPoint, QRectF, QPropertyAnimation, Property, QEasingCurve
+from PySide2.QtGui import QColor, QMouseEvent, QPainter, QPainterPath
+from PySide2.QtWidgets import QProxyStyle, QSlider, QStyle, QStyleOptionSlider, QWidget
 
 from ...common.style_sheet import FluentStyleSheet, themeColor, isDarkTheme
 from ...common.color import autoFallbackThemeColor
@@ -115,7 +115,7 @@ class Slider(QSlider):
 
     def setOrientation(self, orientation: Qt.Orientation) -> None:
         super().setOrientation(orientation)
-        if orientation == Qt.Orientation.Horizontal:
+        if orientation == Qt.Horizontal:
             self.setMinimumHeight(22)
         else:
             self.setMinimumWidth(22)
@@ -132,14 +132,14 @@ class Slider(QSlider):
 
     @property
     def grooveLength(self):
-        l = self.width() if self.orientation() == Qt.Orientation.Horizontal else self.height()
+        l = self.width() if self.orientation() == Qt.Horizontal else self.height()
         return l - self.handle.width()
 
     def _adjustHandlePos(self):
         total = max(self.maximum() - self.minimum(), 1)
         delta = int((self.value() - self.minimum()) / total * self.grooveLength)
 
-        if self.orientation() == Qt.Orientation.Vertical:
+        if self.orientation() == Qt.Vertical:
             self.handle.move(0, delta)
         else:
             self.handle.move(delta, 0)
@@ -147,7 +147,7 @@ class Slider(QSlider):
     def _posToValue(self, pos: QPoint):
         pd = self.handle.width() / 2
         gs = max(self.grooveLength, 1)
-        v = pos.x() if self.orientation() == Qt.Orientation.Horizontal else pos.y()
+        v = pos.x() if self.orientation() == Qt.Horizontal else pos.y()
         return int((v - pd) / gs * (self.maximum() - self.minimum()) + self.minimum())
 
     def paintEvent(self, e):
@@ -156,7 +156,7 @@ class Slider(QSlider):
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor(255, 255, 255, 115) if isDarkTheme() else QColor(0, 0, 0, 100))
 
-        if self.orientation() == Qt.Orientation.Horizontal:
+        if self.orientation() == Qt.Horizontal:
             self._drawHorizonGroove(painter)
             self._drawHorizonTick(painter)
         else:

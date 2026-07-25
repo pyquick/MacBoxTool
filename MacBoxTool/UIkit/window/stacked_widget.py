@@ -1,6 +1,6 @@
 # coding:utf-8
-from PySide6.QtCore import Qt, Signal, QEasingCurve
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QAbstractScrollArea
+from PySide2.QtCore import Qt, Signal, QEasingCurve
+from PySide2.QtWidgets import QFrame, QHBoxLayout, QAbstractScrollArea
 
 from ..components.widgets.stacked_widget import PopUpAniStackedWidget, EntranceTransitionStackedWidget
 

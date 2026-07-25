@@ -1,7 +1,7 @@
 # coding:utf-8
 import sys
-from PySide6.QtCore import QEasingCurve, Qt
-from PySide6.QtWidgets import QApplication, QWidget, QPushButton
+from PySide2.QtCore import QEasingCurve, Qt
+from PySide2.QtWidgets import QApplication, QWidget, QPushButton
 
 from .....UIkit import PushButton, PrimaryPushButton, AdaptiveFlowLayout
 
@@ -44,4 +44,4 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     w = Demo()
     w.show()
-    sys.exit(app.exec())
+    sys.exit(app.exec_())

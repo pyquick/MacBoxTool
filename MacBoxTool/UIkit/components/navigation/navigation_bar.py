@@ -1,9 +1,9 @@
 # coding:utf-8
 from typing import Dict, Union
 
-from PySide6.QtCore import Qt, QRect, QPropertyAnimation, QEasingCurve, Property, QRectF, QPoint
-from PySide6.QtGui import QFont, QPainter, QColor, QIcon
-from PySide6.QtWidgets import QWidget, QVBoxLayout
+from PySide2.QtCore import Qt, QRect, QPropertyAnimation, QEasingCurve, Property, QRectF, QPoint
+from PySide2.QtGui import QFont, QPainter, QColor, QIcon
+from PySide2.QtWidgets import QWidget, QVBoxLayout
 
 from ...common.config import isDarkTheme
 from ...common.font import setFont

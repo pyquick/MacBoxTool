@@ -1,7 +1,7 @@
 # coding: utf-8
-from PySide6.QtCore import QEvent, QPoint, Qt, QObject
-from PySide6.QtGui import QMouseEvent, QColor
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide2.QtCore import QEvent, QPoint, Qt, QObject
+from PySide2.QtGui import QMouseEvent, QColor
+from PySide2.QtWidgets import QApplication, QWidget
 
 
 class LinuxMoveResize:
@@ -72,7 +72,7 @@ class LinuxScreenCaptureFilter(QObject):
 
     def eventFilter(self, watched, event):
         if watched == self.parent():
-            if event.type() == QEvent.Type.WinIdChange:
+            if event.type() == QEvent.WinIdChange:
                 self.setScreenCaptureEnabled(self.isScreenCaptureEnabled)
 
         return super().eventFilter(watched, event)

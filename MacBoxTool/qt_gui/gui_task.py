@@ -507,7 +507,7 @@ class TaskInterface(ScrollArea):
         # Scroll widget setup
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setWidget(self.scrollWidget)
         self.setWidgetResizable(True)
         self.enableTransparentBackground()
@@ -543,7 +543,7 @@ class TaskInterface(ScrollArea):
         # Placeholder for empty state
         self.empty_label = BodyLabel("No active downloads")
         self.empty_label.setTextColor("#808080", "#808080")
-        self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty_label.setAlignment(Qt.AlignCenter)
         self.active_downloads_layout.addWidget(self.empty_label)
 
         # Download history section
@@ -557,7 +557,7 @@ class TaskInterface(ScrollArea):
         # History empty label
         self.history_empty_label = BodyLabel("No download history")
         self.history_empty_label.setTextColor("#808080", "#808080")
-        self.history_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.history_empty_label.setAlignment(Qt.AlignCenter)
         self.history_layout.addWidget(self.history_empty_label)
 
         # Add stretch
@@ -710,7 +710,7 @@ class TaskInterface(ScrollArea):
         if not current_downloads and self.empty_label is None:
             self.empty_label = BodyLabel("No active downloads")
             self.empty_label.setTextColor("#808080", "#808080")
-            self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.empty_label.setAlignment(Qt.AlignCenter)
             self.active_downloads_layout.addWidget(self.empty_label)
 
     def _on_open_file(self, download: DownloadObject):
@@ -722,7 +722,7 @@ class TaskInterface(ScrollArea):
             InfoBar.warning(
                 title="File Not Found",
                 content=f"File not found: {file_path}",
-                orient=Qt.Orientation.Horizontal,
+                orient=Qt.Horizontal,
                 isClosable=True,
                 position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=3000,
@@ -741,7 +741,7 @@ class TaskInterface(ScrollArea):
             InfoBar.warning(
                 title="Folder Not Found",
                 content=f"Folder not found: {folder_path}",
-                orient=Qt.Orientation.Horizontal,
+                orient=Qt.Horizontal,
                 isClosable=True,
                 position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=3000,

@@ -2,9 +2,9 @@
 from typing import Union
 import sys
 
-from PySide6.QtCore import Qt, QSize, QRect
-from PySide6.QtGui import QIcon, QPainter, QColor
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QApplication
+from PySide2.QtCore import Qt, QSize, QRect
+from PySide2.QtGui import QIcon, QPainter, QColor
+from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QApplication
 
 from ..common.config import qconfig
 from ..common.icon import FluentIconBase

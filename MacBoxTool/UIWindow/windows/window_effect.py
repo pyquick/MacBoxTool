@@ -7,7 +7,7 @@ from ctypes.wintypes import DWORD, LONG, LPCVOID
 import win32api
 import win32con
 import win32gui
-from PySide6.QtGui import QColor
+from PySide2.QtGui import QColor
 
 from .c_structures import (ACCENT_POLICY, ACCENT_STATE, DWMNCRENDERINGPOLICY,
                            DWMWINDOWATTRIBUTE, MARGINS,

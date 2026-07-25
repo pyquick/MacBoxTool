@@ -2,10 +2,10 @@
 from enum import Enum
 from typing import List
 
-from PySide6.QtCore import (QAbstractAnimation, QEasingCurve, QPoint, QPropertyAnimation,
+from PySide2.QtCore import (QAbstractAnimation, QEasingCurve, QPoint, QPropertyAnimation,
                           Signal, QParallelAnimationGroup, Qt, QSequentialAnimationGroup, QRect)
-from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QGraphicsOpacityEffect, QStackedWidget, QWidget, QLabel
+from PySide2.QtGui import QPixmap
+from PySide2.QtWidgets import QGraphicsOpacityEffect, QStackedWidget, QWidget, QLabel
 
 from ...common.animation import FluentAnimation
 
@@ -239,11 +239,11 @@ class TransitionStackedWidget(QStackedWidget):
         return self._isAnimationEnabled
 
     def addWidget(self, w):
-        w.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        w.setAttribute(Qt.WA_TranslucentBackground)
         return super().addWidget(w)
 
     def insertWidget(self, index, w):
-        w.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        w.setAttribute(Qt.WA_TranslucentBackground)
         return super().insertWidget(index, w)
 
     def setCurrentWidget(self, widget: QWidget, duration: int = None, isBack: bool = False):
@@ -319,7 +319,7 @@ class TransitionStackedWidget(QStackedWidget):
 
     def _createSnapshotLabel(self):
         label = QLabel(self)
-        label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        label.setAttribute(Qt.WA_TranslucentBackground)
 
         effect = QGraphicsOpacityEffect(label)
         label.setGraphicsEffect(effect)

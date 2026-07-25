@@ -1,5 +1,5 @@
 # coding:utf-8
-from PySide6.QtCore import Qt, Signal, QTime, Property
+from PySide2.QtCore import Qt, Signal, QTime, Property
 
 from .picker_base import PickerBase, PickerColumnFormatter, DigitFormatter
 

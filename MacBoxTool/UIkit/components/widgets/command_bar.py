@@ -1,9 +1,9 @@
 # coding:utf-8
 from typing import Iterable, List, Tuple, Union
 
-from PySide6.QtCore import Qt, QSize, QRectF, QRect, QPoint, QEvent
-from PySide6.QtGui import QAction, QPainter, QColor, QFont, QHoverEvent, QPainterPath
-from PySide6.QtWidgets import QLayoutItem, QWidget, QFrame, QHBoxLayout, QApplication
+from PySide2.QtCore import Qt, QSize, QRectF, QRect, QPoint, QEvent
+from PySide2.QtGui import QAction, QPainter, QColor, QFont, QHoverEvent, QPainterPath
+from PySide2.QtWidgets import QLayoutItem, QWidget, QFrame, QHBoxLayout, QApplication
 
 from ...common.font import setFont
 from ...common.icon import FluentIcon, Icon, Action

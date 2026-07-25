@@ -3,9 +3,9 @@ from math import ceil
 from collections import defaultdict, Counter
 from typing import Type
 
-from PySide6.QtCore import Qt, Signal, QSize, QDate, QCalendar, QLocale
-from PySide6.QtGui import QPainter, QColor
-from PySide6.QtWidgets import QHBoxLayout, QListWidgetItem, QLabel, QWidget, QStackedWidget, QStyle
+from PySide2.QtCore import Qt, Signal, QSize, QDate, QCalendar, QLocale
+from PySide2.QtGui import QPainter, QColor
+from PySide2.QtWidgets import QHBoxLayout, QListWidgetItem, QLabel, QWidget, QStackedWidget, QStyle
 
 from ..widgets.flyout import FlyoutViewBase
 from ...common.style_sheet import isDarkTheme, themeColor, ThemeColor

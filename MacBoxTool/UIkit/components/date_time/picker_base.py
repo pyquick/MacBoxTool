@@ -1,9 +1,9 @@
 # coding:utf-8
 from typing import Iterable, List
 
-from PySide6.QtCore import Qt, Signal, QSize, QRectF, QPoint, QPropertyAnimation, QEasingCurve, QObject
-from PySide6.QtGui import QColor, QPainter, QCursor, QRegion
-from PySide6.QtWidgets import (QApplication, QWidget, QFrame, QVBoxLayout, QHBoxLayout,
+from PySide2.QtCore import Qt, Signal, QSize, QRectF, QPoint, QPropertyAnimation, QEasingCurve, QObject
+from PySide2.QtGui import QColor, QPainter, QCursor, QRegion
+from PySide2.QtWidgets import (QApplication, QWidget, QFrame, QVBoxLayout, QHBoxLayout,
                              QGraphicsDropShadowEffect, QSizePolicy, QPushButton, QListWidgetItem)
 
 from ..widgets.cycle_list_widget import CycleListWidget

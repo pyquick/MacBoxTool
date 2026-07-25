@@ -1,8 +1,8 @@
 # coding:utf-8
 from enum import Enum
-from PySide6.QtCore import Qt, Signal, QModelIndex, QPoint, Property, QSize, QRectF
-from PySide6.QtGui import QPixmap, QPainter, QColor
-from PySide6.QtWidgets import (QStyleOptionViewItem, QStyle, QListWidget, QListWidgetItem, QStyledItemDelegate,
+from PySide2.QtCore import Qt, Signal, QModelIndex, QPoint, Property, QSize, QRectF
+from PySide2.QtGui import QPixmap, QPainter, QColor
+from PySide2.QtWidgets import (QStyleOptionViewItem, QStyle, QListWidget, QListWidgetItem, QStyledItemDelegate,
                              QToolButton)
 
 from ...common.overload import singledispatchmethod

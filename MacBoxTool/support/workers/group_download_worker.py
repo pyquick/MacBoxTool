@@ -4,7 +4,7 @@ import logging
 import threading
 from pathlib import Path
 
-from PySide6.QtCore import QThread, Signal, Qt
+from PySide2.QtCore import QThread, Signal, Qt
 
 from ..network_handler import DownloadObject, DownloadWorker, DownloadStatus
 

@@ -6,8 +6,8 @@ from ..include import *
 from .gui_support import DefGUI
 from ..support.network_handler import DownloadObject
 from .gui_task import TaskManager
-from PySide6.QtWidgets import QFrame
-from PySide6.QtGui import QPainter, QColor, QPainterPath
+from PySide2.QtWidgets import QFrame
+from PySide2.QtGui import QPainter, QColor, QPainterPath
 import re
 
 
@@ -235,7 +235,7 @@ class MetallibCard(NoAnimCardWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(16)
-        layout.addWidget(self.icon_widget, 0, Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(self.icon_widget, 0, Qt.AlignVCenter)
 
         info_layout = QVBoxLayout()
         info_layout.setContentsMargins(0, 0, 0, 0)
@@ -245,8 +245,8 @@ class MetallibCard(NoAnimCardWidget):
         info_layout.addWidget(self.version_label)
         layout.addLayout(info_layout, 1)
 
-        layout.addWidget(self.copy_link_button, 0, Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(self.download_button, 0, Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(self.copy_link_button, 0, Qt.AlignVCenter)
+        layout.addWidget(self.download_button, 0, Qt.AlignVCenter)
 
     def _on_copy_link(self):
         url = self.metallib_data.get("url")
@@ -271,7 +271,7 @@ class MetallibList(ScrollArea):
 
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setWidget(self.scrollWidget)
         self.setWidgetResizable(True)
         self.enableTransparentBackground()
@@ -311,13 +311,13 @@ class MetallibList(ScrollArea):
         loading_layout = QVBoxLayout(self.loading_container)
         loading_layout.setContentsMargins(0, 0, 0, 0)
         loading_layout.setSpacing(SPACING["medium"])
-        loading_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        loading_layout.setAlignment(Qt.AlignCenter)
         self.progress_ring = IndeterminateProgressRing(self)
         self.progress_ring.setFixedSize(48, 48)
         self.loading_label = BodyLabel("Loading Metallibs...")
-        self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        loading_layout.addWidget(self.progress_ring, 0, Qt.AlignmentFlag.AlignCenter)
-        loading_layout.addWidget(self.loading_label, 0, Qt.AlignmentFlag.AlignCenter)
+        self.loading_label.setAlignment(Qt.AlignCenter)
+        loading_layout.addWidget(self.progress_ring, 0, Qt.AlignCenter)
+        loading_layout.addWidget(self.loading_label, 0, Qt.AlignCenter)
         self.expandLayout.addWidget(self.loading_container)
         self.loading_container.setVisible(False)
 
@@ -408,7 +408,7 @@ class MetallibList(ScrollArea):
 
         if not metallibs:
             label = BodyLabel("No Metallib packages available")
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setAlignment(Qt.AlignCenter)
             self.expandLayout.addWidget(label)
             return
 

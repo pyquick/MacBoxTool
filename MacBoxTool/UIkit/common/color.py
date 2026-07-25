@@ -1,7 +1,7 @@
 # coding: utf-8
 from enum import Enum
 
-from PySide6.QtGui import QColor
+from PySide2.QtGui import QColor
 
 from .style_sheet import themeColor, Theme, isDarkTheme
 from .config import isDarkThemeMode

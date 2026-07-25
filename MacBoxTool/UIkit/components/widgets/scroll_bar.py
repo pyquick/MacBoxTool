@@ -1,9 +1,9 @@
 # coding:utf-8
 from enum import Enum
-from PySide6.QtCore import (QEvent, QEasingCurve, Qt, Signal, QPropertyAnimation, Property, QRectF,
+from PySide2.QtCore import (QEvent, QEasingCurve, Qt, Signal, QPropertyAnimation, Property, QRectF,
                           QTimer, QPoint, QObject)
-from PySide6.QtGui import QPainter, QColor, QMouseEvent
-from PySide6.QtWidgets import (QWidget, QToolButton, QAbstractScrollArea, QGraphicsOpacityEffect,
+from PySide2.QtGui import QPainter, QColor, QMouseEvent
+from PySide2.QtWidgets import (QWidget, QToolButton, QAbstractScrollArea, QGraphicsOpacityEffect,
                              QHBoxLayout, QVBoxLayout, QApplication, QAbstractItemView, QListView)
 
 from ...common.icon import FluentIcon
@@ -632,7 +632,7 @@ class SmoothScrollDelegate(QObject):
         parent.setHorizontalScrollBarPolicy = self.setHorizontalScrollBarPolicy
 
     def eventFilter(self, obj, e: QEvent):
-        if e.type() == QEvent.Type.Wheel:
+        if e.type() == QEvent.Wheel:
             # Check if the vertical scroll is at its limit
             verticalAtEnd = (e.angleDelta().y() < 0 and self.vScrollBar.value() == self.vScrollBar.maximum()) or \
                             (e.angleDelta().y() > 0 and self.vScrollBar.value() == self.vScrollBar.minimum())

@@ -2,9 +2,9 @@
 import warnings
 from  typing import Union
 
-from PySide6.QtCore import Qt, QThread, Signal, QRect
-from PySide6.QtGui import QBrush, QColor, QImage, QPainter, QPixmap, QPainterPath
-from PySide6.QtWidgets import QLabel, QApplication, QWidget
+from PySide2.QtCore import Qt, QThread, Signal, QRect
+from PySide2.QtGui import QBrush, QColor, QImage, QPainter, QPixmap, QPainterPath
+from PySide2.QtWidgets import QLabel, QApplication, QWidget
 
 from ...common.screen import getCurrentScreen
 
@@ -22,7 +22,7 @@ except ImportError as e:
 def checkAcrylicAvailability():
     if not isAcrylicAvailable:
         warnings.warn(
-            'Acrylic is not supported in current qfluentwidgets, use `pip install PySide6-Fluent-Widgets[full]` to enable it.')
+            'Acrylic is not supported in current qfluentwidgets, use `pip install PySide2-Fluent-Widgets[full]` to enable it.')
 
     return isAcrylicAvailable
 

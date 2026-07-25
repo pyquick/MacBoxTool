@@ -1,5 +1,5 @@
 # coding:utf-8
-from PySide6.QtCore import QThread, Signal, Slot
+from PySide2.QtCore import QThread, Signal, Slot
 
 from .config import Theme, qconfig
 from .style_sheet import updateStyleSheet

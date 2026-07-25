@@ -119,7 +119,7 @@ class SysPatch(ScrollArea):
 
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setWidget(self.scrollWidget)
         self.setWidgetResizable(True)
         self.enableTransparentBackground()
@@ -180,7 +180,7 @@ class SysPatch(ScrollArea):
         self.progress_ring = IndeterminateProgressRing(self)
         self.progress_ring.setFixedSize(36, 36)
         self.progress_ring.hide()
-        self.expandLayout.addWidget(self.progress_ring, 0, Qt.AlignmentFlag.AlignCenter)
+        self.expandLayout.addWidget(self.progress_ring, 0, Qt.AlignCenter)
 
         self.log_box = TextEdit()
         self.log_box.setReadOnly(True)
@@ -359,7 +359,7 @@ class SysPatch(ScrollArea):
         progress_bar.setRange(0, 100)
         progress_bar.setValue(0)
         percent_label = BodyLabel("0%")
-        percent_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        percent_label.setAlignment(Qt.AlignRight)
         cancel_button = PushButton("Cancel")
         cancel_button.clicked.connect(self._cancel_download)
 
@@ -575,7 +575,7 @@ class SysPatch(ScrollArea):
         worker.progress_signal.connect(self._update_download_card)
         worker.finished_signal.connect(finish_download)
         worker.start()
-        loop.exec()
+        loop.exec_()
 
         if result["success"] is True and self.download_detail_label and is_qt_object_valid(self.download_detail_label):
             self.download_detail_label.setText("Download complete")

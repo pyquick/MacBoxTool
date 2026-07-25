@@ -5,9 +5,9 @@ from ctypes.wintypes import LPRECT, MSG
 import win32con
 import win32gui
 import win32api
-from PySide6.QtCore import Qt, QSize, QRect
-from PySide6.QtGui import QCloseEvent, QCursor
-from PySide6.QtWidgets import QApplication, QDialog, QWidget, QMainWindow
+from PySide2.QtCore import Qt, QSize, QRect
+from PySide2.QtGui import QCloseEvent, QCursor
+from PySide2.QtWidgets import QApplication, QDialog, QWidget, QMainWindow
 
 from ..titlebar import TitleBar
 from ..utils import win32_utils as win_utils

@@ -1,8 +1,8 @@
 # coding:utf-8
 from typing import Union
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QIcon, QColor
-from PySide6.QtWidgets import QWidget, QLabel, QButtonGroup, QVBoxLayout, QPushButton, QHBoxLayout
+from PySide2.QtCore import Qt, Signal
+from PySide2.QtGui import QIcon, QColor
+from PySide2.QtWidgets import QWidget, QLabel, QButtonGroup, QVBoxLayout, QPushButton, QHBoxLayout
 
 from ..dialog_box import ColorDialog
 from .expand_setting_card import ExpandGroupSettingCard
@@ -130,7 +130,7 @@ class CustomColorSettingCard(ExpandGroupSettingCard):
         w = ColorDialog(
             qconfig.get(self.configItem), self.tr('Choose color'), self.window(), self.enableAlpha)
         w.colorChanged.connect(self.__onCustomColorChanged)
-        w.exec()
+        w.exec_()
 
     def __onCustomColorChanged(self, color):
         """ custom color changed slot """

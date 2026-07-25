@@ -1,11 +1,11 @@
 # coding:utf-8
 from enum import Enum
 
-from PySide6.QtCore import QFile, QPointF, QRectF, Qt, Property
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
-from PySide6.QtWidgets import QAbstractButton
-from PySide6.QtSvg import QSvgRenderer
-from PySide6.QtXml import QDomDocument
+from PySide2.QtCore import QFile, QPointF, QRectF, Qt, Property
+from PySide2.QtGui import QColor, QPainter, QPainterPath, QPen
+from PySide2.QtWidgets import QAbstractButton
+from PySide2.QtSvg import QSvgRenderer
+from PySide2.QtXml import QDomDocument
 
 from .._rc import resource
 

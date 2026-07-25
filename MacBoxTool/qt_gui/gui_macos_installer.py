@@ -115,21 +115,21 @@ class InstallerCard(CardWidget):
         self.main_layout.setSpacing(16)
 
         # Left: Icon
-        self.main_layout.addWidget(self.icon_widget, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.main_layout.addWidget(self.icon_widget, 0, Qt.AlignVCenter)
 
         # Middle: Info
         self.info_layout = QVBoxLayout()
         self.info_layout.setContentsMargins(0, 0, 0, 0)
         self.info_layout.setSpacing(4)
-        self.info_layout.addWidget(self.title_label, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.info_layout.addWidget(self.date_label, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.info_layout.addWidget(self.version_label, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.info_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self.info_layout.addWidget(self.title_label, 0, Qt.AlignVCenter)
+        self.info_layout.addWidget(self.date_label, 0, Qt.AlignVCenter)
+        self.info_layout.addWidget(self.version_label, 0, Qt.AlignVCenter)
+        self.info_layout.setAlignment(Qt.AlignVCenter)
         self.main_layout.addLayout(self.info_layout, 1)
 
         # Right: Download button
-        self.main_layout.addWidget(self.copy_link_button, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.main_layout.addWidget(self.download_button, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.main_layout.addWidget(self.copy_link_button, 0, Qt.AlignVCenter)
+        self.main_layout.addWidget(self.download_button, 0, Qt.AlignVCenter)
 
     # ── Actions ──
 
@@ -189,7 +189,7 @@ class MacOSInstallerList(ScrollArea):
         """Initialize scroll area components"""
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setWidget(self.scrollWidget)
         self.setWidgetResizable(True)
         self.enableTransparentBackground()
@@ -244,7 +244,7 @@ class MacOSInstallerList(ScrollArea):
     def _init_loading_label(self):
         """Initialize loading text label"""
         self.loading_label = BodyLabel("Loading installers...")
-        self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.loading_label.setAlignment(Qt.AlignCenter)
 
     def _init_loading_container(self):
         """Assemble loading container with progress ring and label"""
@@ -252,10 +252,10 @@ class MacOSInstallerList(ScrollArea):
         self.loading_layout = QVBoxLayout(self.loading_container)
         self.loading_layout.setContentsMargins(0, 0, 0, 0)
         self.loading_layout.setSpacing(SPACING["medium"])
-        self.loading_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.loading_layout.setAlignment(Qt.AlignCenter)
 
-        self.loading_layout.addWidget(self.progress_ring, 0, Qt.AlignmentFlag.AlignCenter)
-        self.loading_layout.addWidget(self.loading_label, 0, Qt.AlignmentFlag.AlignCenter)
+        self.loading_layout.addWidget(self.progress_ring, 0, Qt.AlignCenter)
+        self.loading_layout.addWidget(self.loading_label, 0, Qt.AlignCenter)
 
         self.expandLayout.addWidget(self.loading_container)
 
@@ -395,7 +395,7 @@ class MacOSInstallerList(ScrollArea):
         self._clear_layout()
 
         error_label = BodyLabel(message)
-        error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        error_label.setAlignment(Qt.AlignCenter)
         self.expandLayout.addWidget(error_label)
 
     def _clear_layout(self):
@@ -431,7 +431,7 @@ class MacOSInstallerList(ScrollArea):
         if not installers:
             logging.warning("[MacOSInstallerList] No installers available to display")
             no_data_label = BodyLabel("No installers available")
-            no_data_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            no_data_label.setAlignment(Qt.AlignCenter)
             self.expandLayout.addWidget(no_data_label)
             return
 

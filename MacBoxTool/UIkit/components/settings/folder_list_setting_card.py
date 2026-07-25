@@ -2,9 +2,9 @@
 from typing import List
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal, QSize
-from PySide6.QtGui import QPainter, QIcon
-from PySide6.QtWidgets import (QPushButton, QFileDialog, QWidget, QLabel,
+from PySide2.QtCore import Qt, Signal, QSize
+from PySide2.QtGui import QPainter, QIcon
+from PySide2.QtWidgets import (QPushButton, QFileDialog, QWidget, QLabel,
                                QHBoxLayout, QToolButton, QSizePolicy)
 
 from ...components.widgets.button import ToolButton, PushButton

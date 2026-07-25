@@ -1,7 +1,7 @@
 # coding:utf-8
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QPushButton
+from PySide2.QtCore import Qt, Signal
+from PySide2.QtGui import QColor
+from PySide2.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QPushButton
 
 from ...common.style_sheet import FluentStyleSheet
 from ..widgets.button import PrimaryPushButton

@@ -2,9 +2,9 @@
 import sys
 from typing import Union, List, Iterable
 
-from PySide6.QtCore import Qt, Signal, QRectF, QPoint, QObject, QEvent, QModelIndex, QAbstractItemModel
-from PySide6.QtGui import QPainter, QCursor, QIcon, QStandardItemModel, QStandardItem, QAction
-from PySide6.QtWidgets import QPushButton, QApplication
+from PySide2.QtCore import Qt, Signal, QRectF, QPoint, QObject, QEvent, QModelIndex, QAbstractItemModel
+from PySide2.QtGui import QPainter, QCursor, QIcon, QStandardItemModel, QStandardItem, QAction
+from PySide2.QtWidgets import QPushButton, QApplication
 
 from .menu import RoundMenu, MenuAnimationType, IndicatorMenuItemDelegate
 from .line_edit import LineEdit, LineEditButton
@@ -76,13 +76,13 @@ class ModelComboBoxBase:
 
     def eventFilter(self, obj, e: QEvent):
         if obj is self:
-            if e.type() == QEvent.Type.MouseButtonPress:
+            if e.type() == QEvent.MouseButtonPress:
                 self.isPressed = True
-            elif e.type() == QEvent.Type.MouseButtonRelease:
+            elif e.type() == QEvent.MouseButtonRelease:
                 self.isPressed = False
-            elif e.type() == QEvent.Type.Enter:
+            elif e.type() == QEvent.Enter:
                 self.isHover = True
-            elif e.type() == QEvent.Type.Leave:
+            elif e.type() == QEvent.Leave:
                 self.isHover = False
 
         return super().eventFilter(obj, e)
@@ -360,7 +360,7 @@ class ModelComboBoxBase:
             menu.adjustSize()
 
         menu.setMaxVisibleItems(self.maxVisibleItems())
-        menu.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        menu.setAttribute(Qt.WA_DeleteOnClose)
         menu.closedSignal.connect(self._onDropMenuClosed)
         self.dropMenu = menu
 
@@ -504,7 +504,7 @@ class EditableModelComboBox(LineEdit, ModelComboBoxBase):
 
         self.setTextMargins(0, 0, 29, 0)
         self.dropButton.setFixedSize(30, 25)
-        self.hBoxLayout.addWidget(self.dropButton, 0, Qt.AlignmentFlag.AlignRight)
+        self.hBoxLayout.addWidget(self.dropButton, 0, Qt.AlignRight)
 
         self.dropButton.clicked.connect(self._toggleComboMenu)
         self.textChanged.connect(self._onComboTextChanged)

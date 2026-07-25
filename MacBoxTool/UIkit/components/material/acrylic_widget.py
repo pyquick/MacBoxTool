@@ -1,5 +1,5 @@
 # coding:utf-8
-from PySide6.QtGui import QPainterPath, QPainter, QColor
+from PySide2.QtGui import QPainterPath, QPainter, QColor
 
 from ..widgets.acrylic_label import AcrylicBrush
 from ...common.style_sheet import isDarkTheme

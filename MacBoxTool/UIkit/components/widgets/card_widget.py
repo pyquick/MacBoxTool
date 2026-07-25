@@ -1,8 +1,8 @@
 # coding:utf-8
 from typing import List, Union
-from PySide6.QtCore import Qt, Signal, QRectF, Property, QPropertyAnimation, QPoint, QSize
-from PySide6.QtGui import QPixmap, QPainter, QColor, QPainterPath, QFont, QIcon
-from PySide6.QtWidgets import QWidget, QFrame, QVBoxLayout, QHBoxLayout, QLabel
+from PySide2.QtCore import Qt, Signal, QRectF, Property, QPropertyAnimation, QPoint, QSize
+from PySide2.QtGui import QPixmap, QPainter, QColor, QPainterPath, QFont, QIcon
+from PySide2.QtWidgets import QWidget, QFrame, QVBoxLayout, QHBoxLayout, QLabel
 
 from ...common.overload import singledispatchmethod
 from ...common.style_sheet import isDarkTheme, FluentStyleSheet
@@ -289,8 +289,8 @@ class CardGroupWidget(QWidget):
         self.hBoxLayout.setContentsMargins(24, 10, 24, 10)
         self.textLayout.setContentsMargins(0, 0, 0, 0)
         self.textLayout.setSpacing(0)
-        self.hBoxLayout.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        self.textLayout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.hBoxLayout.setAlignment(Qt.AlignLeft)
+        self.textLayout.setAlignment(Qt.AlignCenter)
 
     def title(self):
         return self.titleLabel.text()

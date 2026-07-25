@@ -61,7 +61,7 @@ class Updater(ScrollArea):
 
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setWidget(self.scrollWidget)
         self.setWidgetResizable(True)
         self.enableTransparentBackground()
@@ -173,9 +173,9 @@ class Updater(ScrollArea):
         self.progress_bar.setVisible(False)
 
         self.progress_label = StrongBodyLabel("")
-        self.progress_layout.addWidget(self.progress_label, 1, Qt.AlignmentFlag.AlignVCenter)
-        self.progress_layout.addWidget(self.check_bar, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.progress_layout.addWidget(self.progress_bar, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.progress_layout.addWidget(self.progress_label, 1, Qt.AlignVCenter)
+        self.progress_layout.addWidget(self.check_bar, 0, Qt.AlignVCenter)
+        self.progress_layout.addWidget(self.progress_bar, 0, Qt.AlignVCenter)
         self.progress_container.setVisible(False)
 
         return self.progress_container

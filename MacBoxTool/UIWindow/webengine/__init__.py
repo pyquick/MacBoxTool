@@ -1,8 +1,8 @@
 # coding: utf-8
 import sys
 
-from PySide6.QtCore import Qt
-from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide2.QtCore import Qt
+from PySide2.QtWebEngineWidgets import QWebEngineView
 from ...UIWindow import AcrylicWindow, FramelessWindow, FramelessMainWindow, FramelessDialog
 
 
@@ -11,7 +11,7 @@ class FramelessWebEngineView(QWebEngineView):
 
     def __init__(self, parent):
         if sys.platform == "win32" and isinstance(parent.window(), AcrylicWindow):
-            parent.window().setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+            parent.window().setAttribute(Qt.WA_TranslucentBackground)
 
         super().__init__(parent=parent)
 

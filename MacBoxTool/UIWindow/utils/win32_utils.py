@@ -10,9 +10,9 @@ import win32api
 import win32con
 import win32gui
 import win32print
-from PySide6.QtCore import QOperatingSystemVersion, QVersionNumber, QObject, QEvent, qVersion
-from PySide6.QtGui import QGuiApplication, QColor
-from PySide6.QtWidgets import QWidget
+from PySide2.QtCore import QObject, QEvent, qVersion
+from PySide2.QtGui import QGuiApplication, QColor
+from PySide2.QtWidgets import QWidget
 
 ABM_GETSTATE = 4
 ABS_AUTOHIDE = 1
@@ -209,15 +209,14 @@ def findWindow(hWnd):
 
 def isGreaterEqualWin8_1():
     """ determine if the windows version ≥ Win8.1 """
-    cv = QOperatingSystemVersion.current()
-    cv = QVersionNumber(cv.majorVersion(), cv.minorVersion(), cv.microVersion())
-    return cv >= QVersionNumber(8, 1, 0)
+    ver = sys.getwindowsversion()
+    return (ver.major, ver.minor) >= (6, 2)  # Windows 8 = 6.2, 8.1 = 6.3
 
 
 def isGreaterEqualWin10():
     """ determine if the windows version ≥ Win10 """
-    cv = QOperatingSystemVersion.current()
-    return sys.platform == "win32" and cv.majorVersion() >= 10
+    ver = sys.getwindowsversion()
+    return sys.platform == "win32" and ver.major >= 10
 
 
 def isGreaterEqualWin11():
@@ -388,7 +387,7 @@ class WindowsScreenCaptureFilter(QObject):
 
     def eventFilter(self, watched, event):
         if watched == self.parent():
-            if event.type() == QEvent.Type.WinIdChange:
+            if event.type() == QEvent.WinIdChange:
                 self.setScreenCaptureEnabled(self.isScreenCaptureEnabled)
 
         return super().eventFilter(watched, event)

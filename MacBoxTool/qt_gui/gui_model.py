@@ -19,7 +19,7 @@ class Model(ScrollArea):
         #Add QWidgets
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         # Interface
         self.setWidget(self.scrollWidget)
         self.setWidgetResizable(True)

@@ -3,11 +3,11 @@ from enum import Enum
 from typing import Union
 import json
 
-from PySide6.QtXml import QDomDocument
-from PySide6.QtCore import QRectF, Qt, QFile, QObject, QRect
-from PySide6.QtGui import QIcon, QIconEngine, QColor, QPixmap, QImage, QPainter, QFontDatabase, QFont, QAction, QPainterPath
-from PySide6.QtSvg import QSvgRenderer
-from PySide6.QtWidgets import QApplication
+from PySide2.QtXml import QDomDocument
+from PySide2.QtCore import QRectF, Qt, QFile, QObject, QRect
+from PySide2.QtGui import QIcon, QIconEngine, QColor, QPixmap, QImage, QPainter, QFontDatabase, QFont, QAction, QPainterPath
+from PySide2.QtSvg import QSvgRenderer
+from PySide2.QtWidgets import QApplication
 
 from .config import isDarkTheme, Theme
 from .overload import singledispatchmethod

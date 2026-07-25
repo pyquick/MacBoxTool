@@ -1,9 +1,9 @@
 # coding:utf-8
 from typing import Union
 
-from PySide6.QtCore import Qt, QEvent, Signal, QPoint
-from PySide6.QtGui import QResizeEvent, QIcon, QPixmap
-from PySide6.QtWidgets import QWidget
+from PySide2.QtCore import Qt, QEvent, Signal, QPoint
+from PySide2.QtGui import QResizeEvent, QIcon, QPixmap
+from PySide2.QtWidgets import QWidget
 
 from .navigation_panel import NavigationPanel, NavigationItemPosition, NavigationWidget, NavigationDisplayMode
 from .navigation_widget import NavigationTreeWidget, NavigationUserCard

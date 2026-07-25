@@ -24,4 +24,4 @@ class OpenGUI:
         _app_entry._qt_window = w
 
         w.show()
-        app.exec()
+        app.exec_()

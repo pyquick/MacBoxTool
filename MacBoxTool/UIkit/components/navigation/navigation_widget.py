@@ -1,10 +1,10 @@
 # coding:utf-8
 from typing import Union, List
 
-from PySide6.QtCore import (Qt, Signal, QRect, QRectF, QPropertyAnimation, Property, QMargins,
+from PySide2.QtCore import (Qt, Signal, QRect, QRectF, QPropertyAnimation, Property, QMargins,
                           QEasingCurve, QPoint, QEvent, QParallelAnimationGroup)
-from PySide6.QtGui import QColor, QPainter, QPen, QIcon, QCursor, QFont, QBrush, QPixmap, QImage
-from PySide6.QtWidgets import QWidget, QVBoxLayout
+from PySide2.QtGui import QColor, QPainter, QPen, QIcon, QCursor, QFont, QBrush, QPixmap, QImage
+from PySide2.QtWidgets import QWidget, QVBoxLayout
 from collections import deque
 
 from ...common.config import isDarkTheme
@@ -1091,7 +1091,7 @@ class NavigationIndicator(QWidget):
         self.lightColor = QColor()
         self.darkColor = QColor()
 
-        self.scaleSlideAni = ScaleSlideAnimation(self, Qt.Orientation.Vertical)
+        self.scaleSlideAni = ScaleSlideAnimation(self, Qt.Vertical)
 
         self.resize(3, 16)
         self.setAttribute(Qt.WA_TransparentForMouseEvents)

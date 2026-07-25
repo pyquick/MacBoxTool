@@ -1,5 +1,5 @@
 # coding:utf-8
-from PySide6.QtCore import Qt, Signal, QDate, QCalendar, Property
+from PySide2.QtCore import Qt, Signal, QDate, QCalendar, Property
 
 from .picker_base import PickerBase, PickerPanel, PickerColumnFormatter, DigitFormatter
 

@@ -1,10 +1,10 @@
 # coding:utf-8
 import os
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import (QBrush, QColor, QFont, QFontMetrics, QMouseEvent,
+from PySide2.QtCore import Qt, Signal
+from PySide2.QtGui import (QBrush, QColor, QFont, QFontMetrics, QMouseEvent,
                          QPainter, QPen, QPixmap)
-from PySide6.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel,
+from PySide2.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel,
                              QVBoxLayout, QWidget, QPushButton)
 
 from ...common.config import isDarkTheme

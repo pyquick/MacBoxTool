@@ -1,9 +1,9 @@
 # coding: utf-8
 from typing import List, Union
 
-from PySide6.QtCore import Qt, QMargins, QModelIndex, QItemSelectionModel, Property, QRectF, QEvent
-from PySide6.QtGui import QHelpEvent, QPainter, QColor, QKeyEvent, QPalette, QBrush
-from PySide6.QtWidgets import (QAbstractItemView, QStyledItemDelegate, QApplication, QStyleOptionViewItem,
+from PySide2.QtCore import Qt, QMargins, QModelIndex, QItemSelectionModel, Property, QRectF, QEvent
+from PySide2.QtGui import QHelpEvent, QPainter, QColor, QKeyEvent, QPalette, QBrush
+from PySide2.QtWidgets import (QAbstractItemView, QStyledItemDelegate, QApplication, QStyleOptionViewItem,
                              QTableView, QTableWidget, QWidget, QTableWidgetItem, QStyle,
                              QStyleOptionButton,QStyleFactory)
 

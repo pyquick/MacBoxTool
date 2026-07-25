@@ -2,9 +2,9 @@
 from enum import Enum
 from typing import Dict, Union
 
-from PySide6.QtCore import Qt, QPropertyAnimation, QRect, QSize, QEvent, QEasingCurve, Signal, QPoint, QRectF
-from PySide6.QtGui import QResizeEvent, QIcon, QColor, QPainterPath, QPainter, QPen
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QFrame, QApplication, QHBoxLayout, QGraphicsDropShadowEffect
+from PySide2.QtCore import Qt, QPropertyAnimation, QRect, QSize, QEvent, QEasingCurve, Signal, QPoint, QRectF
+from PySide2.QtGui import QResizeEvent, QIcon, QColor, QPainterPath, QPainter, QPen
+from PySide2.QtWidgets import QWidget, QVBoxLayout, QFrame, QApplication, QHBoxLayout, QGraphicsDropShadowEffect
 
 from .navigation_widget import (NavigationTreeWidgetBase, NavigationToolButton, NavigationWidget, NavigationSeparator,
                                 NavigationTreeWidget, NavigationFlyoutMenu, NavigationItemHeader, NavigationIndicator)

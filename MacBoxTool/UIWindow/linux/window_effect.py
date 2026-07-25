@@ -1,5 +1,5 @@
 # coding:utf-8
-from PySide6.QtGui import QColor
+from PySide2.QtGui import QColor
 
 
 class LinuxWindowEffect:

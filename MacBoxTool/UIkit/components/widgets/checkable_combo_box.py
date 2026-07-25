@@ -7,9 +7,9 @@ Uses UIkit's Fluent design patterns.
 """
 from typing import List, Iterable
 
-from PySide6.QtCore import Qt, Signal, QPoint
-from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QWidget, QListWidget, QListWidgetItem
+from PySide2.QtCore import Qt, Signal, QPoint
+from PySide2.QtGui import QAction
+from PySide2.QtWidgets import QWidget, QListWidget, QListWidgetItem
 
 from .menu import RoundMenu, MenuAnimationType
 from .button import PushButton
@@ -43,7 +43,7 @@ class CheckableComboBox(QWidget):
 
     def _init_ui(self):
         """Initialize the UI components."""
-        from PySide6.QtWidgets import QVBoxLayout
+        from PySide2.QtWidgets import QVBoxLayout
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._button)

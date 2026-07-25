@@ -10,7 +10,7 @@ from pathlib import Path
 from io import BytesIO
 from typing import Optional
 
-from PySide6.QtCore import QThread, Signal
+from PySide2.QtCore import QThread, Signal
 
 from ..integrity_verification import ChunklistVerification, ChunklistStatus
 

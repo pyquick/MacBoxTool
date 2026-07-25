@@ -1,7 +1,7 @@
 # coding:utf-8
-from PySide6.QtCore import QEasingCurve, QPropertyAnimation, Qt, QEvent, QPoint
-from PySide6.QtGui import QColor
-from PySide6.QtWidgets import (QDialog, QGraphicsDropShadowEffect,
+from PySide2.QtCore import QEasingCurve, QPropertyAnimation, Qt, QEvent, QPoint
+from PySide2.QtGui import QColor
+from PySide2.QtWidgets import (QDialog, QGraphicsDropShadowEffect,
                              QGraphicsOpacityEffect, QHBoxLayout, QWidget, QFrame, QApplication)
 
 from ...common.config import isDarkTheme

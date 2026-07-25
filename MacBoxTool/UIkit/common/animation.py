@@ -1,8 +1,8 @@
 # coding: utf-8
 from enum import Enum
-from PySide6.QtCore import QEasingCurve, QEvent, QObject, QPropertyAnimation, Property, Signal, QPoint, QPointF, QRect, QRectF, QParallelAnimationGroup, QSequentialAnimationGroup, Qt
-from PySide6.QtGui import QMouseEvent, QEnterEvent, QColor
-from PySide6.QtWidgets import QWidget, QLineEdit, QGraphicsDropShadowEffect
+from PySide2.QtCore import QEasingCurve, QEvent, QObject, QPropertyAnimation, Property, Signal, QPoint, QPointF, QRect, QRectF, QParallelAnimationGroup, QSequentialAnimationGroup, Qt
+from PySide2.QtGui import QMouseEvent, QColor
+from PySide2.QtWidgets import QWidget, QLineEdit, QGraphicsDropShadowEffect
 
 from .config import qconfig
 
@@ -14,7 +14,7 @@ class AnimationBase(QObject):
         super().__init__(parent=parent)
         parent.installEventFilter(self)
 
-    def _onHover(self, e: QEnterEvent):
+    def _onHover(self, e: QEvent):
         pass
 
     def _onLeave(self, e: QEvent):
@@ -93,7 +93,7 @@ class BackgroundAnimationWidget:
 
     def eventFilter(self, obj, e):
         if obj is self:
-            if e.type() == QEvent.Type.EnabledChange:
+            if e.type() == QEvent.EnabledChange:
                 if self.isEnabled():
                     self.setBackgroundColor(self._normalBackgroundColor())
                 else:
@@ -227,7 +227,7 @@ class DropShadowAnimation(QPropertyAnimation):
 
     def eventFilter(self, obj, e):
         if obj is self.parent() and self.parent().isEnabled():
-            if e.type() in [QEvent.Type.Enter]:
+            if e.type() in [QEvent.Enter]:
                 self.isHover = True
 
                 if self.state() != QPropertyAnimation.State.Running:
@@ -235,7 +235,7 @@ class DropShadowAnimation(QPropertyAnimation):
 
                 self.setEndValue(self.hoverColor)
                 self.start()
-            elif e.type() in [QEvent.Type.Leave, QEvent.Type.MouseButtonPress]:
+            elif e.type() in [QEvent.Leave, QEvent.MouseButtonPress]:
                 self.isHover = False
                 if self.parent().graphicsEffect():
                     self.finished.connect(self._onAniFinished)
@@ -537,7 +537,7 @@ class ScaleSlideAnimation(QObject):
     valueChanged = Signal(QRectF)
     finished = Signal()
 
-    def __init__(self, parent=None, orient=Qt.Orientation.Horizontal):
+    def __init__(self, parent=None, orient=Qt.Horizontal):
         super().__init__(parent)
         self.orient = orient
         self._geometry = QRectF(0, 0, 16, 3) if self.isHorizontal() else QRectF(0, 0, 3, 16)
@@ -687,7 +687,7 @@ class ScaleSlideAnimation(QObject):
         return self.currentAni.state()
 
     def isHorizontal(self):
-        return self.orient == Qt.Orientation.Horizontal
+        return self.orient == Qt.Horizontal
 
     def getPos(self):
         return QPointF(self.geometry.topLeft())

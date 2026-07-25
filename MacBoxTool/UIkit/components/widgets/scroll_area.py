@@ -1,7 +1,7 @@
 # coding:utf-8
-from PySide6.QtCore import QEasingCurve, Qt, QPropertyAnimation
-from PySide6.QtGui import QWheelEvent
-from PySide6.QtWidgets import QScrollArea, QScrollBar
+from PySide2.QtCore import QEasingCurve, Qt, QPropertyAnimation
+from PySide2.QtGui import QWheelEvent
+from PySide2.QtWidgets import QScrollArea, QScrollBar
 
 from ...common.smooth_scroll import SmoothScroll, SmoothMode
 from .scroll_bar import ScrollBar, SmoothScrollBar, SmoothScrollDelegate
@@ -25,7 +25,7 @@ class ScrollArea(QScrollArea):
         orientation: Qt.Orientation
             scroll direction
         """
-        if orientation == Qt.Orientation.Vertical:
+        if orientation == Qt.Vertical:
             self.scrollDelagate.verticalSmoothScroll.setSmoothMode(mode)
         else:
             self.scrollDelagate.horizonSmoothScroll.setSmoothMode(mode)

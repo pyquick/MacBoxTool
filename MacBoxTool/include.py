@@ -1,12 +1,12 @@
 # GUI Include
 from .UIkit import *
 from .UIkit import FluentIcon as FIF
-from PySide6.QtWidgets import *
-from PySide6.QtCore import *
-from PySide6.QtGui import *
+from PySide2.QtWidgets import *
+from PySide2.QtCore import *
+from PySide2.QtGui import *
 from .support.colors import *
 from .UIWindow.utils import *
-from PySide6.QtCore import QTimer,QObject
+from PySide2.QtCore import QTimer,QObject
 from .support.toggle_theme import ThemeManager
 
 from .support import subprocess_wrapper

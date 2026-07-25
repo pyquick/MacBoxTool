@@ -1,7 +1,7 @@
 # coding:utf-8
-from PySide6.QtCore import Qt, Signal, QObject, QEvent
-from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QLabel, QFrame, QVBoxLayout, QHBoxLayout, QPushButton
+from PySide2.QtCore import Qt, Signal, QObject, QEvent
+from PySide2.QtGui import QColor
+from PySide2.QtWidgets import QLabel, QFrame, QVBoxLayout, QHBoxLayout, QPushButton
 from ....UIWindow import FramelessDialog
 
 from ...common.auto_wrap import TextWrap
@@ -107,10 +107,10 @@ class Ui_MessageBox:
         """ set whether the content is copyable """
         if isCopyable:
             self.contentLabel.setTextInteractionFlags(
-                Qt.TextInteractionFlag.TextSelectableByMouse)
+                Qt.TextSelectableByMouse)
         else:
             self.contentLabel.setTextInteractionFlags(
-                Qt.TextInteractionFlag.NoTextInteraction)
+                Qt.NoTextInteraction)
 
 
 class Dialog(FramelessDialog, Ui_MessageBox):

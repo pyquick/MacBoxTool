@@ -1,9 +1,9 @@
 # coding:utf-8
 from typing import Union
 
-from PySide6.QtCore import Qt, Signal, QRectF, QDate, QPoint, Property
-from PySide6.QtGui import QPainter
-from PySide6.QtWidgets import QWidget, QPushButton, QApplication
+from PySide2.QtCore import Qt, Signal, QRectF, QDate, QPoint, Property
+from PySide2.QtGui import QPainter
+from PySide2.QtWidgets import QWidget, QPushButton, QApplication
 
 from ...common.style_sheet import FluentStyleSheet
 from ...common.icon import FluentIcon as FIF

@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import QThread, Signal
+from PySide2.QtCore import QThread, Signal
 
 from ..macos_installer_handler import InstallerCreation
 

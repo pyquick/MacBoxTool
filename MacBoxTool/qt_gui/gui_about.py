@@ -23,7 +23,7 @@ class AboutInterface(ScrollArea):
         #Add QWidgets
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         # Interface
         self.setWidget(self.scrollWidget)
         self.setWidgetResizable(True)
@@ -62,32 +62,32 @@ class AboutInterface(ScrollArea):
         self.label="About MacBoxTool"
         title_label = SubtitleLabel(self.label)
         title_label.setStyleSheet("font-size: 24px; font-weight: bold;")
-        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_label.setAlignment(Qt.AlignCenter)
         return title_label
 
     def show_custom_label(self):
         self.label="Custom Label"
         title_label = SubtitleLabel(self.label)
         title_label.setStyleSheet("font-size: 24px; font-weight: bold;")
-        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_label.setAlignment(Qt.AlignCenter)
         return title_label
     
     def show_your_model(self):
         self.model= self.constants.computer.real_model
         model_label = BodyLabel("Model:"+" "+self.model)
-        model_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        model_label.setAlignment(Qt.AlignCenter)
         return model_label
     
     def show_your_custom_model(self):
         self.model= str(self.constants.custom_model)
         model_label = BodyLabel("Custom Model:"+" "+self.model)
-        model_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        model_label.setAlignment(Qt.AlignCenter)
         return model_label
 
     def show_your_board_id(self):
         self.board_id= self.constants.computer.real_board_id
         board_label = BodyLabel("Board id:"+" "+self.board_id)
-        board_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        board_label.setAlignment(Qt.AlignCenter)
         return board_label
     
     
@@ -96,7 +96,7 @@ class AboutInterface(ScrollArea):
         expandLayout = QVBoxLayout(widgets)
         self.model= self.constants.computer.real_model
         model_label = BodyLabel("Application Information")
-        model_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        model_label.setAlignment(Qt.AlignLeft)
         version_card=SettingCard(
             FIF.APPLICATION,
             "MacBoxTool",

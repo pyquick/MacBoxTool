@@ -2,9 +2,9 @@
 import sys
 from typing import Union, List, Iterable
 
-from PySide6.QtCore import Qt, Signal, QRectF, QPoint, QObject, QEvent
-from PySide6.QtGui import QPainter, QAction, QCursor, QIcon
-from PySide6.QtWidgets import QPushButton, QApplication
+from PySide2.QtCore import Qt, Signal, QRectF, QPoint, QObject, QEvent
+from PySide2.QtGui import QPainter, QAction, QCursor, QIcon
+from PySide2.QtWidgets import QPushButton, QApplication
 
 from .menu import RoundMenu, MenuAnimationType, IndicatorMenuItemDelegate, CheckableMenu
 from .line_edit import LineEdit, LineEditButton
@@ -329,7 +329,7 @@ class ComboBoxBase:
             menu.adjustSize()
 
         menu.setMaxVisibleItems(self.maxVisibleItems())
-        menu.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        menu.setAttribute(Qt.WA_DeleteOnClose)
         menu.closedSignal.connect(self._onDropMenuClosed)
         self.dropMenu = menu
 

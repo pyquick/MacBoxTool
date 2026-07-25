@@ -1,8 +1,8 @@
 # coding:utf-8
 from typing import List
-from PySide6.QtCore import Qt, QRect, QRectF, QSize
-from PySide6.QtGui import QPainter, QColor, QPainterPath, QAction
-from PySide6.QtWidgets import QLineEdit, QListWidgetItem, QListWidget
+from PySide2.QtCore import Qt, QRect, QRectF, QSize
+from PySide2.QtGui import QPainter, QColor, QPainterPath, QAction
+from PySide2.QtWidgets import QLineEdit, QListWidgetItem, QListWidget
 
 from ..widgets.menu  import (RoundMenu, MenuAnimationType, MenuAnimationManager, MenuActionListWidget,
                              IndicatorMenuItemDelegate, LineEditMenu, MenuIndicatorType, CheckableMenu)

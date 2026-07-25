@@ -194,7 +194,7 @@ class SettingsInterface(QWidget):
     def _create_tab_scroll(self):
         scroll = ScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.enableTransparentBackground()
         container = QWidget()
         container.setStyleSheet("QWidget { background: transparent; }")
@@ -245,7 +245,7 @@ class SettingsInterface(QWidget):
         self.cb_gpu_override.comboBox = ComboBox(self.cb_gpu_override)
         gpu_options = ["None", "Nvidia Kepler", "AMD GCN", "AMD Polaris", "AMD Lexa", "AMD Navi"]
         self.cb_gpu_override.comboBox.addItems(gpu_options)
-        self.cb_gpu_override.hBoxLayout.addWidget(self.cb_gpu_override.comboBox, 0, Qt.AlignmentFlag.AlignRight)
+        self.cb_gpu_override.hBoxLayout.addWidget(self.cb_gpu_override.comboBox, 0, Qt.AlignRight)
         self.cb_gpu_override.hBoxLayout.addSpacing(16)
         group.addSettingCard(self.cb_gpu_override)
 
@@ -283,7 +283,7 @@ class SettingsInterface(QWidget):
         self.oc_timeout_spin = SpinBox(self.oc_timeout_card)
         self.oc_timeout_spin.setRange(0, 30)
         self.oc_timeout_spin.setValue(self.constants.oc_timeout)
-        self.oc_timeout_card.hBoxLayout.addWidget(self.oc_timeout_spin, 0, Qt.AlignmentFlag.AlignRight)
+        self.oc_timeout_card.hBoxLayout.addWidget(self.oc_timeout_spin, 0, Qt.AlignRight)
         self.oc_timeout_card.hBoxLayout.addSpacing(16)
         group.addSettingCard(self.oc_timeout_card)
 
@@ -453,7 +453,7 @@ class SettingsInterface(QWidget):
         self.cb_serial.comboBox = ComboBox(self.cb_serial)
         for t in ("None", "Minimal", "Moderate", "Advanced"):
             self.cb_serial.comboBox.addItem(t)
-        self.cb_serial.hBoxLayout.addWidget(self.cb_serial.comboBox, 0, Qt.AlignmentFlag.AlignRight)
+        self.cb_serial.hBoxLayout.addWidget(self.cb_serial.comboBox, 0, Qt.AlignRight)
         self.cb_serial.hBoxLayout.addSpacing(16)
 
         # Spoof Model
@@ -469,7 +469,7 @@ class SettingsInterface(QWidget):
         ]
         for m in spoof_models:
             self.cb_spoof_model.comboBox.addItem(m)
-        self.cb_spoof_model.hBoxLayout.addWidget(self.cb_spoof_model.comboBox, 0, Qt.AlignmentFlag.AlignRight)
+        self.cb_spoof_model.hBoxLayout.addWidget(self.cb_spoof_model.comboBox, 0, Qt.AlignRight)
         self.cb_spoof_model.hBoxLayout.addSpacing(16)
 
         self.sw_native_spoof = SwitchSettingCard(FIF.SYNC, "Allow Native Spoofs", "Allow spoofing on native models", parent=group)
@@ -492,7 +492,7 @@ class SettingsInterface(QWidget):
         self.sn_serial_edit.setPlaceholderText("Serial Number")
         self.sn_serial_edit.setClearButtonEnabled(True)
         self.sn_serial_edit.setText(self.constants.custom_serial_number)
-        self.sn_serial_card.hBoxLayout.addWidget(self.sn_serial_edit, 0, Qt.AlignmentFlag.AlignRight)
+        self.sn_serial_card.hBoxLayout.addWidget(self.sn_serial_edit, 0, Qt.AlignRight)
         self.sn_serial_card.hBoxLayout.addSpacing(16)
         sn_group.addSettingCard(self.sn_serial_card)
 
@@ -501,14 +501,14 @@ class SettingsInterface(QWidget):
         self.sn_board_edit.setPlaceholderText("Board Serial")
         self.sn_board_edit.setClearButtonEnabled(True)
         self.sn_board_edit.setText(self.constants.custom_board_serial_number)
-        self.sn_board_card.hBoxLayout.addWidget(self.sn_board_edit, 0, Qt.AlignmentFlag.AlignRight)
+        self.sn_board_card.hBoxLayout.addWidget(self.sn_board_edit, 0, Qt.AlignRight)
         self.sn_board_card.hBoxLayout.addSpacing(16)
         sn_group.addSettingCard(self.sn_board_card)
 
         self.sn_gen_card = SettingCard(FIF.SYNC, "Generate Serial", "Generate serial for spoof/target model via macserial", parent=sn_group)
         self.sn_gen_btn = PrimaryPushButton("Generate")
         self.sn_gen_btn.clicked.connect(self._on_generate_serial)
-        self.sn_gen_card.hBoxLayout.addWidget(self.sn_gen_btn, 0, Qt.AlignmentFlag.AlignRight)
+        self.sn_gen_card.hBoxLayout.addWidget(self.sn_gen_btn, 0, Qt.AlignRight)
         self.sn_gen_card.hBoxLayout.addSpacing(16)
         sn_group.addSettingCard(self.sn_gen_card)
 
@@ -573,7 +573,7 @@ class SettingsInterface(QWidget):
         )
         w.yesButton.setText("Continue")
         w.cancelButton.setText("Cancel")
-        if w.exec() != 1:
+        if w.exec_() != 1:
             return
 
         try:
@@ -588,11 +588,11 @@ class SettingsInterface(QWidget):
             else:
                 err = MessageBox("Error", f"Failed to generate serial number:\n\n{result.stdout.decode().strip()}", self.window())
                 err.cancelButton.hide()
-                err.exec()
+                err.exec_()
         except Exception as e:
             err = MessageBox("Error", f"Failed to generate serial number:\n\n{e}", self.window())
             err.cancelButton.hide()
-            err.exec()
+            err.exec_()
 
     # ── Misc ──
 
@@ -662,13 +662,13 @@ class SettingsInterface(QWidget):
         self.audio_type_card = SettingCard(FIF.SYNC, "Audio Patch choice", "AppleHDA for Tahoe, or VoodooHDA for Monterey and newer.", parent=group1)
         self.audio_type_combo = ComboBox(self.audio_type_card)
         self.audio_type_combo.addItems(["AppleHDA", "VoodooHDA"])
-        self.audio_type_card.hBoxLayout.addWidget(self.audio_type_combo, 0, Qt.AlignmentFlag.AlignRight)
+        self.audio_type_card.hBoxLayout.addWidget(self.audio_type_combo, 0, Qt.AlignRight)
         self.audio_type_card.hBoxLayout.addSpacing(16)
 
         self.applehda_version_card = SettingCard(FIF.SYNC, "AppleHDA.kext Version", "Select AppleHDA.kext version used by the Tahoe AppleHDA patch.", parent=group1)
         self.applehda_version_combo = ComboBox(self.applehda_version_card)
         self.applehda_version_combo.addItems(["15.6", "26.0 Beta 1"])
-        self.applehda_version_card.hBoxLayout.addWidget(self.applehda_version_combo, 0, Qt.AlignmentFlag.AlignRight)
+        self.applehda_version_card.hBoxLayout.addWidget(self.applehda_version_combo, 0, Qt.AlignRight)
         self.applehda_version_card.hBoxLayout.addSpacing(16)
 
         for card in (self.allow_ts2_accel_card, self.audio_type_card, self.allow_usb_patch_card, self.applehda_version_card):
@@ -745,7 +745,7 @@ class SettingsInterface(QWidget):
         self.github_token_edit.setClearButtonEnabled(True)
         self.github_token_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self.github_token_edit.setFixedWidth(320)
-        self.github_token_card.hBoxLayout.addWidget(self.github_token_edit, 0, Qt.AlignmentFlag.AlignRight)
+        self.github_token_card.hBoxLayout.addWidget(self.github_token_edit, 0, Qt.AlignRight)
         self.github_token_card.hBoxLayout.addSpacing(16)
 
         group.addSettingCard(self.sw_oc_debug)

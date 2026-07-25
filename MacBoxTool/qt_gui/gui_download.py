@@ -62,17 +62,17 @@ class DownloadCard(CardWidget):
         self.speedLabel = CaptionLabel(self.download.get_speed_display(), self)
         self.speedLabel.setTextColor("#606060", "#d2d2d2")
         self.speedLabel.setFixedWidth(80)
-        self.speedLabel.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.speedLabel.setAlignment(Qt.AlignRight)
 
         self.sizeLabel = CaptionLabel(self.download.get_size_display(), self)
         self.sizeLabel.setTextColor("#606060", "#d2d2d2")
         self.sizeLabel.setFixedWidth(150)
-        self.sizeLabel.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.sizeLabel.setAlignment(Qt.AlignRight)
 
         self.percentLabel = CaptionLabel(f"{self.download.get_progress_percentage()}%", self)
         self.percentLabel.setTextColor("#0078D4", "#0078D4")
         self.percentLabel.setFixedWidth(50)
-        self.percentLabel.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.percentLabel.setAlignment(Qt.AlignRight)
 
         self.moreButton = TransparentToolButton(FluentIcon.MORE, self)
         self.moreButton.setFixedSize(32, 32)
@@ -99,11 +99,11 @@ class DownloadCard(CardWidget):
         self.progressLayout.addWidget(self.progressBar)
         self.progressLayout.addWidget(self.indeterminateProgressBar)
 
-        self.hBoxLayout.addWidget(self.progressContainer, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.hBoxLayout.addWidget(self.speedLabel, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.hBoxLayout.addWidget(self.sizeLabel, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.hBoxLayout.addWidget(self.percentLabel, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.hBoxLayout.addWidget(self.moreButton, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.hBoxLayout.addWidget(self.progressContainer, 0, Qt.AlignVCenter)
+        self.hBoxLayout.addWidget(self.speedLabel, 0, Qt.AlignVCenter)
+        self.hBoxLayout.addWidget(self.sizeLabel, 0, Qt.AlignVCenter)
+        self.hBoxLayout.addWidget(self.percentLabel, 0, Qt.AlignVCenter)
+        self.hBoxLayout.addWidget(self.moreButton, 0, Qt.AlignVCenter)
 
     # ── Context Menu ──
 

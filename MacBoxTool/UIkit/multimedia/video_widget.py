@@ -1,8 +1,8 @@
 # coding:utf-8
-from PySide6.QtCore import Qt, Signal, QUrl, QSizeF, QTimer
-from PySide6.QtGui import QPainter
-from PySide6.QtMultimediaWidgets import QGraphicsVideoItem
-from PySide6.QtWidgets import QWidget, QGraphicsView, QVBoxLayout, QGraphicsScene
+from PySide2.QtCore import Qt, Signal, QUrl, QSizeF, QTimer
+from PySide2.QtGui import QPainter
+from PySide2.QtMultimediaWidgets import QGraphicsVideoItem
+from PySide2.QtWidgets import QWidget, QGraphicsView, QVBoxLayout, QGraphicsScene
 
 from ..common.style_sheet import FluentStyleSheet
 from .media_play_bar import StandardMediaPlayBar

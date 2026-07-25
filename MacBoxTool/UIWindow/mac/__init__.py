@@ -1,8 +1,8 @@
 # coding:utf-8
 import Cocoa
 import objc
-from PySide6.QtCore import QEvent, Qt, QRect, QSize, QPoint
-from PySide6.QtWidgets import QWidget, QMainWindow, QDialog
+from PySide2.QtCore import QEvent, Qt, QRect, QSize, QPoint
+from PySide2.QtWidgets import QWidget, QMainWindow, QDialog
 
 from ..titlebar import TitleBar
 from ..utils.mac_utils import QT_VERSION
@@ -26,8 +26,8 @@ class MacFramelessWindowBase:
 
         # remove content margin
         if QT_VERSION >= (6, 8, 0):
-            self.setAttribute(Qt.WidgetAttribute.WA_ContentsMarginsRespectsSafeArea, False)
-            self.titleBar.setAttribute(Qt.WidgetAttribute.WA_LayoutOnEntireRect, True)
+            self.setAttribute(Qt.WA_ContentsMarginsRespectsSafeArea, False)
+            self.titleBar.setAttribute(Qt.WA_LayoutOnEntireRect, True)
 
         self.updateFrameless()
 
@@ -81,7 +81,7 @@ class MacFramelessWindowBase:
         self.titleBar.raise_()
 
         if QT_VERSION >= (6, 8, 0):
-            self.titleBar.setAttribute(Qt.WidgetAttribute.WA_LayoutOnEntireRect)
+            self.titleBar.setAttribute(Qt.WA_LayoutOnEntireRect)
 
     def setResizeEnabled(self, isEnabled: bool):
         """ set whether resizing is enabled """

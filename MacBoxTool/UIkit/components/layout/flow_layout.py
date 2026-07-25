@@ -1,8 +1,8 @@
 # coding:utf-8
 from typing import List
 
-from PySide6.QtCore import QSize, QPoint, Qt, QRect, QPropertyAnimation, QParallelAnimationGroup, QEasingCurve, QEvent, QTimer, QObject
-from PySide6.QtWidgets import QLayout, QWidgetItem, QLayoutItem
+from PySide2.QtCore import QSize, QPoint, Qt, QRect, QPropertyAnimation, QParallelAnimationGroup, QEasingCurve, QEvent, QTimer, QObject
+from PySide2.QtWidgets import QLayout, QWidgetItem, QLayoutItem
 
 
 class FlowLayout(QLayout):
@@ -184,12 +184,12 @@ class FlowLayout(QLayout):
         return self._horizontalSpacing
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
-        if obj in [w.widget() for w in self._items] and event.type() == QEvent.Type.ParentChange:
+        if obj in [w.widget() for w in self._items] and event.type() == QEvent.ParentChange:
             self._wParent = obj.parent()
             obj.parent().installEventFilter(self)
             self._isInstalledEventFilter = True
 
-        if obj == self._wParent and event.type() == QEvent.Type.Show:
+        if obj == self._wParent and event.type() == QEvent.Show:
             self._doLayout(self.geometry(), True)
             self._isInstalledEventFilter = True
 

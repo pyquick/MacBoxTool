@@ -1,8 +1,8 @@
 # coding:utf-8
-from PySide6.QtCore import Qt, Signal, QPoint, QRegularExpression, QSize
-from PySide6.QtGui import (QBrush, QColor, QPixmap, QPainter,
-                           QPen, QIntValidator, QRegularExpressionValidator, QIcon)
-from PySide6.QtWidgets import QApplication, QLabel, QWidget, QPushButton, QPushButton, QFrame, QVBoxLayout
+from PySide2.QtCore import Qt, Signal, QPoint, QRegExp, QSize
+from PySide2.QtGui import (QBrush, QColor, QPixmap, QPainter,
+                           QPen, QIntValidator, QRegExpValidator, QIcon)
+from PySide2.QtWidgets import QApplication, QLabel, QWidget, QPushButton, QPushButton, QFrame, QVBoxLayout
 
 from ...common.style_sheet import FluentStyleSheet, isDarkTheme
 from ..widgets import ClickableSlider, SingleDirectionScrollArea, PushButton, PrimaryPushButton
@@ -178,9 +178,9 @@ class HexColorLineEdit(ColorLineEdit):
         super().__init__(QColor(color).name(self.colorFormat)[1:], parent)
 
         if enableAlpha:
-            self.setValidator(QRegularExpressionValidator(QRegularExpression(r'[A-Fa-f0-9]{8}')))
+            self.setValidator(QRegExpValidator(QRegExp(r'[A-Fa-f0-9]{8}')))
         else:
-            self.setValidator(QRegularExpressionValidator(QRegularExpression(r'[A-Fa-f0-9]{6}')))
+            self.setValidator(QRegExpValidator(QRegExp(r'[A-Fa-f0-9]{6}')))
 
         self.setTextMargins(4, 0, 33, 0)
         self.prefixLabel = QLabel('#', self)
@@ -197,7 +197,7 @@ class OpacityLineEdit(ColorLineEdit):
 
     def __init__(self, value, parent=None, enableAlpha=False):
         super().__init__(int(value/255*100), parent)
-        self.setValidator(QRegularExpressionValidator(QRegularExpression(r'[0-9][0-9]{0,1}|100')))
+        self.setValidator(QRegExpValidator(QRegExp(r'[0-9][0-9]{0,1}|100')))
         self.setTextMargins(4, 0, 33, 0)
         self.suffixLabel = QLabel('%', self)
         self.suffixLabel.setObjectName('suffixLabel')

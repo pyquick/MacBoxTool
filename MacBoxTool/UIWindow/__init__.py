@@ -1,12 +1,12 @@
 """
-PySide6-Frameless-Window
+PySide2-Frameless-Window
 ========================
-A cross-platform frameless window based on pyside6, support Win32, Linux and macOS.
+A cross-platform frameless window based on PySide2, support Win32, Linux and macOS.
 
 Documentation is available in the docstrings and
 online at https://pyqt-frameless-window.readthedocs.io.
 
-Examples are available at https://github.com/zhiyiYo/PyQt-Frameless-Window/tree/PySide6/examples.
+Examples are available at https://github.com/zhiyiYo/PyQt-Frameless-Window/tree/PySide2/examples.
 
 :copyright: (c) 2021 by zhiyiYo.
 :license: LGPLv3, see LICENSE for more details.
@@ -18,8 +18,8 @@ __editor__ = "pyquick"
 
 import sys
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QMainWindow
+from PySide2.QtCore import Qt
+from PySide2.QtWidgets import QDialog, QMainWindow
 
 from .titlebar import TitleBar, TitleBarButton, SvgTitleBarButton, StandardTitleBar, TitleBarBase
 

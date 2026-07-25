@@ -246,7 +246,7 @@ class LoggingHandler:
             if self.constants.cli_mode is True:
                 return
             self._display_debug_properties()
-            from PySide6.QtWidgets import QApplication
+            from PySide2.QtWidgets import QApplication
             from ..UIkit.components.dialog_box import Dialog
 
             error_msg = "MacBoxTool encountered the following internal error:\n\n"
@@ -270,7 +270,7 @@ class LoggingHandler:
                 message_box.yesSignal.connect(lambda: self._reveal_log_file_windows())
                 message_box.cancelSignal.connect(lambda: None)
 
-                message_box.exec()
+                message_box.exec_()
             except Exception as e:
                 logging.error("Failed to display crash report dialog: {0}".format(e))
 

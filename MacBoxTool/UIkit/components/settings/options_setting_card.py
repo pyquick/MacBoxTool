@@ -1,8 +1,8 @@
 # coding:utf-8
 from typing import Union
-from PySide6.QtCore import Signal
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QButtonGroup, QLabel
+from PySide2.QtCore import Signal
+from PySide2.QtGui import QIcon
+from PySide2.QtWidgets import QButtonGroup, QLabel
 
 from ...common.config import OptionsConfigItem, qconfig
 from ...common.icon import FluentIconBase

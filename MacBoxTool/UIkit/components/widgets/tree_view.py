@@ -1,7 +1,7 @@
 # coding:utf-8
-from PySide6.QtCore import Qt, QSize, QRectF, QModelIndex, QEvent
-from PySide6.QtGui import QPainter, QColor, QPalette, QPainterPath, QPainterPath
-from PySide6.QtWidgets import QTreeWidget, QStyledItemDelegate, QStyle, QTreeView, QApplication, QStyleOptionViewItem, QStyleFactory
+from PySide2.QtCore import Qt, QSize, QRectF, QModelIndex, QEvent
+from PySide2.QtGui import QPainter, QColor, QPalette, QPainterPath, QPainterPath
+from PySide2.QtWidgets import QTreeWidget, QStyledItemDelegate, QStyle, QTreeView, QApplication, QStyleOptionViewItem, QStyleFactory
 
 from ...common.style_sheet import FluentStyleSheet, themeColor, isDarkTheme, setCustomStyleSheet,updateDynamicStyle
 from ...common.font import getFont
@@ -199,7 +199,7 @@ class TreeWidget(TreeViewBase, QTreeWidget):
         Catch the click event to override the item "expand/collapse" function which is
         still called in the place it was before moving the branches in the drawBranches method.
         """
-        if event.type() != QEvent.Type.MouseButtonPress:
+        if event.type() != QEvent.MouseButtonPress:
             return super().viewportEvent(event)
 
         index = self.indexAt(event.pos())
@@ -235,7 +235,7 @@ class TreeView(TreeViewBase, QTreeView):
         Catch the click event to override the item "expand/collapse" function which is
         still called in the place it was before moving the branches in the drawBranches method.
         """
-        if event.type() != QEvent.Type.MouseButtonPress:
+        if event.type() != QEvent.MouseButtonPress:
             return super().viewportEvent(event)
 
         index = self.indexAt(event.pos())

@@ -1,6 +1,6 @@
 # coding:utf-8
-from PySide6.QtCore import Qt, Signal, QObject, QUrl
-from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PySide2.QtCore import Qt, Signal, QObject, QUrl
+from PySide2.QtMultimedia import QMediaPlayer, QMediaContent
 
 
 class MediaPlayerBase(QObject):
@@ -25,7 +25,7 @@ class MediaPlayerBase(QObject):
         """ Return the status of the current media stream """
         raise NotImplementedError
 
-    def playbackState(self) -> QMediaPlayer.PlaybackState:
+    def state(self) -> QMediaPlayer.State:
         """ Return the playback status of the current media stream """
         raise NotImplementedError
 
@@ -90,35 +90,40 @@ class MediaPlayerBase(QObject):
 
 
 class MediaPlayer(QMediaPlayer):
-    """ Media player """
+    """ Media player - adapted for PySide2/Qt5 QMediaPlayer API """
 
+    # Qt5 QMediaPlayer does not have a sourceChanged signal; we add it
     sourceChanged = Signal(QUrl)
-    mutedChanged = Signal(bool)
-    volumeChanged = Signal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
-        self._audioOutput = QAudioOutput(parent)
-        self.setAudioOutput(self._audioOutput)
+        # Qt5 QMediaPlayer has integrated audio (no separate QAudioOutput)
+        self.setVolume(30)
 
     def isPlaying(self):
-        return self.playbackState() == QMediaPlayer.PlayingState
+        # Qt5 uses state() instead of playbackState()
+        return self.state() == QMediaPlayer.PlayingState
 
     def volume(self):
-        """ Return the volume of player """
-        return int(self.audioOutput().volume() * 100)
+        """ Return the volume of player (0-100) """
+        return super().volume()
 
     def setVolume(self, volume: int):
         """ Sets the volume of player """
-        if volume == self.volume():
+        if volume == super().volume():
             return
 
-        self.audioOutput().setVolume(volume / 100)
+        super().setVolume(volume)
         self.volumeChanged.emit(volume)
 
     def setMuted(self, isMuted: bool):
-        if isMuted == self.audioOutput().isMuted():
+        if isMuted == self.isMuted():
             return
 
-        self.audioOutput().setMuted(isMuted)
+        super().setMuted(isMuted)
         self.mutedChanged.emit(isMuted)
+
+    def setSource(self, media: QUrl):
+        """ Sets the current source (Qt6-style API, bridges to Qt5 setMedia) """
+        self.setMedia(QMediaContent(media))
+        self.sourceChanged.emit(media)

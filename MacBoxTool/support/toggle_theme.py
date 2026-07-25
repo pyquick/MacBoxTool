@@ -1,7 +1,7 @@
 """toggle_theme.py: A script to toggle between light and dark theme in macOS."""
 
 
-from PySide6.QtCore import QObject, QTimer, Signal
+from PySide2.QtCore import QObject, QTimer, Signal
 from ..constants import Constants
 import logging
 import sys

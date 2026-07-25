@@ -3,11 +3,11 @@ from enum import Enum
 from typing import List, Union
 
 from ....UIWindow import WindowEffect
-from PySide6.QtCore import (QEasingCurve, QEvent, QPropertyAnimation, QObject, QModelIndex,
+from PySide2.QtCore import (QEasingCurve, QEvent, QPropertyAnimation, QObject, QModelIndex,
                           Qt, QSize, QRectF, Signal, QPoint, QTimer, QObject, QParallelAnimationGroup, QRect)
-from PySide6.QtGui import (QAction, QIcon, QColor, QPainter, QPen, QPixmap, QRegion, QCursor, QTextCursor, QHoverEvent,
+from PySide2.QtGui import (QAction, QIcon, QColor, QPainter, QPen, QPixmap, QRegion, QCursor, QTextCursor, QHoverEvent,
                            QFontMetrics, QKeySequence)
-from PySide6.QtWidgets import (QApplication, QMenu, QProxyStyle, QStyle, QStyleFactory,
+from PySide2.QtWidgets import (QApplication, QMenu, QProxyStyle, QStyle, QStyleFactory,
                                QGraphicsDropShadowEffect, QListWidget, QWidget, QHBoxLayout,
                                QListWidgetItem, QLineEdit, QTextEdit, QStyledItemDelegate, QStyleOptionViewItem, QLabel)
 

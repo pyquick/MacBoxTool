@@ -5,9 +5,9 @@ gui_support.py: Give custom looks
 from ..include import *
 
 # Additional imports for converted wxPython classes
-from PySide6.QtWidgets import QMenuBar, QMenu, QMessageBox, QProgressBar, QPlainTextEdit, QTextEdit, QMainWindow, QWidget
-from PySide6.QtCore import QMetaObject, Qt, Q_ARG, QTimer, QObject
-from PySide6.QtGui import QFont
+from PySide2.QtWidgets import QMenuBar, QMenu, QMessageBox, QProgressBar, QPlainTextEdit, QTextEdit, QMainWindow, QWidget
+from PySide2.QtCore import QMetaObject, Qt, Q_ARG, QTimer, QObject
+from PySide2.QtGui import QFont
 from shiboken6 import isValid as is_qt_object_valid
 import subprocess
 import sys
@@ -103,7 +103,7 @@ class DefGUI():
     def build_icon_label(self, icon: FluentIcon, color: str, size: int = 32) -> QLabel:
         label = QLabel()
         label.setPixmap(icon.icon(color=color).pixmap(size, size))
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label.setAlignment(Qt.AlignCenter)
         label.setFixedSize(size + 12, size + 12)
         return label
     
@@ -230,7 +230,7 @@ class DefGUI():
                 icon_label.setPixmap(resolved_icon.icon(color=get_style()["text"]).pixmap(40, 40))
         _refresh_icon()
         qconfig.themeChanged.connect(_refresh_icon)
-        main_layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
+        main_layout.addWidget(icon_label, 0, Qt.AlignVCenter)
 
         text_layout = QVBoxLayout()
         text_layout.setSpacing(SPACING["small"])
@@ -468,7 +468,7 @@ class GenerateMenubar:
         try:
             from .gui_about import AboutInterface
             about_dialog = AboutInterface(self.constants)
-            about_dialog.exec()
+            about_dialog.exec_()
         except Exception as e:
             logging.error(f"Failed to show about dialog: {e}")
 

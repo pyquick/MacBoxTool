@@ -22,8 +22,8 @@ class Widget(QFrame):
         self.hBoxLayout = AdaptiveFlowLayout(self)
         
         setFont(self.label, 24)
-        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.hBoxLayout.addWidget(self.label, 1, Qt.AlignmentFlag.AlignCenter)
+        self.label.setAlignment(Qt.AlignCenter)
+        self.hBoxLayout.addWidget(self.label, 1, Qt.AlignCenter)
 
         
         self.setObjectName(text.replace(' ', '-'))
@@ -163,7 +163,7 @@ class Window(FluentWindow):
             InfoBar.success(
                 title="Success",
                 content=message,
-                orient=Qt.Orientation.Horizontal,
+                orient=Qt.Horizontal,
                 isClosable=True,
                 position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=3000,
@@ -173,7 +173,7 @@ class Window(FluentWindow):
             InfoBar.error(
                 title="ERROR",
                 content=message,
-                orient=Qt.Orientation.Horizontal,
+                orient=Qt.Horizontal,
                 isClosable=True,
                 position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=5000,
@@ -183,7 +183,7 @@ class Window(FluentWindow):
             InfoBar.warning(
                 title="WARNING",
                 content=message,
-                orient=Qt.Orientation.Horizontal,
+                orient=Qt.Horizontal,
                 isClosable=True,
                 position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=4000,
@@ -193,7 +193,7 @@ class Window(FluentWindow):
             InfoBar.info(
                 title="INFO",
                 content=message,
-                orient=Qt.Orientation.Horizontal,
+                orient=Qt.Horizontal,
                 isClosable=True,
                 position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=3000,

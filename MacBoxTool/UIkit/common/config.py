@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import List
 
 import darkdetect
-from PySide6.QtCore import QObject, Signal, qVersion
-from PySide6.QtGui import QColor
+from PySide2.QtCore import QObject, Signal, qVersion
+from PySide2.QtGui import QColor
 
 from .exception_handler import exceptionHandler
 

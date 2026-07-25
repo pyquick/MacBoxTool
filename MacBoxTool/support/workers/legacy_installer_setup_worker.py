@@ -7,7 +7,7 @@ from io import BytesIO
 from pathlib import Path
 
 import requests
-from PySide6.QtCore import QThread, Signal
+from PySide2.QtCore import QThread, Signal
 
 from .. import subprocess_wrapper
 from ..integrity_verification import ChunklistStatus, ChunklistVerification

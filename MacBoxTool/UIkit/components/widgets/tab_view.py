@@ -3,9 +3,9 @@ from copy import deepcopy
 from enum import Enum
 from typing import Dict, List, Union
 from uuid import uuid1
-from PySide6.QtCore import Qt, Signal, Property, QRectF, QSize, QPoint, QPropertyAnimation, QEasingCurve, QRect
-from PySide6.QtGui import QPainter, QColor, QIcon, QPainterPath, QLinearGradient, QPen, QBrush, QMouseEvent
-from PySide6.QtWidgets import QWidget, QGraphicsDropShadowEffect, QHBoxLayout, QVBoxLayout, QApplication, QStackedWidget
+from PySide2.QtCore import Qt, Signal, Property, QRectF, QSize, QPoint, QPropertyAnimation, QEasingCurve, QRect
+from PySide2.QtGui import QPainter, QColor, QIcon, QPainterPath, QLinearGradient, QPen, QBrush, QMouseEvent
+from PySide2.QtWidgets import QWidget, QGraphicsDropShadowEffect, QHBoxLayout, QVBoxLayout, QApplication, QStackedWidget
 
 from ...common.icon import FluentIcon, FluentIconBase, drawIcon
 from ...common.style_sheet import isDarkTheme, FluentStyleSheet
@@ -860,7 +860,7 @@ class TabWidget(QWidget):
         self.__initWidget()
 
     def __initWidget(self):
-        self.vBoxLayout.addWidget(self.tabBar, 0, Qt.AlignmentFlag.AlignTop)
+        self.vBoxLayout.addWidget(self.tabBar, 0, Qt.AlignTop)
         self.vBoxLayout.addWidget(self.stackedWidget, 1)
         self.vBoxLayout.setSpacing(1)
         self.vBoxLayout.setContentsMargins(0, 0, 0, 0)

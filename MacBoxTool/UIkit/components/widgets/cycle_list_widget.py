@@ -1,9 +1,9 @@
 # coding:utf-8
 from typing import Iterable
 
-from PySide6.QtCore import Qt, Signal, QSize, QEvent, QRectF, QEasingCurve, QTime
-from PySide6.QtGui import QPainter
-from PySide6.QtWidgets import QListWidget, QListWidgetItem, QToolButton
+from PySide2.QtCore import Qt, Signal, QSize, QEvent, QRectF, QEasingCurve, QTime
+from PySide2.QtGui import QPainter
+from PySide2.QtWidgets import QListWidget, QListWidgetItem, QToolButton
 
 from .scroll_area import SmoothScrollBar
 from ...common.icon import FluentIcon, isDarkTheme

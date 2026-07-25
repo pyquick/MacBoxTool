@@ -1,13 +1,13 @@
 # coding:utf-8
 import sys
 
-from PySide6.QtCore import QPoint
-from PySide6.QtGui import QMouseEvent
-from PySide6.QtWidgets import QApplication
+from PySide2.QtCore import QPoint
+from PySide2.QtGui import QMouseEvent
+from PySide2.QtWidgets import QApplication
 
-from PySide6.QtCore import Qt, QEvent
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QLabel, QHBoxLayout, QWidget
+from PySide2.QtCore import Qt, QEvent
+from PySide2.QtGui import QIcon
+from PySide2.QtWidgets import QLabel, QHBoxLayout, QWidget
 
 from ..utils import startSystemMove, toggleMaxState
 from .title_bar_buttons import (CloseButton, MaximizeButton, MinimizeButton,

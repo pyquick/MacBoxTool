@@ -2,9 +2,9 @@
 import sys
 from enum import Enum
 
-from PySide6.QtCore import QEvent, QObject, QPoint, QTimer, Qt, QPropertyAnimation, QModelIndex, QRect
-from PySide6.QtGui import QColor, QHelpEvent, QPainter, QPainterPath, QPen
-from PySide6.QtWidgets import (QApplication, QFrame, QGraphicsDropShadowEffect,
+from PySide2.QtCore import QEvent, QObject, QPoint, QTimer, Qt, QPropertyAnimation, QModelIndex, QRect
+from PySide2.QtGui import QColor, QHelpEvent, QPainter, QPainterPath, QPen
+from PySide2.QtWidgets import (QApplication, QFrame, QGraphicsDropShadowEffect,
                              QHBoxLayout, QLabel, QWidget, QAbstractItemView, QStyleOptionViewItem,
                              QTableView)
 
@@ -443,12 +443,12 @@ class ItemViewToolTipDelegate(ToolTipFilter):
 
     def eventFilter(self, obj: QObject, e: QEvent) -> bool:
         if obj is self.parent():
-            if e.type() in [QEvent.Type.Hide, QEvent.Type.Leave]:
+            if e.type() in [QEvent.Hide, QEvent.Leave]:
                 self.hideToolTip()
-            elif e.type() == QEvent.Type.Enter:
+            elif e.type() == QEvent.Enter:
                 self.isEnter = True
         elif obj is self.viewport:
-            if e.type() == QEvent.Type.MouseButtonPress:
+            if e.type() == QEvent.MouseButtonPress:
                 self.hideToolTip()
 
         return QObject.eventFilter(self, obj, e)
@@ -489,7 +489,7 @@ class ItemViewToolTipDelegate(ToolTipFilter):
         if not event or not view:
             return False
 
-        if event.type() == QEvent.Type.ToolTip:
+        if event.type() == QEvent.ToolTip:
             text = index.data(Qt.ItemDataRole.ToolTipRole)
             if not text:
                 self.hideToolTip()

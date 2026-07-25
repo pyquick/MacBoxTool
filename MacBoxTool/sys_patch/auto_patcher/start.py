@@ -7,7 +7,7 @@ import plistlib
 import subprocess
 
 from packaging import version
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide2.QtWidgets import QApplication, QMessageBox
 
 from ... import constants
 from ...support import (

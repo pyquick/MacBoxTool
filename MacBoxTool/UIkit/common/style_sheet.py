@@ -5,9 +5,9 @@ from typing import List, Union
 import weakref
 import sys
 
-from PySide6.QtCore import QFile, QObject, QEvent, QDynamicPropertyChangeEvent
-from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QWidget, QApplication, QStyleFactory
+from PySide2.QtCore import QFile, QObject, QEvent, QDynamicPropertyChangeEvent
+from PySide2.QtGui import QColor
+from PySide2.QtWidgets import QWidget, QApplication, QStyleFactory
 
 from .config import qconfig, Theme, isDarkTheme, QT_VERSION
 
@@ -267,7 +267,7 @@ class DirtyStyleSheetWatcher(QObject):
     """ Dirty style sheet watcher """
 
     def eventFilter(self, obj: QWidget, e: QEvent):
-        if e.type() != QEvent.Type.Paint or not obj.property('dirty-qss'):
+        if e.type() != QEvent.Paint or not obj.property('dirty-qss'):
             return super().eventFilter(obj, e)
 
         obj.setProperty('dirty-qss', False)

@@ -77,9 +77,9 @@ def _parse_cli_args():
 
 from .qt_gui.gui_go_in import OpenGUI
 from .constants import Constants
-from PySide6.QtWidgets import *
-from PySide6.QtCore import *
-from PySide6.QtGui import *
+from PySide2.QtWidgets import *
+from PySide2.QtCore import *
+from PySide2.QtGui import *
 from .support.logging_handler import LoggingHandler
 from .support.global_settings import GlobalSettings
 if sys.platform=="darwin":

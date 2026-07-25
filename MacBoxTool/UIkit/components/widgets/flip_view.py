@@ -1,9 +1,9 @@
 # coding:utf-8
 from typing import List, Union
 
-from PySide6.QtCore import Qt, Signal, QModelIndex, QSize, Property, QRectF, QPropertyAnimation, QSizeF
-from PySide6.QtGui import QPixmap, QPainter, QColor, QImage, QWheelEvent, QPainterPath, QImageReader
-from PySide6.QtWidgets import QStyleOptionViewItem, QListWidget, QStyledItemDelegate, QListWidgetItem
+from PySide2.QtCore import Qt, Signal, QModelIndex, QSize, Property, QRectF, QPropertyAnimation, QSizeF
+from PySide2.QtGui import QPixmap, QPainter, QColor, QImage, QWheelEvent, QPainterPath, QImageReader
+from PySide2.QtWidgets import QStyleOptionViewItem, QListWidget, QStyledItemDelegate, QListWidgetItem
 
 from ...common.overload import singledispatchmethod
 from ...common.style_sheet import isDarkTheme, FluentStyleSheet

@@ -10,9 +10,9 @@ from urllib3.util.retry import Retry
 import threading
 import MacBoxTool.support.utilities as utilities
 import os
-from PySide6.QtWidgets import *
-from PySide6.QtGui import *
-from PySide6.QtCore import *
+from PySide2.QtWidgets import *
+from PySide2.QtGui import *
+from PySide2.QtCore import *
 from .. import constants
 import json,shutil
 from typing import Optional

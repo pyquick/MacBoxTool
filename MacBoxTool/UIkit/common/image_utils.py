@@ -6,8 +6,8 @@ from typing import Union
 import numpy as np
 from colorthief import ColorThief
 from PIL import Image
-from PySide6.QtGui import QImage, QPixmap
-from PySide6.QtCore import QIODevice, QBuffer
+from PySide2.QtGui import QImage, QPixmap
+from PySide2.QtCore import QIODevice, QBuffer
 from scipy.ndimage.filters import gaussian_filter
 
 from .exception_handler import exceptionHandler

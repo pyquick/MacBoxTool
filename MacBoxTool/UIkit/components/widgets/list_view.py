@@ -1,9 +1,9 @@
 # coding:utf-8
 from typing import List, Union
 
-from PySide6.QtCore import Qt, QModelIndex, Property
-from PySide6.QtGui import QPainter
-from PySide6.QtWidgets import QStyleOptionViewItem, QListView, QListView, QListWidget, QWidget
+from PySide2.QtCore import Qt, QModelIndex, Property
+from PySide2.QtGui import QPainter
+from PySide2.QtWidgets import QStyleOptionViewItem, QListView, QListView, QListWidget, QWidget
 
 from .scroll_bar import SmoothScrollDelegate
 from .table_view import TableItemDelegate

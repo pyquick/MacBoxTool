@@ -1,8 +1,8 @@
 # coding:utf-8
 from typing import List, Union
-from PySide6.QtCore import QEvent, Qt, QPropertyAnimation, Property, QEasingCurve, QRectF
-from PySide6.QtGui import QColor, QPainter, QIcon, QPainterPath
-from PySide6.QtWidgets import QFrame, QWidget, QAbstractButton, QApplication, QScrollArea, QVBoxLayout, QLabel, QHBoxLayout
+from PySide2.QtCore import QEvent, Qt, QPropertyAnimation, Property, QEasingCurve, QRectF
+from PySide2.QtGui import QColor, QPainter, QIcon, QPainterPath
+from PySide2.QtWidgets import QFrame, QWidget, QAbstractButton, QApplication, QScrollArea, QVBoxLayout, QLabel, QHBoxLayout
 
 from ...common.config import isDarkTheme
 from ...common.icon import FluentIcon as FIF

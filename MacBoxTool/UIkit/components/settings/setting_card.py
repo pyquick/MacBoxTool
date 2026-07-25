@@ -1,10 +1,10 @@
 # coding:utf-8
 from typing import Union
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QIcon, QPainter
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QToolButton, QVBoxLayout, QPushButton
-from PySide6.QtSvgWidgets import QSvgWidget
+from PySide2.QtCore import Qt, Signal
+from PySide2.QtGui import QColor, QIcon, QPainter
+from PySide2.QtWidgets import QFrame, QHBoxLayout, QLabel, QToolButton, QVBoxLayout, QPushButton
+from PySide2.QtSvg import QSvgWidget
 
 from ..dialog_box.color_dialog import ColorDialog
 from ..widgets.combo_box import ComboBox
@@ -326,7 +326,7 @@ class ColorPickerButton(QToolButton):
         w = ColorDialog(self.color, self.tr(
             'Choose ')+self.title, self.window(), self.enableAlpha)
         w.colorChanged.connect(self.__onColorChanged)
-        w.exec()
+        w.exec_()
 
     def __onColorChanged(self, color):
         """ color changed slot """

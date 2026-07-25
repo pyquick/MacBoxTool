@@ -1,7 +1,7 @@
 # coding: utf-8
 from typing import List
-from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QWidget
+from PySide2.QtGui import QFont
+from PySide2.QtWidgets import QWidget
 
 from .config import qconfig
 

@@ -1,8 +1,8 @@
 # coding:utf-8
 from typing import List
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout
+from PySide2.QtCore import Qt
+from PySide2.QtWidgets import QWidget, QLabel, QVBoxLayout
 
 from ...common.style_sheet import FluentStyleSheet
 from ...common.font import setFont

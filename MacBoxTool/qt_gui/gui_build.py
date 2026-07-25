@@ -3,8 +3,8 @@ gui_build.py: Build OpenCore EFI for unsupported Macs
 """
 from ..include import *
 from .gui_support import DefGUI, ProgressStatusHelper
-from PySide6.QtGui import QDesktopServices
-from PySide6.QtCore import QUrl
+from PySide2.QtGui import QDesktopServices
+from PySide2.QtCore import QUrl
 
 import sys
 import threading
@@ -270,7 +270,7 @@ class EFIDiskSelectionMessageBox(MessageBoxBase):
 
         self.loadingLayout.addWidget(self.progressRing)
         self.loadingLayout.addWidget(self.progressLabel)
-        self.loadingLayout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.loadingLayout.setAlignment(Qt.AlignCenter)
 
         # Disk Selection State
         self.diskSelectionWidget = QWidget()
@@ -450,7 +450,7 @@ class BuildOCPage(ScrollArea):
 
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setWidget(self.scrollWidget)
         self.setWidgetResizable(True)
         self.enableTransparentBackground()
@@ -469,7 +469,7 @@ class BuildOCPage(ScrollArea):
             SPACING["xxlarge"], SPACING["xlarge"]
         )
         self.expandLayout.setSpacing(SPACING["large"])
-        self.expandLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.expandLayout.setAlignment(Qt.AlignTop)
 
         self.expandLayout.addWidget(self._create_title())
         self.expandLayout.addWidget(self._create_model_label())
@@ -619,7 +619,7 @@ class BuildOCPage(ScrollArea):
 
     def _on_install_clicked(self):
         w = EFIDiskSelectionMessageBox(self.window())
-        if w.exec():
+        if w.exec_():
             selected = w.selected_partition
             if selected:
                 ident = selected['identifier']
@@ -639,7 +639,7 @@ class BuildOCPage(ScrollArea):
             InfoBar.success(
                 title="Install Success",
                 content=f"Successfully installed EFI to {info}",
-                orient=Qt.Orientation.Horizontal,
+                orient=Qt.Horizontal,
                 isClosable=True,
                 position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=4000,
@@ -649,7 +649,7 @@ class BuildOCPage(ScrollArea):
             InfoBar.error(
                 title="Install Failed",
                 content=info,
-                orient=Qt.Orientation.Horizontal,
+                orient=Qt.Horizontal,
                 isClosable=True,
                 position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=8000,

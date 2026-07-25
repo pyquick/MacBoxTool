@@ -4,7 +4,7 @@ gui_introduction.py: Give introduction on GUI
 from ..include import *
 from ..constants import Constants
 from .gui_support import DefGUI
-from PySide6.QtCore import QThread, Signal, QTimer
+from PySide2.QtCore import QThread, Signal, QTimer
 from ..support.on_nightly import CheckNightly
 
 # Import install_helper only on macOS
@@ -65,7 +65,7 @@ class Introduction(ScrollArea):
 
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setWidget(self.scrollWidget)
         self.setWidgetResizable(True)
         self.enableTransparentBackground()
@@ -201,7 +201,7 @@ class Introduction(ScrollArea):
                 self
             )
 
-            if dialog.exec():
+            if dialog.exec_():
                 # User clicked OK
                 self._on_install_helper_clicked()
             else:
@@ -219,7 +219,7 @@ class Introduction(ScrollArea):
         InfoBar.info(
             title="Installing",
             content="Installing Privileged Helper...",
-            orient=Qt.Orientation.Horizontal,
+            orient=Qt.Horizontal,
             isClosable=False,
             position=InfoBarPosition.BOTTOM_RIGHT,
             duration=0,  # Don't auto-close
@@ -238,7 +238,7 @@ class Introduction(ScrollArea):
             InfoBar.success(
                 title="Success",
                 content="Privileged Helper installed successfully!",
-                orient=Qt.Orientation.Horizontal,
+                orient=Qt.Horizontal,
                 isClosable=True,
                 position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=3000,
@@ -251,7 +251,7 @@ class Introduction(ScrollArea):
             InfoBar.error(
                 title="Installation Failed",
                 content=msg,
-                orient=Qt.Orientation.Horizontal,
+                orient=Qt.Horizontal,
                 isClosable=True,
                 position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=5000,
@@ -286,7 +286,7 @@ class Introduction(ScrollArea):
                 InfoBar.success(
                     title="Installed",
                     content="Privileged Helper installed successfully!",
-                    orient=Qt.Orientation.Horizontal,
+                    orient=Qt.Horizontal,
                     isClosable=True,
                     position=InfoBarPosition.BOTTOM_RIGHT,
                     duration=3000,
@@ -301,7 +301,7 @@ class Introduction(ScrollArea):
                 InfoBar.warning(
                     title="Installation",
                     content=error_msg,
-                    orient=Qt.Orientation.Horizontal,
+                    orient=Qt.Horizontal,
                     isClosable=True,
                     position=InfoBarPosition.BOTTOM_RIGHT,
                     duration=5000,
@@ -312,7 +312,7 @@ class Introduction(ScrollArea):
             InfoBar.error(
                 title="Timeout",
                 content="Installation timed out.",
-                orient=Qt.Orientation.Horizontal,
+                orient=Qt.Horizontal,
                 isClosable=True,
                 position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=5000,
@@ -322,7 +322,7 @@ class Introduction(ScrollArea):
             InfoBar.error(
                 title="Error",
                 content=f"Failed to install: {str(e)}",
-                orient=Qt.Orientation.Horizontal,
+                orient=Qt.Horizontal,
                 isClosable=True,
                 position=InfoBarPosition.BOTTOM_RIGHT,
                 duration=5000,
@@ -354,7 +354,7 @@ class Introduction(ScrollArea):
         hero_layout.addLayout(hero_text, 2)
 
         robot_icon = self.ui_support.build_icon_label(FluentIcon.ROBOT, COLORS["primary"], size=64)
-        hero_layout.addWidget(robot_icon, 1, Qt.AlignmentFlag.AlignVCenter)
+        hero_layout.addWidget(robot_icon, 1, Qt.AlignVCenter)
 
         return hero_card
 
@@ -479,7 +479,7 @@ class Introduction(ScrollArea):
 
         # Icon
         icon_label = self.ui_support.build_icon_label(icon, COLORS["primary"], size=32)
-        item_layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
+        item_layout.addWidget(icon_label, 0, Qt.AlignVCenter)
 
         # Text content
         text_layout = QVBoxLayout()
@@ -501,7 +501,7 @@ class Introduction(ScrollArea):
         nav_btn.setFixedHeight(32)
         nav_btn.clicked.connect(lambda: self.navigate_to(navigate_target))
 
-        item_layout.addWidget(nav_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+        item_layout.addWidget(nav_btn, 0, Qt.AlignVCenter)
 
         return item_widget
 

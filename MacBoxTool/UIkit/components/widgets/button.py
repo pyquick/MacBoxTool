@@ -1,9 +1,9 @@
 # coding:utf-8
 from typing import Union
 
-from PySide6.QtCore import Signal, QUrl, Qt, QRectF, QSize, QPoint, Property, QRect
-from PySide6.QtGui import QDesktopServices, QIcon, QPainter, QColor, QPainterPath
-from PySide6.QtWidgets import QHBoxLayout, QPushButton, QRadioButton, QToolButton, QApplication, QWidget, QSizePolicy
+from PySide2.QtCore import Signal, QUrl, Qt, QRectF, QSize, QPoint, Property, QRect
+from PySide2.QtGui import QDesktopServices, QIcon, QPainter, QColor, QPainterPath
+from PySide2.QtWidgets import QHBoxLayout, QPushButton, QRadioButton, QToolButton, QApplication, QWidget, QSizePolicy
 
 from ...common.animation import TranslateYAnimation
 from ...common.icon import FluentIconBase, drawIcon, isDarkTheme, Theme, toQIcon, Icon

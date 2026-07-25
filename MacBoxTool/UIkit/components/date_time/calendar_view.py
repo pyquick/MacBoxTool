@@ -3,10 +3,10 @@ from math import ceil
 from collections import defaultdict, Counter
 from typing import Tuple, Type
 
-from PySide6.QtCore import (Qt, QRectF, Signal, QSize, QModelIndex, QDate, QCalendar, QEasingCurve, QPropertyAnimation,
+from PySide2.QtCore import (Qt, QRectF, Signal, QSize, QModelIndex, QDate, QCalendar, QEasingCurve, QPropertyAnimation,
                           QParallelAnimationGroup, QPoint, QRect, QStringListModel)
-from PySide6.QtGui import QPainter, QColor, QCursor
-from PySide6.QtWidgets import (QApplication, QFrame, QPushButton, QHBoxLayout, QVBoxLayout, QListWidget,
+from PySide2.QtGui import QPainter, QColor, QCursor
+from PySide2.QtWidgets import (QApplication, QFrame, QPushButton, QHBoxLayout, QVBoxLayout, QListWidget,
                              QListWidgetItem, QStyledItemDelegate, QStyle, QStyleOptionViewItem,
                              QLabel, QWidget, QStackedWidget, QGraphicsDropShadowEffect, QListView)
 
