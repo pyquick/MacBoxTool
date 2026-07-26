@@ -52,13 +52,13 @@ jobs:
       - name: Prepare Assets (--prepare-assets)
 
         run: >
-          /Library/Frameworks/Python.framework/Versions/3.10/bin/python3 Build-Project.command
+          python3 Build-Project.command
           --run-as-individual-steps
           --prepare-assets
 
       - name: Prepare Application (--prepare-application)
         run: >
-          /Library/Frameworks/Python.framework/Versions/3.10/bin/python3 Build-Project.command
+          python3 Build-Project.command
           --git-branch "${{ env.branch }}" --git-commit-url "${{ env.commiturl }}" --git-commit-date "${{ env.commitdate }}"
           --reset-pyinstaller-cache
           --run-as-individual-steps
