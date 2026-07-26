@@ -7,7 +7,8 @@ import itertools
 import subprocess
 import plistlib
 import hashlib
-import re 
+import re
+import platform
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Optional, Type, Union
@@ -19,6 +20,7 @@ if sys.platform == "darwin":
 from ..support import utilities
 
 from ..datasets import (
+    cpu_data,
     pci_data,
     usb_data
 )
@@ -33,7 +35,10 @@ class CPU:
     name: str
     flags: list[str]
     leafs: list[str]
-    model: int
+    model: Optional[int] = None
+    vendor_id: Optional[str] = None
+    device_id: Optional[int] = None
+    architecture: Optional[str] = None
 
 
 @dataclass
@@ -976,16 +981,55 @@ class Computer:
             firmware_vendor = str(firmware_vendor.replace(b"\x00", b"").decode("utf-8"))
         self.firmware_vendor = firmware_vendor
 
+    @staticmethod
+    def _sysctl_value(name: str) -> Optional[str]:
+        result = subprocess.run(
+            ["/usr/sbin/sysctl", "-n", name],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+        if result.returncode != 0:
+            return None
+        value = result.stdout.decode(errors="replace").strip()
+        return value or None
+
     def cpu_probe(self):
         if sys.platform != "darwin":
             return
-        
-        
+
+        name = self._sysctl_value("machdep.cpu.brand_string") or platform.processor()
+
+        features = self._sysctl_value("machdep.cpu.features")
+        flags = features.split() if features else []
+        vendor_id = self._sysctl_value("machdep.cpu.vendor")
+        device_id = None
+        model = self._sysctl_value("machdep.cpu.model")
+        if model:
+            try:
+                device_id = int(model.split()[0], 0)
+            except ValueError:
+                pass
+
+        machine = (self._sysctl_value("hw.machine") or platform.machine()).lower()
+        if machine in ("arm64", "arm64e"):
+            vendor_id = vendor_id or "Apple"
+            name = name or "Apple Silicon"
+
+        cpuid_arch = cpu_data.architecture_from_device_id(device_id, vendor_id)
+
+        igpu_arch = None
+        if self.igpu is not None and self.igpu.device_id:
+            igpu_vendor_str = hex(self.igpu.vendor_id)
+            igpu_arch = cpu_data.architecture_from_igpu_device_id(self.igpu.device_id, igpu_vendor_str)
+
         self.cpu = CPU(
-            subprocess.run(["/usr/sbin/sysctl", "machdep.cpu.brand_string"], stdout=subprocess.PIPE).stdout.decode().partition(": ")[2].strip(),
-            subprocess.run(["/usr/sbin/sysctl", "machdep.cpu.features"], stdout=subprocess.PIPE).stdout.decode().partition(": ")[2].strip().split(" "),
-            self.cpu_get_leafs(),
-            int(subprocess.run(["/usr/sbin/sysctl", "machdep.cpu.model"], stdout=subprocess.PIPE).stdout.decode().partition(": ")[2].strip().split(" ")[0]),
+            name=name or "",
+            flags=flags,
+            leafs=self.cpu_get_leafs(),
+            model=device_id,
+            vendor_id=vendor_id,
+            device_id=device_id,
+            architecture=igpu_arch or cpuid_arch,
         )
 
     def cpu_get_leafs(self):
