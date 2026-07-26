@@ -63,7 +63,10 @@ class Window(FluentWindow):
    
 
     def _setup_window(self):
-        self.setWindowTitle(f"MacBoxTool ({self.constants.macboxtool_version}) {"(Nightly)"if on_nightly.CheckNightly(self.constants).check() else ""}")
+        self.setWindowTitle(
+            f"MacBoxTool ({self.constants.macboxtool_version}) "
+            f"{'(Nightly)' if on_nightly.CheckNightly(self.constants).check() else ''}"
+        )
         self.setMinimumSize(*WINDOW_MIN_SIZE)
         
         #self._restore_window_geometry()
@@ -118,7 +121,10 @@ class Window(FluentWindow):
         ):
             cleanup = getattr(page, "cleanup_workers", None)
             if callable(cleanup):
-                cleanup()
+                try:
+                    cleanup()
+                except Exception:
+                    logging.exception(f"Failed to clean up {page.__class__.__name__} workers")
 
         TaskManager.shutdown_all()
 
@@ -134,9 +140,10 @@ class Window(FluentWindow):
         utilities.enable_sleep_after_running()
         self.theme_manager.stop()
         self.themeListener.requestInterruption()
-        if not self.themeListener.wait(2500):
+        if not self.themeListener.wait(3000):
+            logging.warning("SystemThemeListener did not stop in 3000ms; terminating")
             self.themeListener.terminate()
-            self.themeListener.wait(1000)
+            self.themeListener.wait()
         self.themeListener.deleteLater()
 
         app = QApplication.instance()
@@ -152,11 +159,11 @@ class Window(FluentWindow):
         self._shutdown_in_progress = True
         self._save_window_geometry()
 
-        # Let the window disappear first, then process blocking cleanup work.
+        # Hide the window before potentially blocking while workers finish.
         event.accept()
         self.hide()
         QApplication.processEvents()
-        QTimer.singleShot(0, self._perform_shutdown_cleanup)
+        self._perform_shutdown_cleanup()
 
     def update_status(self, message, status_type="INFO"):
         if status_type == "success":

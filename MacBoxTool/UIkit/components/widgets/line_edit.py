@@ -1,8 +1,8 @@
 # coding: utf-8
 from typing import List, Union
 from PySide2.QtCore import QSize, Qt, QRectF, Signal, QPoint, QTimer, QEvent, QAbstractItemModel, Property, QModelIndex
-from PySide2.QtGui import QPainter, QPainterPath, QIcon, QColor, QAction, QPen
-from PySide2.QtWidgets import (QApplication, QHBoxLayout, QLineEdit, QToolButton, QTextEdit,
+from PySide2.QtGui import QPainter, QPainterPath, QIcon, QColor, QPen
+from PySide2.QtWidgets import (QAction, QApplication, QHBoxLayout, QLineEdit, QToolButton, QTextEdit,
                                QPlainTextEdit, QCompleter, QStyle, QWidget, QTextBrowser)
 
 

@@ -256,7 +256,7 @@ class CustomStyleSheetWatcher(QObject):
         if e.type() != QEvent.DynamicPropertyChange:
             return super().eventFilter(obj, e)
 
-        name = QDynamicPropertyChangeEvent(e).propertyName().data().decode()
+        name = e.propertyName().data().decode()
         if name in [CustomStyleSheet.LIGHT_QSS_KEY, CustomStyleSheet.DARK_QSS_KEY]:
             addStyleSheet(obj, CustomStyleSheet(obj))
 

@@ -779,7 +779,7 @@ class NavigationPanel(QFrame):
             if not self.geometry().contains(e.pos()) and self.displayMode == NavigationDisplayMode.MENU:
                 self.collapse()
         elif e.type() == QEvent.Resize:
-            w = QResizeEvent(e).size().width()
+            w = e.size().width()
             if w < self.minimumExpandWidth and self.displayMode == NavigationDisplayMode.EXPAND:
                 self.collapse()
             elif w >= self.minimumExpandWidth and self.displayMode == NavigationDisplayMode.COMPACT and \

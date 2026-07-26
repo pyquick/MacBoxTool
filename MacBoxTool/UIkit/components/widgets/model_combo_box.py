@@ -3,8 +3,8 @@ import sys
 from typing import Union, List, Iterable
 
 from PySide2.QtCore import Qt, Signal, QRectF, QPoint, QObject, QEvent, QModelIndex, QAbstractItemModel
-from PySide2.QtGui import QPainter, QCursor, QIcon, QStandardItemModel, QStandardItem, QAction
-from PySide2.QtWidgets import QPushButton, QApplication
+from PySide2.QtGui import QPainter, QCursor, QIcon, QStandardItemModel, QStandardItem
+from PySide2.QtWidgets import QAction, QPushButton, QApplication
 
 from .menu import RoundMenu, MenuAnimationType, IndicatorMenuItemDelegate
 from .line_edit import LineEdit, LineEditButton

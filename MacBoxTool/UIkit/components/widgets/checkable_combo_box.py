@@ -8,8 +8,7 @@ Uses UIkit's Fluent design patterns.
 from typing import List, Iterable
 
 from PySide2.QtCore import Qt, Signal, QPoint
-from PySide2.QtGui import QAction
-from PySide2.QtWidgets import QWidget, QListWidget, QListWidgetItem
+from PySide2.QtWidgets import QAction, QWidget, QListWidget, QListWidgetItem
 
 from .menu import RoundMenu, MenuAnimationType
 from .button import PushButton

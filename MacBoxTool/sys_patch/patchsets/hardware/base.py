@@ -2,7 +2,7 @@
 base.py: Base class for hardware patch set detection
 """
 
-from enum    import StrEnum
+from enum    import Enum
 from pathlib import Path
 
 from ..base import BasePatchset
@@ -13,7 +13,7 @@ from ....datasets.os_data       import os_data
 from ....datasets.sip_data      import system_integrity_protection
 from ....detections.amfi_detect import AmfiConfigDetectLevel
 from ....detections             import device_probe
-class HardwareVariant(StrEnum):
+class HardwareVariant(str, Enum):
     """
     Hardware variant for patch set
     """
@@ -24,7 +24,7 @@ class HardwareVariant(StrEnum):
     USB:           str = "USB"
 
 
-class HardwareVariantGraphicsSubclass(StrEnum):
+class HardwareVariantGraphicsSubclass(str, Enum):
     """
     Graphics hardware variant subclass
     """

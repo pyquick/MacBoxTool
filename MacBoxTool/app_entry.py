@@ -1,4 +1,5 @@
 import argparse
+import logging
 import sys
 import multiprocessing
 import signal
@@ -14,31 +15,18 @@ _qt_window: Optional['QWidget'] = None
 
 
 def _signal_handler(_signum, _frame):
-    """Handle Ctrl+C (SIGINT) for graceful shutdown"""
+    """Handle Ctrl+C (SIGINT) through the normal Qt shutdown path."""
     global _shutdown_requested, _qt_app, _qt_window
     if _shutdown_requested:
-        # Force exit if already requested
-        sys.exit(1)
+        return
+
     _shutdown_requested = True
+    logging.info("GUI shutdown requested by user.")
 
-    # Immediately destroy GUI window first
     if _qt_window:
-        try:
-            _qt_window.close()
-            _qt_window.destroy()
-        except:
-            pass
-
-    # Then quit the application
-    if _qt_app:
-        try:
-            _qt_app.quit()
-            _qt_app.processEvents()
-        except:
-            pass
-    
-    logging.info("GUI is destroyed by user.")
-    sys.exit(0)
+        QTimer.singleShot(0, _qt_window.close)
+    elif _qt_app:
+        QTimer.singleShot(0, _qt_app.quit)
 
 
 # Register signal handler
@@ -56,7 +44,6 @@ from .support import (
     analytics_handler
 )
 import threading
-import logging
 import time
 import os
 from pathlib import Path

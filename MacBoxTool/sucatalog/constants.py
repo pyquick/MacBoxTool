@@ -2,10 +2,10 @@
 constants.py: Enumerations for sucatalog-py
 """
 
-from enum import StrEnum
+from enum import Enum
 
 
-class SeedType(StrEnum):
+class SeedType(str, Enum):
     """
     Enum for catalog types
 
@@ -21,7 +21,7 @@ class SeedType(StrEnum):
     PublicRelease: str = ""
 
 
-class CatalogVersion(StrEnum):
+class CatalogVersion(str, Enum):
     """
     Enum for macOS versions
 
@@ -49,7 +49,7 @@ class CatalogVersion(StrEnum):
     TIGER:          str = ""
 
 
-class CatalogExtension(StrEnum):
+class CatalogExtension(str, Enum):
     """
     Enum for catalog extensions
 

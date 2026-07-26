@@ -3,8 +3,8 @@ import math
 
 from typing import Dict, List
 from PySide2.QtCore import Qt, Signal, QRectF, Property, QPoint, QEvent
-from PySide2.QtGui import QPainter, QFont, QHoverEvent, QAction
-from PySide2.QtWidgets import QWidget, QApplication
+from PySide2.QtGui import QPainter, QFont, QHoverEvent
+from PySide2.QtWidgets import QAction, QWidget, QApplication
 
 from ...common.font import setFont
 from ...common.icon import FluentIcon

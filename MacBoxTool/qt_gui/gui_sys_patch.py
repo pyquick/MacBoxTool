@@ -14,7 +14,7 @@ from ..sys_patch.patchsets import (
     HardwarePatchsetSettings,
     HardwarePatchsetValidation,
 )
-from shiboken6 import isValid as is_qt_object_valid
+from shiboken2 import isValid as is_qt_object_valid
 import threading
 
 

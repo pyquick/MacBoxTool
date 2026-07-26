@@ -8,7 +8,7 @@ import subprocess
 import py_sip_xnu
 import packaging.version
 
-from enum      import StrEnum
+from enum      import Enum
 from pathlib   import Path
 from functools import cache
 
@@ -68,7 +68,7 @@ from ...detections import (
     device_probe
 )
 
-class HardwarePatchsetSettings(StrEnum):
+class HardwarePatchsetSettings(str, Enum):
     """
     Enum for patch settings
     """
@@ -78,7 +78,7 @@ class HardwarePatchsetSettings(StrEnum):
     METALLIB_SUPPORT_PKG_MISSING  = "Settings: MetallibSupportPkg.pkg missing"
 
 
-class HardwarePatchsetValidation(StrEnum):
+class HardwarePatchsetValidation(str, Enum):
     """
     Enum for validation settings
     """

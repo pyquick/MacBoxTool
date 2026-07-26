@@ -373,7 +373,7 @@ class NavigationInterface(QWidget):
             return super().eventFilter(obj, e)
 
         if self.panel.displayMode != NavigationDisplayMode.MENU:
-            event = QResizeEvent(e)
+            event = e
             if event.oldSize().width() != event.size().width():
                 self.setFixedWidth(self.compactWidth())
                 self._updatePanelGeometry()

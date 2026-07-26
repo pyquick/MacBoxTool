@@ -5,9 +5,9 @@ import json
 
 from PySide2.QtXml import QDomDocument
 from PySide2.QtCore import QRectF, Qt, QFile, QObject, QRect
-from PySide2.QtGui import QIcon, QIconEngine, QColor, QPixmap, QImage, QPainter, QFontDatabase, QFont, QAction, QPainterPath
+from PySide2.QtGui import QIcon, QIconEngine, QColor, QPixmap, QImage, QPainter, QFontDatabase, QFont,  QPainterPath
 from PySide2.QtSvg import QSvgRenderer
-from PySide2.QtWidgets import QApplication
+from PySide2.QtWidgets import QApplication,QAction
 
 from .config import isDarkTheme, Theme
 from .overload import singledispatchmethod

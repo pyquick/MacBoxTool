@@ -16,6 +16,8 @@ class OpenGUI:
         from .. import app_entry as _app_entry
         from .gui_main_menu import Window
 
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
         app = QApplication(_sys.argv)
         w = Window(self.constants,self.settings)
 

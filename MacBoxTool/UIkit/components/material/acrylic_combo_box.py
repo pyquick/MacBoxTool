@@ -1,6 +1,5 @@
 # coding:utf-8
 from PySide2.QtCore import Qt, QPoint
-from PySide2.QtGui import QAction
 
 
 from .acrylic_menu import AcrylicMenuBase, AcrylicMenuActionListWidget
