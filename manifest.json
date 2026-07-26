@@ -2,8 +2,8 @@
     "nightly_latest": {
         "main": {
             "version": "0.0.4",
-            "build": "4552.1200",
-            "core": "1.0.245834437prefix",
+            "build": "4562.1",
+            "core": "1.0.245834437canary",
             "minver": "22"
         },
         "PySide2": {
