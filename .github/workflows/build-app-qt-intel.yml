@@ -24,7 +24,7 @@ jobs:
       commitdate: ${{ github.event.head_commit.timestamp }}${{ github.event.release.published_at }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
@@ -33,7 +33,8 @@ jobs:
         run: |
           rm -rf Univ*
           rm -rf *pay*.dmg
-          /Library/Frameworks/Python.framework/Versions/3.10/bin/python3 -m pip install -r requirements_macOS.txt
+          python3 --version
+          python3 -m pip install -r requirements_macOS.txt
       
       - name: Free up space
         run: |
@@ -51,7 +52,7 @@ jobs:
       - name: Force Universal charset for Python
         run: |
           /Library/Frameworks/Python.framework/Versions/3.10/bin/python3 -m pip uninstall -y charset_normalizer
-          /Library/Frameworks/Python.framework/Versions/3.10/bin/python3 -m pip install https://dl.espressif.cn/pypi/charset-normalizer/charset_normalizer-3.4.7-cp312-cp312-macosx_10_13_universal2.whl
+          /Library/Frameworks/Python.framework/Versions/3.10/bin/python3 -m pip install https://dl.espressif.cn/pypi/charset-normalizer/charset_normalizer-3.4.7-cp310-cp310-macosx_10_13_universal2.whl
 
       - name: Prepare Assets (--prepare-assets)
 
@@ -71,7 +72,7 @@ jobs:
 
       - name: Prepare Package (--prepare-package)
         run: >
-          /Library/Frameworks/Python.framework/Versions/3.10/bin/python3 Build-Project.command
+          python3 Build-Project.command
           --run-as-individual-steps
           --prepare-package
 
