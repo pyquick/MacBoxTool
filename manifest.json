@@ -1,27 +1,26 @@
 {
     "nightly_latest": {
-        "main":{
+        "main": {
             "version": "0.0.4",
             "build": "4552.1200",
             "core": "1.0.245834437prefix",
             "minver": "22"
         },
-        "PySide2":{
-            "version": "",
-            "build": "",
-            "core": "",
+        "PySide2": {
+            "version": "0.0.4",
+            "build": "4558.1200",
+            "core": "1.0.245834437prefix",
             "minver": "17"
         }
     },
     "stable_latest": {
-        "main":{
+        "main": {
             "version": "0.0.3.2",
             "build": "4444.1001",
             "core": "1.0.23780094prefix",
             "minver": "22"
         },
-        "PySide2":
-        {
+        "PySide2": {
             "version": "",
             "build": "",
             "core": "",
