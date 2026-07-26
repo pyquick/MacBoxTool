@@ -91,14 +91,14 @@ class GeneratePackage:
         """
         Generate MacBoxTool.pkg
         """
-        print(f"Generating MacBoxTool-Uninstaller{self._pkg_suffix}.pkg")
+        print(f"Generating MacBoxTool-PySide2-Uninstaller{self._pkg_suffix}.pkg")
         _tmp_uninstall = tempfile.NamedTemporaryFile(delete=False)
         with open(_tmp_uninstall.name, "w") as f:
             f.write(GenerateScripts().uninstall())
 
         assert macos_pkg_builder.Packages(
-            pkg_output=f"./dist/MacBoxTool-Uninstaller{self._pkg_suffix}.pkg",
-            pkg_bundle_id="com.pyquick.macboxtool-uninstaller",
+            pkg_output=f"./dist/MacBoxTool-PySide2-Uninstaller{self._pkg_suffix}.pkg",
+            pkg_bundle_id="com.pyquick.MacBoxTool-PySide2-uninstaller",
             pkg_version=self._constants.macboxtool_version,
             pkg_background="./ci/pkg_assets/PkgBackground-Uninstaller.png",
             pkg_preinstall_script=_tmp_uninstall.name,

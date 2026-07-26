@@ -40,7 +40,7 @@ class GenerateApplication:
             subprocess_wrapper.run_and_verify(["/bin/rm", "-rf", self._application_output], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         print("Generating MacBoxTool.app")
-        _args = self._pyinstaller + ["./MacBoxTool-GUI.spec", "--noconfirm"]
+        _args = self._pyinstaller + ["./MacBoxTool-PySide2-GUI.spec", "--noconfirm"]
         if self._reset_pyinstaller_cache:
             _args.append("--clean")
 

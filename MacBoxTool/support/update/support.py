@@ -64,9 +64,9 @@ class VisitGithubAPI:
     def arch_check(self) -> list:
         """Return the workflow and artifact names for the current architecture."""
         if platform.machine() == "x86_64":
-            return ["build-app-qt-intel", "MacBoxTool-x86_64.pkg"]
+            return ["build-app-qt-intel", "MacBoxTool-PySide2-x86_64.pkg"]
         if platform.machine() == "arm64":
-            return ["build-app-qt-arm", "MacBoxTool-arm64.pkg"]
+            return ["build-app-qt-arm", "MacBoxTool-PySide2-arm64.pkg"]
         raise RuntimeError(f"Unsupported architecture: {platform.machine()}")
 
     def find_and_compare_latest_release_nightly(self) -> list[bool, str, str, str]:

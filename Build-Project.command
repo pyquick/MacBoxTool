@@ -112,7 +112,7 @@ def main() -> None:
 
 
     if (args.run_as_individual_steps is False) or (args.run_as_individual_steps and args.prepare_package):
-        # Build MacBoxTool.pkg and MacBoxTool-Uninstaller.pkg
+        # Build MacBoxTool.pkg and MacBoxTool-PySide2-Uninstaller.pkg
         package.GeneratePackage().generate()
 
         # Sign MacBoxTool.pkg
@@ -124,9 +124,9 @@ def main() -> None:
             notarization_team_id=args.notarization_team_id,
         ).sign_and_notarize()
 
-        # Sign MacBoxTool-Uninstaller.pkg
+        # Sign MacBoxTool-PySide2-Uninstaller.pkg
         sign_notarize.SignAndNotarize(
-            path=Path(f"dist/MacBoxTool-Uninstaller{_pkg_suffix}.pkg"),
+            path=Path(f"dist/MacBoxTool-PySide2-Uninstaller{_pkg_suffix}.pkg"),
             signing_identity=args.installer_signing_identity,
             notarization_apple_id=args.notarization_apple_id,
             notarization_password=args.notarization_password,
