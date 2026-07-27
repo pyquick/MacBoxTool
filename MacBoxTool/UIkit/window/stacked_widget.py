@@ -1,8 +1,12 @@
 # coding:utf-8
+import sys
 from PySide6.QtCore import Qt, Signal, QEasingCurve
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QAbstractScrollArea
 
-from ..components.widgets.stacked_widget import PopUpAniStackedWidget, EntranceTransitionStackedWidget
+from ..components.widgets.stacked_widget import (
+    PopUpAniStackedWidget,
+    DualSnapshotSlideStackedWidget,
+)
 
 
 
@@ -14,7 +18,16 @@ class StackedWidget(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.hBoxLayout = QHBoxLayout(self)
-        self.view = PopUpAniStackedWidget(self)
+
+        if sys.platform == "win32":
+            # DualSnapshotSlideStackedWidget renders both the outgoing and
+            # incoming page to pixmap snapshots at animation start, then
+            # slides/fades only the lightweight snapshot labels.  No real
+            # widgets are moved or re-laid-out, eliminating the layout
+            # thrash that causes stutter on Windows with complex pages.
+            self.view = DualSnapshotSlideStackedWidget(self)
+        else:
+            self.view = PopUpAniStackedWidget(self)
 
         self.hBoxLayout.setContentsMargins(0, 0, 0, 0)
         self.hBoxLayout.addWidget(self.view)
@@ -23,11 +36,14 @@ class StackedWidget(QFrame):
         self.setAttribute(Qt.WA_StyledBackground)
 
     def isAnimationEnabled(self) -> bool:
+        if isinstance(self.view, DualSnapshotSlideStackedWidget):
+            return True
         return self.view.isAnimationEnabled
 
     def setAnimationEnabled(self, isEnabled: bool):
         """set whether the pop animation is enabled"""
-        self.view.setAnimationEnabled(isEnabled)
+        if not isinstance(self.view, DualSnapshotSlideStackedWidget):
+            self.view.setAnimationEnabled(isEnabled)
 
     def addWidget(self, widget):
         """ add widget to view """
@@ -44,7 +60,10 @@ class StackedWidget(QFrame):
         if isinstance(widget, QAbstractScrollArea):
             widget.verticalScrollBar().setValue(0)
 
-        if not popOut:
+        if isinstance(self.view, DualSnapshotSlideStackedWidget):
+            # Windows: dual-snapshot slide — smooth, no real-widget thrash
+            self.view.setCurrentWidget(widget, duration=300, isBack=popOut)
+        elif not popOut:
             self.view.setCurrentWidget(widget, duration=300)
         else:
             self.view.setCurrentWidget(

@@ -47,14 +47,22 @@ signal.signal(signal.SIGINT, _signal_handler)
 # Only import heavy modules after CLI parsing
 from .install import Install
 import importlib
-
-from .support import (
-    utilities,
-    reroute_payloads,
-    commit_info,
-    logging_handler,
-    analytics_handler
-)
+if sys.platform=="darwin":
+    from .support import (
+        utilities,
+        reroute_payloads,
+        commit_info,
+        logging_handler,
+        analytics_handler
+    )
+else:
+    from .support import (
+        utilities_win as utilities,
+        reroute_payloads,
+        commit_info,
+        logging_handler,
+        analytics_handler
+    )
 import threading
 import logging
 import time
@@ -107,7 +115,11 @@ class MacBoxTool:
         self.opengui()
         
     def install_requirements(self):
-        if self.constants.qt_variant is False or self.constants.launcher_script:
+        # Frozen builds already contain their runtime dependencies.  Never invoke
+        # pip from a packaged application, which could also create a console window.
+        if not getattr(sys, "frozen", False) and (
+            self.constants.qt_variant is False or self.constants.launcher_script
+        ):
             Install()
         return
 
@@ -129,9 +141,9 @@ class MacBoxTool:
         """
 
         self.constants.qt_variant = True
-
-        # Ensure we live after parent process dies (ie. LaunchAgent)
-        os.setpgrp()
+        if sys.platform=="darwin":
+            # Ensure we live after parent process dies (ie. LaunchAgent)
+            os.setpgrp()
 
         # Generate OS data
         os_data = os_probe.OSProbe()
@@ -205,7 +217,7 @@ class MacBoxTool:
 
 def main():
     import platform
-    if int(platform.release().split(".")[0]) < 22:
+    if int(platform.release().split(".")[0]) < 22 and sys.platform=="darwin":
         sys.exit(1)
     # Handle CLI commands using parsed args
     args = _parse_cli_args()

@@ -3,7 +3,13 @@ gui_settings.py: Settings page using Fluent Design components
 """
 from ..include import *
 from ..support import generate_smbios
-from ..support import utilities
+import sys
+if sys.platform=="darwin":
+    from ..support import utilities
+    from ..detections import device_probe
+else:
+    from ..support import utilities_win as utilities
+    from ..detections import device_probe_win as device_probe
 from .gui_support import DefGUI, CheckProperties
 
 

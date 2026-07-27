@@ -8,7 +8,11 @@ from requests.adapters import HTTPAdapter
 from urllib3.exceptions import InsecureRequestWarning
 from urllib3.util.retry import Retry
 import threading
-import MacBoxTool.support.utilities as utilities
+import sys
+if sys.platform=="darwin":
+    import MacBoxTool.support.utilities as utilities
+else:
+    import MacBoxTool.support.utilities_win as utilities
 import os
 from PySide6.QtWidgets import *
 from PySide6.QtGui import *

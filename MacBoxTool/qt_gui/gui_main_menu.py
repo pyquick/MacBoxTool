@@ -7,9 +7,9 @@ from .gui_build import BuildOCPage
 from .gui_about import AboutInterface
 from .gui_settings import SettingsInterface
 from .gui_task import TaskInterface, TaskManager
-from .gui_sys_patch import SysPatch
+
 from .gui_all_download import DownloadInterface
-from .gui_update import Updater
+
 from ..support import on_nightly
 
 WINDOW_MIN_SIZE = (1000, 700)
@@ -63,7 +63,8 @@ class Window(FluentWindow):
    
 
     def _setup_window(self):
-        self.setWindowTitle(f"MacBoxTool ({self.constants.macboxtool_version}) {"(Nightly)"if on_nightly.CheckNightly(self.constants).check() else ""}")
+        nightly_suffix = " (Nightly)" if on_nightly.CheckNightly(self.constants).check() else ""
+        self.setWindowTitle(f"MacBoxTool ({self.constants.macboxtool_version}){nightly_suffix}")
         self.setMinimumSize(*WINDOW_MIN_SIZE)
         
         #self._restore_window_geometry()
@@ -229,14 +230,15 @@ class Window(FluentWindow):
                 "Download Tasks",
                 NavigationItemPosition.SCROLL
             )
-
-            self.sys_patch_page=SysPatch(self.constants,self.gui_support,self.settings,self)
-            self.addSubInterface(
-                self.sys_patch_page,
-                FluentIcon.PASTE,
-                "Root Patching",
-                NavigationItemPosition.SCROLL
-            )
+            if sys.platform=="darwin":
+                from .gui_sys_patch import SysPatch
+                self.sys_patch_page=SysPatch(self.constants,self.gui_support,self.settings,self)
+                self.addSubInterface(
+                    self.sys_patch_page,
+                    FluentIcon.PASTE,
+                    "Root Patching",
+                    NavigationItemPosition.SCROLL
+                )
 
             self.download_page=DownloadInterface(self.constants,self.gui_support,self.settings,self)
             self.addSubInterface(
@@ -254,14 +256,15 @@ class Window(FluentWindow):
                 NavigationItemPosition.BOTTOM
             )
             self.settings_nav_item.clicked.connect(lambda *_: self._rotate_settings_icon())
-
-            self.updater=Updater(self.constants,self.gui_support,self.settings,self)
-            self.addSubInterface(
-                self.updater,
-                FluentIcon.DOWNLOAD,
-                "Updater",
-                NavigationItemPosition.BOTTOM
-            )
+            if sys.platform=="darwin":
+                from .gui_update import Updater
+                self.updater=Updater(self.constants,self.gui_support,self.settings,self)
+                self.addSubInterface(
+                    self.updater,
+                    FluentIcon.DOWNLOAD,
+                    "Updater",
+                    NavigationItemPosition.BOTTOM
+                )
 
             self.about=AboutInterface(self.constants,self.gui_support,self.settings,self)
             self.addSubInterface(

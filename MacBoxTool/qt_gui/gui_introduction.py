@@ -388,14 +388,14 @@ class Introduction(ScrollArea):
         except version.InvalidVersion:
             return None
     def _create_note_card(self):
-        self.oclp_version=self.find_oclp_version() or "3.1.5"
+        self.oclp_version=self.find_oclp_version() or "3.1.6"
         return self.ui_support.custom_card(
             card_type="note",
             title="OCLP-R: - Now Supports macOS Tahoe 26!",
             body=(
                 f"The long awaited version {self.oclp_version} of OCLP-R is here, bringing <b>initial support for macOS Tahoe 26</b> to the community!<br><br>"
                 "<b>Please Note:</b><br>"
-                f"- Only OCLP-R {self.oclp_version} from the <a href=\"https://github.com/pyquick/MacBoxTool/releases/download/{self.oclp_version}/OCLP-R.pkg\" style=\"color: #0078D4; text-decoration: none;\">pyquick/OCLP-R</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
+                f"- Only OCLP-R {self.oclp_version} from the <a href=\"https://github.com/hackdoc/OCLP-R/releases/download/{self.oclp_version}/OCLP-R.pkg\" style=\"color: #0078D4; text-decoration: none;\">pyquick/OCLP-R</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
                 "- Official Dortania releases or older patches <b>will NOT work</b> with macOS Tahoe 26."
             )
         )

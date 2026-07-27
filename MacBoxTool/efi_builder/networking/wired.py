@@ -7,9 +7,11 @@ import logging
 from .. import support
 
 from ... import constants
-
-from ...detections import device_probe
-
+import sys
+if sys.platform=="darwin":
+    from ...detections import device_probe
+else:
+    from ...detections import device_probe_win as device_probe
 from ...datasets import (
     smbios_data,
     cpu_data,

@@ -9,8 +9,13 @@ from .. import support
 from ... import constants
 
 from ...datasets import smbios_data
-from ...support import utilities
-from ...detections import device_probe
+import sys
+if sys.platform=="darwin":
+    from ...support import utilities
+    from ...detections import device_probe
+else:
+    from ...support import utilities_win as utilities
+    from ...detections import device_probe_win as device_probe
 
 
 

@@ -7,6 +7,7 @@ import atexit
 import plistlib
 import tempfile
 import subprocess
+import sys
 
 import logging
 
@@ -22,7 +23,12 @@ class RoutePayloadDiskImage:
     def __init__(self, global_constants: constants.Constants) -> None:
         self.constants: constants.Constants = global_constants
 
-
+        # The Windows package ships payloads as a normal directory in
+        # PyInstaller's internal data location. It must never attempt to mount
+        # the macOS DMG assets.
+        if sys.platform == "win32":
+            logging.info("Windows: using local payloads directory")
+            return
 
         self._setup_tmp_disk_image()
 

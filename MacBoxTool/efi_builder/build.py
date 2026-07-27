@@ -13,9 +13,11 @@ from pathlib import Path
 from datetime import date
 
 from .. import constants
-
-from ..support import utilities
-
+import sys
+if sys.platform=="darwin":
+    from ..support import utilities
+else:
+    from ..support import utilities_win as utilities
 from .networking import (
     wired,
     wireless
@@ -129,6 +131,9 @@ class BuildOpenCore:
             self.config["#Revision"]["Build-Type"] = "OpenCore Built on Target Machine"
             computer_copy = copy.copy(self.constants.computer)
             computer_copy.ioregistry = None
+            computer_copy._wmi = None
+            computer_copy._pci_cache = []
+            computer_copy._usb_raw = []
             self.config["#Revision"]["Hardware-Probe"] = pickle.dumps(computer_copy)
         else:
             self.config["#Revision"]["Build-Type"] = "OpenCore Built for External Machine"

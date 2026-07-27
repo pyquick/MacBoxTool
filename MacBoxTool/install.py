@@ -36,7 +36,13 @@ class Install:
 
     def find_python_version_path(self):
         if sys.platform == "win32":
-            self.python_path = subprocess.run(["where", f"python{self.version}"], capture_output=True, text=True).stdout.strip()
+            result = subprocess.run(["where", f"python{self.version}"], capture_output=True, text=True)
+            if result.returncode == 0 and result.stdout.strip():
+                # 'where' may return multiple paths; take only the first one
+                self.python_path = result.stdout.strip().splitlines()[0]
+            else:
+                # Fallback to the current Python executable
+                self.python_path = sys.executable
             logging.info(f"Python {self.version} Path: {self.python_path}")
             print(f"Python {self.version} Path: {self.python_path}")
         return None

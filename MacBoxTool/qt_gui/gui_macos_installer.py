@@ -7,6 +7,7 @@ from .. import sucatalog
 from .gui_support import DefGUI
 from .gui_task import TaskManager
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import sys
 
 
 def _installer_icon_path(installer_data: dict, constants: Constants) -> str:
@@ -428,6 +429,14 @@ class MacOSInstallerList(ScrollArea):
 
         installers = self.available_installers_latest if self.show_latest_only else self.available_installers
 
+        # On Windows, filter out macOS 10.15 (Catalina) and earlier —
+        # only macOS 11 (Big Sur) and above are supported
+        if sys.platform == "win32":
+            installers = [
+                i for i in installers
+                if self._installer_is_supported_on_windows(i)
+            ]
+
         if not installers:
             logging.warning("[MacOSInstallerList] No installers available to display")
             no_data_label = BodyLabel("No installers available")
@@ -450,6 +459,25 @@ class MacOSInstallerList(ScrollArea):
         self.expandLayout.addStretch(1)
 
         logging.info(f"[MacOSInstallerList] Displayed {len(installers)} cards")
+
+    @staticmethod
+    def _installer_is_supported_on_windows(installer: dict) -> bool:
+        """
+        Return False for macOS 10.15 (Catalina) and earlier on Windows.
+        Only macOS 11 (Big Sur) and above are supported.
+        """
+        version = installer.get("Version", "0.0.0")
+        try:
+            parts = version.split(".")
+            major = int(parts[0])
+            # 10.x → only 10.16+ (i.e. 11+; 10.15 is Catalina, unsupported)
+            if major == 10:
+                if len(parts) >= 2:
+                    return int(parts[1]) >= 16
+                return False
+            return major >= 11
+        except (ValueError, IndexError):
+            return True  # let unfamiliar versions through
 
     # ── Actions ──
 

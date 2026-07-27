@@ -14,11 +14,15 @@ from pathlib import Path
 from . import support
 
 from .. import constants
-
-from ..support import (
-    utilities,
-    generate_smbios,
+import sys
+if sys.platform=="darwin":
+    from ..support import utilities
+   
+else:
+    from ..support import utilities_win as utilities
     
+from ..support import (
+    generate_smbios,
 )
 from ..datasets import (
     smbios_data,
