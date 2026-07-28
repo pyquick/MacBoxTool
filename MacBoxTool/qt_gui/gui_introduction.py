@@ -52,6 +52,7 @@ class Introduction(ScrollArea):
     NAV_SETTINGS = "settings"
     NAV_ABOUT = "about"
     NAV_DOWNLOADS="Downloads"
+    NAV_PATCH = "patch"
 
     def __init__(self,global_constants:Constants,ui_support:DefGUI=None,parent=None):
         super().__init__(parent=parent)
@@ -431,47 +432,76 @@ class Introduction(ScrollArea):
         layout.addWidget(title)
 
         # Description
-        desc = BodyLabel("Get started by following these steps:")
+        desc = BodyLabel(
+            "Follow these steps to create and use an OpenCore EFI. "
+            "Back up your data and current EFI before making changes."
+        )
         desc.setStyleSheet("font-size: 14px; color: #888;")
+        desc.setWordWrap(True)
         layout.addWidget(desc)
-        
 
-        # Guide items with buttons
+        layout.addWidget(self._create_guide_item(
+            icon=FluentIcon.SETTING,
+            title="1. Configure your target model",
+            description=(
+                "Open Settings and choose the Mac model you want to build for. "
+                "Review the available boot, graphics, security, and SMBIOS options "
+                "before building."
+            ),
+            button_text="Go to Settings",
+            navigate_target=self.NAV_SETTINGS
+        ))
+
+        layout.addWidget(self._create_guide_item(
+            icon=FluentIcon.DOWNLOAD,
+            title="2. Download required resources",
+            description=(
+                "Use Downloads to get a macOS installer, Kernel Debug Kit (KDK), "
+                "or Metallib support packages when they are needed for your system."
+            ),
+            button_text="Go to Downloads",
+            navigate_target=self.NAV_DOWNLOADS
+        ))
+
         layout.addWidget(self._create_guide_item(
             icon=FluentIcon.DEVELOPER_TOOLS,
-            title="1. Build OpenCore EFI",
-            description="Generate OpenCore EFI for your Mac or Hackintosh. Select your target model and click Build.",
+            title="3. Build the OpenCore EFI",
+            description=(
+                "Open Build For Macs and click Build OpenCore EFI. "
+                "The build uses the target model and settings selected above."
+            ),
             button_text="Go to Build",
             navigate_target=self.NAV_BUILD
         ))
 
         layout.addWidget(self._create_guide_item(
-            icon=FluentIcon.DOWNLOAD,
-            title="2. Downloads",
-            description="Download macOS, KDKs, metallibs",
-            button_text="Go to Download",
-            navigate_target=self.NAV_DOWNLOADS
+            icon=FluentIcon.SAVE,
+            title="4. Install and test the EFI",
+            description=(
+                "After the build succeeds, use Open folder in Finder to inspect or copy "
+                "the EFI, or use Install to disk to install it directly. Keep a backup "
+                "of the working EFI and restart to test the new configuration."
+            ),
+            button_text="Go to Build",
+            navigate_target=self.NAV_BUILD
         ))
-
-        layout.addWidget(self._create_guide_item(
-            icon=FluentIcon.SETTING,
-            title="3. Configure Settings",
-            description="Adjust build settings like SMBIOS spoofing level, GPU options, and more.",
-            button_text="Go to Settings",
-            navigate_target=self.NAV_SETTINGS
-        ))
-
-        
-
+        if sys.platform=="darwin":
+            layout.addWidget(self._create_guide_item(
+                icon=FluentIcon.PASTE,
+                title="5. Apply Root Patches when needed",
+                description=(
+                    "On supported older Macs, use Root Patching after OpenCore is working. "
+                    "The patcher can prepare required KDK and Metallib packages; restart "
+                    "when prompted to apply the changes."
+                ),
+                button_text="Go to Root Patching",
+                navigate_target=self.NAV_PATCH
+            ))
 
         return card
 
-   
-
-
-
-    def _create_guide_item(self, icon, title, description, button_text, navigate_target):
-        """Create a single guide item with navigation button."""
+    def _create_guide_item(self, icon, title, description, button_text=None, navigate_target=None):
+        """Create a single guide item with an optional navigation button."""
         item_widget = QWidget()
         item_layout = QHBoxLayout(item_widget)
         item_layout.setContentsMargins(0, SPACING["small"], 0, SPACING["small"])
@@ -496,12 +526,11 @@ class Introduction(ScrollArea):
         text_layout.addWidget(desc_label)
         item_layout.addLayout(text_layout, 1)
 
-        # Navigate button
-        nav_btn = PrimaryPushButton(button_text)
-        nav_btn.setFixedHeight(32)
-        nav_btn.clicked.connect(lambda: self.navigate_to(navigate_target))
-
-        item_layout.addWidget(nav_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+        if button_text and navigate_target:
+            nav_btn = PrimaryPushButton(button_text)
+            nav_btn.setFixedHeight(32)
+            nav_btn.clicked.connect(lambda: self.navigate_to(navigate_target))
+            item_layout.addWidget(nav_btn, 0, Qt.AlignmentFlag.AlignVCenter)
 
         return item_widget
 

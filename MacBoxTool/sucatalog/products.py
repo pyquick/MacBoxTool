@@ -9,6 +9,7 @@ import packaging.version
 import xml.etree.ElementTree as ET
 
 from pathlib   import Path
+from urllib.parse import urlparse
 from functools import cached_property
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -29,6 +30,14 @@ class CatalogProducts:
 
     LEGACY_INSTALL_ASSISTANT_PACKAGE = "InstallAssistantAuto.pkg"
     LEGACY_INSTALL_ESD_PACKAGE = "InstallESDDmg.pkg"
+    LEGACY_REQUIRED_COMPONENTS = (
+        LEGACY_INSTALL_ASSISTANT_PACKAGE,
+        LEGACY_INSTALL_ESD_PACKAGE,
+        "BaseSystem.dmg",
+        "BaseSystem.chunklist",
+        "AppleDiagnostics.dmg",
+        "AppleDiagnostics.chunklist",
+    )
     INSTALL_ASSISTANT_VERSION_MAP = {
         CatalogVersion.MOUNTAIN_LION: "10.8",
         CatalogVersion.LION: "10.7",
@@ -102,6 +111,10 @@ class CatalogProducts:
         self.max_ia_version: packaging = packaging.version.parse(f"{max_version}.99.99")
         self.max_ia_catalog: CatalogVersion = max_install_assistant_version
 
+
+    @staticmethod
+    def _package_name(url: str) -> str:
+        return Path(urlparse(url).path).name
 
     def _legacy_parse_info_plist(self, data: dict) -> dict:
         """
@@ -355,7 +368,7 @@ class CatalogProducts:
         metadata_urls = set()
         for product in products.values():
             packages = product.get("Packages", [])
-            package_names = {Path(package.get("URL", "")).name for package in packages}
+            package_names = {self._package_name(package.get("URL", "")) for package in packages}
             is_installer = (
                 "InstallAssistant.pkg" in package_names
                 or self.LEGACY_INSTALL_ASSISTANT_PACKAGE in package_names
@@ -366,7 +379,7 @@ class CatalogProducts:
 
             for package in packages:
                 package_url = package.get("URL")
-                if package_url and Path(package_url).name in {
+                if package_url and self._package_name(package_url) in {
                     "Info.plist",
                     "com_apple_MobileAsset_MacSoftwareUpdate.plist",
                 }:
@@ -414,7 +427,7 @@ class CatalogProducts:
             if self.ia_only:
                 packages = catalog["Products"][product].get("Packages", [])
                 has_legacy_install_assistant = any(
-                    Path(package.get("URL", "")).name in {
+                    self._package_name(package.get("URL", "")) in {
                         self.LEGACY_INSTALL_ASSISTANT_PACKAGE,
                         self.LEGACY_INSTALL_ESD_PACKAGE,
                     }
@@ -455,7 +468,7 @@ class CatalogProducts:
             if "Packages" in catalog["Products"][product]:
                 packages = catalog["Products"][product]["Packages"]
                 packages_by_name = {
-                    Path(package.get("URL", "")).name: package
+                    self._package_name(package.get("URL", "")): package
                     for package in packages
                 }
                 # Add packages to product map if not InstallAssistant only
@@ -463,7 +476,7 @@ class CatalogProducts:
                     _product_map["Packages"] = packages
                 for package in packages:
                     if "URL" in package:
-                        package_name = Path(package["URL"]).name
+                        package_name = self._package_name(package["URL"])
                         if package_name == "InstallAssistant.pkg":
                             _product_map["InstallAssistant"] = {
                                 "URL":               package["URL"],
@@ -477,25 +490,23 @@ class CatalogProducts:
                             package_name == self.LEGACY_INSTALL_ESD_PACKAGE
                             and "InstallAssistant.pkg" not in packages_by_name
                         ):
-                            assistant_package = packages_by_name.get(
-                                self.LEGACY_INSTALL_ASSISTANT_PACKAGE, {}
-                            )
-                            legacy_components = [
-                                {
-                                    "URL": assistant_package.get("URL"),
-                                    "Size": assistant_package.get("Size", 0),
-                                    "IntegrityDataURL": assistant_package.get("IntegrityDataURL"),
-                                },
-                                {
-                                    "URL": package["URL"],
-                                    "Size": package.get("Size", 0),
-                                    "IntegrityDataURL": package.get("IntegrityDataURL"),
-                                },
+                            missing_components = [
+                                name for name in self.LEGACY_REQUIRED_COMPONENTS
+                                if not packages_by_name.get(name, {}).get("URL")
                             ]
-                            legacy_components = [
-                                component for component in legacy_components
-                                if component["URL"]
-                            ]
+                            if missing_components:
+                                _product_map = {}
+                                break
+
+                            legacy_components = []
+                            for name in self.LEGACY_REQUIRED_COMPONENTS:
+                                component = packages_by_name[name]
+                                legacy_components.append({
+                                    "URL": component["URL"],
+                                    "Size": component.get("Size", 0),
+                                    "IntegrityDataURL": component.get("IntegrityDataURL"),
+                                    "IntegrityDataSize": component.get("IntegrityDataSize", 0),
+                                })
                             _product_map["InstallAssistant"] = {
                                 "URL":                  package["URL"],
                                 "Size":                 package.get("Size", 0),
@@ -531,7 +542,7 @@ class CatalogProducts:
                             continue
 
                         if plist_contents:
-                            if Path(package["URL"]).name == "Info.plist":
+                            if self._package_name(package["URL"]) == "Info.plist":
                                 result = self._legacy_parse_info_plist(plist_contents)
                             else:
                                 result = self._parse_mobile_asset_plist(plist_contents)
@@ -603,7 +614,7 @@ class CatalogProducts:
             install_assistant = _product_map.get("InstallAssistant")
             if (
                 install_assistant
-                and Path(install_assistant.get("URL", "")).name == self.LEGACY_INSTALL_ESD_PACKAGE
+                and self._package_name(install_assistant.get("URL", "")) == self.LEGACY_INSTALL_ESD_PACKAGE
             ):
                 try:
                     version = packaging.version.parse(_product_map["Version"])

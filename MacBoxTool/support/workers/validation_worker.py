@@ -6,8 +6,6 @@ Handles chunklist verification in background thread
 import logging
 import subprocess
 import requests
-import urllib3
-from urllib3.exceptions import InsecureRequestWarning
 from pathlib import Path
 from io import BytesIO
 from typing import Optional
@@ -15,9 +13,7 @@ from typing import Optional
 from PySide6.QtCore import QThread, Signal
 
 from ..integrity_verification import ChunklistVerification, ChunklistStatus
-
-
-urllib3.disable_warnings(InsecureRequestWarning)
+from ..network_handler import TLS_CERTIFICATE_BUNDLE
 
 
 class ValidationWorker(QThread):
@@ -153,7 +149,7 @@ class ValidationWorker(QThread):
                 self.chunklist_url,
                 timeout=30,
                 stream=True,
-                verify=False,
+                verify=TLS_CERTIFICATE_BUNDLE,
             )
 
             if response.status_code != 200:

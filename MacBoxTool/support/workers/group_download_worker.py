@@ -3,6 +3,7 @@
 import logging
 import threading
 from pathlib import Path
+from urllib.parse import urlparse
 
 from PySide6.QtCore import QThread, Signal, Qt
 
@@ -59,7 +60,8 @@ class GroupDownloadWorker(QThread):
 
             for index, component in enumerate(self.download.components):
                 url = component["URL"]
-                child = DownloadObject(url, self.download.save_path, Path(url).name)
+                filename = Path(urlparse(url).path).name
+                child = DownloadObject(url, self.download.save_path, filename)
                 child.total_size = component.get("Size", 0)
                 child.thread_count = max(
                     1,
@@ -94,7 +96,7 @@ class GroupDownloadWorker(QThread):
 
             for index, component in enumerate(self.download.components):
                 result = self._results[index]
-                filename = Path(component["URL"]).name
+                filename = Path(urlparse(component["URL"]).path).name
                 if not result or not result[0]:
                     message = result[1] if result else f"Failed to download {filename}"
                     self._finish_failed(message)

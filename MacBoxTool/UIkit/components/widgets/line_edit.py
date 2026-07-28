@@ -17,32 +17,51 @@ from .scroll_bar import SmoothScrollDelegate
 
 
 _INPUT_BORDER_RADIUS = 16
-_FOCUS_BORDER_THICKNESS = 3
+_FOCUS_BORDER_THICKNESS = 2.5
+_FOCUS_BORDER_END_INSET = 5.0
+_FOCUS_BORDER_CORNER_WIDTH = 8.0
+_FOCUS_BORDER_CURVE_HEIGHT = 3.5
+_FOCUS_BORDER_CURVATURE = 0.5
 
 
-def _bottomRoundedBorderPath(rect: QRectF, radius: int = _INPUT_BORDER_RADIUS,
-                             thickness: int = _FOCUS_BORDER_THICKNESS):
+def _bottomRoundedBorderPath(rect: QRectF,
+                             thickness: float = _FOCUS_BORDER_THICKNESS):
     inset = thickness / 2
-    r = max(0, radius)
-    left = rect.left() + inset
-    right = rect.right() - inset
+    left = rect.left() + inset + _FOCUS_BORDER_END_INSET
+    right = rect.right() - inset - _FOCUS_BORDER_END_INSET
     bottom = rect.bottom() - inset
+    corner_width = min(_FOCUS_BORDER_CORNER_WIDTH,
+                       max(0.0, (right - left) / 2))
+    curve_height = _FOCUS_BORDER_CURVE_HEIGHT
+    k = 0.5522847498 * _FOCUS_BORDER_CURVATURE
+    horizontal_control = corner_width * k
+    vertical_control = curve_height * k
 
     path = QPainterPath()
-    path.moveTo(left + r, bottom)
-    path.lineTo(right - r, bottom)
+    path.moveTo(left, bottom - curve_height)
+    path.cubicTo(
+        left, bottom - curve_height + vertical_control,
+        left + corner_width - horizontal_control, bottom,
+        left + corner_width, bottom,
+    )
+    path.lineTo(right - corner_width, bottom)
+    path.cubicTo(
+        right - corner_width + horizontal_control, bottom,
+        right, bottom - curve_height + vertical_control,
+        right, bottom - curve_height,
+    )
     return path
 
 
 def _drawBottomRoundedBorder(painter: QPainter, rect: QRectF, color: QColor,
                              radius: int = _INPUT_BORDER_RADIUS,
-                             thickness: int = _FOCUS_BORDER_THICKNESS):
+                             thickness: float = _FOCUS_BORDER_THICKNESS):
     pen = QPen(color, thickness)
     pen.setCapStyle(Qt.RoundCap)
     pen.setJoinStyle(Qt.RoundJoin)
     painter.setPen(pen)
     painter.setBrush(Qt.NoBrush)
-    painter.drawPath(_bottomRoundedBorderPath(rect, radius, thickness))
+    painter.drawPath(_bottomRoundedBorderPath(rect, thickness))
 
 
 class LineEditButton(QToolButton):
@@ -284,7 +303,7 @@ class LineEdit(QLineEdit):
         painter.setPen(Qt.NoPen)
 
         m = self.contentsMargins()
-        rect = QRectF(m.left(), 0, self.width() - m.left() - m.right(), self.height()).adjusted(1, 1, -1, -1)
+        rect = QRectF(m.left(), 0, self.width() - m.left() - m.right(), self.height())
         _drawBottomRoundedBorder(painter, rect, self.focusedBorderColor())
 
 
@@ -458,7 +477,7 @@ class EditLayer(QWidget):
         painter.setPen(Qt.NoPen)
 
         m = self.contentsMargins()
-        rect = QRectF(m.left(), 0, self.width() - m.left() - m.right(), self.height()).adjusted(1, 1, -1, -1)
+        rect = QRectF(m.left(), 0, self.width() - m.left() - m.right(), self.height())
         _drawBottomRoundedBorder(painter, rect, themeColor())
 
 

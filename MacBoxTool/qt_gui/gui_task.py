@@ -296,7 +296,10 @@ class TaskManager:
             download.downloaded_size = download.total_size
             logging.info(f"Legacy installer created: {message}")
         else:
-            download.status = DownloadStatus.FAILED
+            if message == "Setup cancelled":
+                download.status = DownloadStatus.CANCELLED
+            else:
+                download.status = DownloadStatus.FAILED
             download.error_message = message
             logging.error(f"Legacy installer setup failed: {message}")
 

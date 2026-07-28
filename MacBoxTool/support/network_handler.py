@@ -2,9 +2,12 @@
 network_handler.py: Network utilities and download management
 """
 import logging
+import os
+import ssl
 import requests
 import urllib3
 from requests.adapters import HTTPAdapter
+from urllib.parse import urlparse
 from urllib3.exceptions import InsecureRequestWarning
 from urllib3.util.retry import Retry
 import threading
@@ -21,8 +24,6 @@ from .. import constants
 import json,shutil
 from typing import Optional
 
-urllib3.disable_warnings(InsecureRequestWarning)
-
 SESSION = requests.Session()
 
 # Security constants
@@ -33,6 +34,32 @@ SENSITIVE_PARAMS = {'token', 'key', 'api_key', 'apikey', 'secret', 'password', '
 
 MAX_RANGE_RETRIES = 5
 RANGE_RETRY_BACKOFF = 1.0
+
+
+def _certificate_bundle() -> str | bool:
+    verify_paths = ssl.get_default_verify_paths()
+    for path in (verify_paths.cafile, "/etc/ssl/cert.pem"):
+        if path and os.path.isfile(path):
+            return path
+    return True
+
+
+TLS_CERTIFICATE_BUNDLE = _certificate_bundle()
+TLS_REQUIRED_HOSTS = {
+    "swscan.apple.com",
+    "swcdn.apple.com",
+    "updates.cdn-apple.com",
+    "updates-http.cdn-apple.com",
+}
+
+
+def _tls_verification(url: str) -> str | bool:
+    if urlparse(url).hostname in TLS_REQUIRED_HOSTS:
+        return TLS_CERTIFICATE_BUNDLE
+    return False
+
+
+urllib3.disable_warnings(InsecureRequestWarning)
 
 class DownloadStatus:
     """Download task status enum"""
@@ -194,7 +221,11 @@ class NetworkUtilities:
         """Check network connectivity via HEAD request to GitHub.com"""
         try:
             session = self._get_session()
-            response = session.head("https://github.com", timeout=10, verify=False)
+            response = session.head(
+                "https://github.com",
+                timeout=10,
+                verify=_tls_verification("https://github.com"),
+            )
             return response.status_code == 200
         except Exception as e:
             logging.warning(f"Network check failed: {e}")
@@ -211,9 +242,9 @@ class NetworkUtilities:
         self.headers=self._github_headers()
         try:
             if "nightly.link" in url:
-                response=requests.get(url, timeout=timeout, allow_redirects=True, verify=False,stream=True,headers=self.headers)
+                response=requests.get(url, timeout=timeout, allow_redirects=True, verify=_tls_verification(url), stream=True, headers=self.headers)
             else:
-                response = requests.head(url, timeout=timeout, allow_redirects=True, verify=False,headers=self.headers)
+                response = requests.head(url, timeout=timeout, allow_redirects=True, verify=_tls_verification(url), headers=self.headers)
             
             print("Checking network connection...")
             if response.status_code == 200:
@@ -255,7 +286,7 @@ class NetworkUtilities:
                 kwargs['max_redirects'] = kwargs.get('max_redirects', MAX_REDIRECTS)
             kwargs = self._apply_github_headers(url, kwargs)
             kwargs.setdefault('timeout', 30)
-            kwargs.setdefault('verify', False)
+            kwargs.setdefault('verify', _tls_verification(url))
             result = self._get_session().get(url, **kwargs)
         except (
             requests.exceptions.Timeout,
@@ -293,7 +324,12 @@ class NetworkUtilities:
         """Get file size from URL without downloading"""
         try:
             session = self._get_session()
-            response = session.head(url, allow_redirects=True, timeout=10, verify=False)
+            response = session.head(
+                url,
+                allow_redirects=True,
+                timeout=10,
+                verify=_tls_verification(url),
+            )
             return int(response.headers.get('content-length', 0))
         except Exception as e:
             logging.warning(f"[NetworkUtilities] Failed to get file size: {e}")

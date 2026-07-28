@@ -187,7 +187,8 @@ class SettingsInterface(QWidget):
 
         self._add_tab("build", "Build", self.tab_build)
         self._add_tab("security", "Security", self.tab_security)
-        self._add_tab("sip", "SIP", self.tab_sip)
+        if sys.platform=="darwin":
+            self._add_tab("sip", "SIP", self.tab_sip)
         self._add_tab("smbios", "SMBIOS", self.tab_smbios)
         self._add_tab("misc", "Misc", self.tab_misc)
         self._add_tab("patch", "Patch", self.tab_patch)

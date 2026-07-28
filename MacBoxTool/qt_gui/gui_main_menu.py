@@ -309,6 +309,10 @@ class Window(FluentWindow):
             self.stackedWidget.setCurrentWidget(self.about)
         elif target == Introduction.NAV_DOWNLOADS:
             self.stackedWidget.setCurrentWidget(self.download_page)
+        elif target == Introduction.NAV_PATCH:
+            sys_patch_page = getattr(self, "sys_patch_page", None)
+            if sys_patch_page is not None:
+                self.stackedWidget.setCurrentWidget(sys_patch_page)
 
     def _on_page_changed(self, index):
         widget = self.stackedWidget.widget(index)
