@@ -7,6 +7,38 @@ from .. import sucatalog
 from .gui_support import DefGUI
 from .gui_task import TaskManager
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import sys
+
+
+def _installer_download_size(installer_data: dict) -> int:
+    """Return the aggregate size of an installer and its legacy components."""
+    install_assistant = installer_data.get("InstallAssistant") or {}
+    components = install_assistant.get("LegacyComponents") or []
+    if components:
+        total_size = 0
+        for component in components:
+            try:
+                total_size += int(component.get("Size", 0) or 0)
+            except (AttributeError, TypeError, ValueError):
+                continue
+        if total_size:
+            return total_size
+    try:
+        return max(0, int(install_assistant.get("Size", 0) or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _format_file_size(size: int) -> str:
+    if size <= 0:
+        return "Unknown"
+    units = ("B", "KB", "MB", "GB", "TB")
+    value = float(size)
+    unit_index = 0
+    while value >= 1024 and unit_index < len(units) - 1:
+        value /= 1024
+        unit_index += 1
+    return f"{int(value)} {units[unit_index]}" if unit_index == 0 else f"{value:.2f} {units[unit_index]}"
 
 
 def _installer_icon_path(installer_data: dict, constants: Constants) -> str:
@@ -68,7 +100,7 @@ class InstallerCard(CardWidget):
 
     def _init_card(self):
         """Initialize card size and border"""
-        self.setFixedHeight(80)
+        self.setFixedHeight(96)
 
     def _init_icon(self):
         """Initialize macOS icon widget using XNUMajor"""
@@ -78,7 +110,7 @@ class InstallerCard(CardWidget):
         self.icon_widget.setFixedSize(48, 48)
 
     def _init_info_labels(self):
-        """Initialize title, date, and version labels"""
+        """Initialize title, date, version, and size labels"""
         title = self.installer_data.get("Title", "Unknown")
         build = self.installer_data.get("Build", "Unknown")
         self.title_label = BodyLabel(f"{title} {build}")
@@ -94,6 +126,7 @@ class InstallerCard(CardWidget):
         version_str = self.installer_data.get("Version", "0.0.0")
         build = self.installer_data.get("Build", "N/A")
         self.version_label = CaptionLabel(f"Version: {version_str} | Build: {build}")
+        self.size_label = CaptionLabel(f"Size: {_format_file_size(_installer_download_size(self.installer_data))}")
 
     def _init_download_button(self):
         """Initialize download button"""
@@ -124,6 +157,7 @@ class InstallerCard(CardWidget):
         self.info_layout.addWidget(self.title_label, 0, Qt.AlignVCenter)
         self.info_layout.addWidget(self.date_label, 0, Qt.AlignVCenter)
         self.info_layout.addWidget(self.version_label, 0, Qt.AlignVCenter)
+        self.info_layout.addWidget(self.size_label, 0, Qt.AlignVCenter)
         self.info_layout.setAlignment(Qt.AlignVCenter)
         self.main_layout.addLayout(self.info_layout, 1)
 
@@ -427,6 +461,8 @@ class MacOSInstallerList(ScrollArea):
         self.header_container.setVisible(True)
 
         installers = self.available_installers_latest if self.show_latest_only else self.available_installers
+        if sys.platform == "win32":
+            installers = [installer for installer in installers if self._installer_is_supported_on_windows(installer)]
 
         if not installers:
             logging.warning("[MacOSInstallerList] No installers available to display")
@@ -450,6 +486,19 @@ class MacOSInstallerList(ScrollArea):
         self.expandLayout.addStretch(1)
 
         logging.info(f"[MacOSInstallerList] Displayed {len(installers)} cards")
+
+    @staticmethod
+    def _installer_is_supported_on_windows(installer: dict) -> bool:
+        """Windows supports downloads for Big Sur (11) and newer only."""
+        version = installer.get("Version", "0.0.0")
+        try:
+            parts = version.split(".")
+            major = int(parts[0])
+            if major == 10:
+                return len(parts) >= 2 and int(parts[1]) >= 16
+            return major >= 11
+        except (AttributeError, ValueError, IndexError):
+            return True
 
     # ── Actions ──
 
@@ -491,6 +540,7 @@ class MacOSInstallerList(ScrollArea):
         filename = Path(url).name if direct_download else "InstallAssistant.pkg"
         download_obj = DownloadObject(url, save_path, filename)
         download_obj.display_name = f"{title} {build}"
+        download_obj.total_size = _installer_download_size(installer_data)
 
         if legacy_components:
             app_names = {
@@ -515,10 +565,10 @@ class MacOSInstallerList(ScrollArea):
                     self.window(),
                     "Replace Existing Installer",
                     f"{destination} already exists. Replace it after downloading?",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.No,
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No,
                 )
-                if answer != QMessageBox.StandardButton.Yes:
+                if answer != QMessageBox.Yes:
                     return
                 download_obj.replace_existing_app = True
 

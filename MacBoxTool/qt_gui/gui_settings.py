@@ -3,7 +3,13 @@ gui_settings.py: Settings page using Fluent Design components
 """
 from ..include import *
 from ..support import generate_smbios
-from ..support import utilities
+import sys
+if sys.platform=="darwin":
+    from ..support import utilities
+    from ..detections import device_probe
+else:
+    from ..support import utilities_win as utilities
+    from ..detections import device_probe_win as device_probe
 from .gui_support import DefGUI, CheckProperties
 
 
@@ -181,7 +187,8 @@ class SettingsInterface(QWidget):
 
         self._add_tab("build", "Build", self.tab_build)
         self._add_tab("security", "Security", self.tab_security)
-        self._add_tab("sip", "SIP", self.tab_sip)
+        if sys.platform == "darwin":
+            self._add_tab("sip", "SIP", self.tab_sip)
         self._add_tab("smbios", "SMBIOS", self.tab_smbios)
         self._add_tab("misc", "Misc", self.tab_misc)
         self._add_tab("patch", "Patch", self.tab_patch)
@@ -727,6 +734,10 @@ class SettingsInterface(QWidget):
             parent=group
         )
 
+        if sys.platform == "win32":
+            for card in (self.trigger_exception_card, self.export_constants_card):
+                card.button.setStyleSheet("QPushButton { border-radius: 15px; }")
+
         self.github_token_card = SettingCard(
             FIF.GITHUB,
             "GitHub Token",
@@ -743,7 +754,7 @@ class SettingsInterface(QWidget):
         self.github_token_edit = LineEdit(self.github_token_card)
         self.github_token_edit.setPlaceholderText("ghp_... / fine-grained token")
         self.github_token_edit.setClearButtonEnabled(True)
-        self.github_token_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.github_token_edit.setEchoMode(QLineEdit.Password)
         self.github_token_edit.setFixedWidth(320)
         self.github_token_card.hBoxLayout.addWidget(self.github_token_edit, 0, Qt.AlignRight)
         self.github_token_card.hBoxLayout.addSpacing(16)
@@ -804,8 +815,18 @@ class SettingsInterface(QWidget):
 
     def _on_github_token_changed(self):
         token = self.github_token_edit.text().strip()
-        self.constants.github_token = token
-        self._save("github_token", token)
+        if self.settings.set_secure_key("github_token", token):
+            self.constants.github_token = token
+            return
+
+        InfoBar.error(
+            "GitHub Token",
+            "Failed to save the token securely.",
+            duration=3000,
+            position=InfoBarPosition.BOTTOM_RIGHT,
+            parent=self,
+        )
+        self.github_token_edit.setText(self.constants.github_token)
 
     def _on_trigger_exception_clicked(self):
         try:

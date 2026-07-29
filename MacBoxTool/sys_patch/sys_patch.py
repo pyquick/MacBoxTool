@@ -46,6 +46,7 @@ from .mount import (
     RootVolumeMount,
     APFSSnapshot
 )
+import sys
 from .utilities import (
     install_new_file,
     remove_file,

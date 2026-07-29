@@ -52,6 +52,7 @@ class Introduction(ScrollArea):
     NAV_SETTINGS = "settings"
     NAV_ABOUT = "about"
     NAV_DOWNLOADS="Downloads"
+    NAV_PATCH = "patch"
 
     def __init__(self,global_constants:Constants,ui_support:DefGUI=None,parent=None):
         super().__init__(parent=parent)
@@ -388,14 +389,14 @@ class Introduction(ScrollArea):
         except version.InvalidVersion:
             return None
     def _create_note_card(self):
-        self.oclp_version=self.find_oclp_version() or "3.1.5"
+        self.oclp_version=self.find_oclp_version() or "3.1.6"
         return self.ui_support.custom_card(
             card_type="note",
             title="OCLP-R: - Now Supports macOS Tahoe 26!",
             body=(
                 f"The long awaited version {self.oclp_version} of OCLP-R is here, bringing <b>initial support for macOS Tahoe 26</b> to the community!<br><br>"
                 "<b>Please Note:</b><br>"
-                f"- Only OCLP-R {self.oclp_version} from the <a href=\"https://github.com/pyquick/MacBoxTool/releases/download/{self.oclp_version}/OCLP-R.pkg\" style=\"color: #0078D4; text-decoration: none;\">pyquick/OCLP-R</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
+                f"- Only OCLP-R {self.oclp_version} from the <a href=\"https://github.com/hackdoc/OCLP-R/releases/download/{self.oclp_version}/OCLP-R.pkg\" style=\"color: #0078D4; text-decoration: none;\">hackdoc/OCLP-R</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
                 "- Official Dortania releases or older patches <b>will NOT work</b> with macOS Tahoe 26."
             )
         )
@@ -418,91 +419,103 @@ class Introduction(ScrollArea):
         )
 
     def _create_guide_card(self):
-        """Create a guide card with navigation buttons to different pages."""
+        """Create the onboarding guide with navigation buttons."""
         card = CardWidget()
-
         layout = QVBoxLayout(card)
         layout.setContentsMargins(SPACING["large"], SPACING["large"], SPACING["large"], SPACING["large"])
         layout.setSpacing(SPACING["medium"])
 
-        # Title
         title = StrongBodyLabel("Quick Start Guide")
         title.setStyleSheet("font-size: 16px; font-weight: bold;")
         layout.addWidget(title)
 
-        # Description
-        desc = BodyLabel("Get started by following these steps:")
+        desc = BodyLabel(
+            "Follow these steps to create and use an OpenCore EFI. "
+            "Back up your data and current EFI before making changes."
+        )
         desc.setStyleSheet("font-size: 14px; color: #888;")
+        desc.setWordWrap(True)
         layout.addWidget(desc)
-        
-
-        # Guide items with buttons
-        layout.addWidget(self._create_guide_item(
-            icon=FluentIcon.DEVELOPER_TOOLS,
-            title="1. Build OpenCore EFI",
-            description="Generate OpenCore EFI for your Mac or Hackintosh. Select your target model and click Build.",
-            button_text="Go to Build",
-            navigate_target=self.NAV_BUILD
-        ))
-
-        layout.addWidget(self._create_guide_item(
-            icon=FluentIcon.DOWNLOAD,
-            title="2. Downloads",
-            description="Download macOS, KDKs, metallibs",
-            button_text="Go to Download",
-            navigate_target=self.NAV_DOWNLOADS
-        ))
 
         layout.addWidget(self._create_guide_item(
             icon=FluentIcon.SETTING,
-            title="3. Configure Settings",
-            description="Adjust build settings like SMBIOS spoofing level, GPU options, and more.",
+            title="1. Configure your target model",
+            description=(
+                "Open Settings and choose the Mac model you want to build for. "
+                "Review boot, graphics, security, and SMBIOS options before building."
+            ),
             button_text="Go to Settings",
-            navigate_target=self.NAV_SETTINGS
+            navigate_target=self.NAV_SETTINGS,
         ))
-
-        
-
-
+        layout.addWidget(self._create_guide_item(
+            icon=FluentIcon.DOWNLOAD,
+            title="2. Download required resources",
+            description=(
+                "Use Downloads to get a macOS installer, Kernel Debug Kit (KDK), "
+                "or Metallib support packages when they are needed."
+            ),
+            button_text="Go to Downloads",
+            navigate_target=self.NAV_DOWNLOADS,
+        ))
+        layout.addWidget(self._create_guide_item(
+            icon=FluentIcon.DEVELOPER_TOOLS,
+            title="3. Build the OpenCore EFI",
+            description=(
+                "Open Build For Macs and click Build OpenCore EFI. "
+                "The build uses the target model and settings selected above."
+            ),
+            button_text="Go to Build",
+            navigate_target=self.NAV_BUILD,
+        ))
+        layout.addWidget(self._create_guide_item(
+            icon=FluentIcon.SAVE,
+            title="4. Install and test the EFI",
+            description=(
+                "Inspect or copy the completed EFI, or use Install to disk to install it directly. "
+                "Keep a working EFI backup and restart to test the new configuration."
+            ),
+            button_text="Go to Build",
+            navigate_target=self.NAV_BUILD,
+        ))
+        if sys.platform == "darwin":
+            layout.addWidget(self._create_guide_item(
+                icon=FluentIcon.PASTE,
+                title="5. Apply Root Patches when needed",
+                description=(
+                    "On supported older Macs, use Root Patching after OpenCore is working. "
+                    "Restart when prompted to apply the changes."
+                ),
+                button_text="Go to Root Patching",
+                navigate_target=self.NAV_PATCH,
+            ))
         return card
 
-   
-
-
-
-    def _create_guide_item(self, icon, title, description, button_text, navigate_target):
-        """Create a single guide item with navigation button."""
+    def _create_guide_item(self, icon, title, description, button_text=None, navigate_target=None):
+        """Create a single guide item with an optional navigation button."""
         item_widget = QWidget()
         item_layout = QHBoxLayout(item_widget)
         item_layout.setContentsMargins(0, SPACING["small"], 0, SPACING["small"])
         item_layout.setSpacing(SPACING["medium"])
 
-        # Icon
         icon_label = self.ui_support.build_icon_label(icon, COLORS["primary"], size=32)
         item_layout.addWidget(icon_label, 0, Qt.AlignVCenter)
 
-        # Text content
         text_layout = QVBoxLayout()
         text_layout.setSpacing(4)
-
         title_label = BodyLabel(title)
         title_label.setStyleSheet("font-weight: bold; font-size: 14px;")
-
         desc_label = BodyLabel(description)
         desc_label.setStyleSheet("font-size: 12px; color: #888;")
         desc_label.setWordWrap(True)
-
         text_layout.addWidget(title_label)
         text_layout.addWidget(desc_label)
         item_layout.addLayout(text_layout, 1)
 
-        # Navigate button
-        nav_btn = PrimaryPushButton(button_text)
-        nav_btn.setFixedHeight(32)
-        nav_btn.clicked.connect(lambda: self.navigate_to(navigate_target))
-
-        item_layout.addWidget(nav_btn, 0, Qt.AlignVCenter)
-
+        if button_text and navigate_target:
+            nav_btn = PrimaryPushButton(button_text)
+            nav_btn.setFixedHeight(32)
+            nav_btn.clicked.connect(lambda: self.navigate_to(navigate_target))
+            item_layout.addWidget(nav_btn, 0, Qt.AlignVCenter)
         return item_widget
 
     def refresh(self):

@@ -6,12 +6,16 @@ Handles pkg extraction in background thread
 import logging
 import subprocess
 import tempfile
+import sys
 from pathlib import Path
 from typing import Optional
 
 from PySide2.QtCore import QThread, Signal
 
 from ..macos_installer_handler import InstallerCreation
+
+if sys.platform == "win32":
+    from .. import utilities_win as utilities
 
 
 class ExtractionWorker(QThread):
@@ -40,6 +44,12 @@ class ExtractionWorker(QThread):
 
     def extract_installer(self) -> None:
         """Extract or install the validated package and store the result."""
+        if sys.platform == "win32":
+            output_dir = Path(utilities.get_downloads_dir()) / self.pkg_path.stem
+            logging.info(f"Extracting pkg to: {output_dir}")
+            self.result = utilities.extract_pkg(str(self.pkg_path), str(output_dir))
+            return
+
         if self.pkg_path.name == "InstallESDDmg.pkg":
             output_path = self.pkg_path.with_name("InstallESD.dmg")
             with tempfile.TemporaryDirectory(dir=self.pkg_path.parent) as temp_dir:

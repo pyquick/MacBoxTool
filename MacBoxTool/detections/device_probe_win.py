@@ -140,35 +140,40 @@ _cpuflags_cache: list[str] | None = None
 _cached_cpu_name: str | None = None
 _cached_cpu_flags: list[str] | None = None
 _cached_cpu_gen: int | None = None
+_cached_cpu_vendor_id: str | None = None
+_cached_cpu_device_id: int | None = None
+_cached_cpu_architecture: str | None = None
 
 
-def _detect_cpu_gen() -> int:
-    """
-    Detect Intel CPU generation from CPUID model (via Win32_Processor.ProcessorId).
-    Returns generation number (e.g. 11, 12, 13, 14, 15), or 0 if unknown.
-    """
+def _cpuid_display_model(processor_id: str | None) -> int | None:
+    """Extract the CPUID display model from Win32_Processor.ProcessorId."""
+    if not processor_id:
+        return None
+    try:
+        eax = int(processor_id.strip()[-8:], 16)
+    except (TypeError, ValueError):
+        return None
+
+    model = (eax >> 4) & 0xF
+    family = (eax >> 8) & 0xF
+    ext_model = (eax >> 16) & 0xF
+    if family in (0x6, 0xF):
+        return model + (ext_model << 4)
+    return model
+
+
+def _detect_cpu_gen(device_id: int | None = None) -> int:
+    """Return the Intel generation number for a CPUID display model."""
     global _cached_cpu_gen
+    if device_id is not None:
+        return cpu_data.CPUID_MODEL_TO_GEN.get(device_id, 0)
     if _cached_cpu_gen is not None:
         return _cached_cpu_gen
 
     try:
-        w = wmi.WMI()
-        proc = w.Win32_Processor()[0]
-        pid = proc.ProcessorId.strip()
-        # ProcessorId is a 16-char hex string representing EAX after CPUID(1)
-        # The low 32 bits (last 8 hex chars) contain Family/Model/Stepping
-        eax = int(pid[-8:], 16)
-
-        model = (eax >> 4) & 0xF
-        family = (eax >> 8) & 0xF
-        ext_model = (eax >> 16) & 0xF
-
-        if family == 0x6 or family == 0xF:
-            display_model = model + (ext_model << 4)
-        else:
-            display_model = model
-
-        _cached_cpu_gen = cpu_data.CPUID_MODEL_TO_GEN.get(display_model, 0)
+        proc = wmi.WMI().Win32_Processor()[0]
+        device_id = _cpuid_display_model(getattr(proc, "ProcessorId", None))
+        _cached_cpu_gen = cpu_data.CPUID_MODEL_TO_GEN.get(device_id, 0)
     except Exception:
         _cached_cpu_gen = 0
 
@@ -223,7 +228,10 @@ class CPU:
     name: str
     flags: list[str]
     leafs: list[str]
-    gen: int
+    gen: int = 0
+    vendor_id: Optional[str] = None
+    device_id: Optional[int] = None
+    architecture: Optional[str] = None
 
 
 @dataclass
@@ -831,27 +839,59 @@ class Computer:
             self.usb_devices.append(usb)
 
     def cpu_probe(self):
-        # Check if CPU already cached globally
-        global _cached_cpu_name, _cached_cpu_flags
+        global _cached_cpu_name, _cached_cpu_flags, _cached_cpu_gen
+        global _cached_cpu_vendor_id, _cached_cpu_device_id, _cached_cpu_architecture
+
         if _cached_cpu_name is not None:
             flags = _cached_cpu_flags or _fast_cpu_flags()
             leafs = [f for f in flags if f.startswith("AVX") or f in ("BMI1", "BMI2", "SHA",
                                                                       "POPCNT", "AES", "PCLMULQDQ")]
-            self.cpu = CPU(_cached_cpu_name, flags, leafs, _detect_cpu_gen())
+            self.cpu = CPU(
+                _cached_cpu_name,
+                flags,
+                leafs,
+                _cached_cpu_gen or 0,
+                _cached_cpu_vendor_id,
+                _cached_cpu_device_id,
+                _cached_cpu_architecture,
+            )
             return
 
+        name = ""
+        vendor_id = None
+        device_id = None
         try:
             proc = self._wmi.Win32_Processor()[0]
             name = proc.Name.strip() if proc.Name else ""
+            vendor_id = getattr(proc, "Manufacturer", None)
+            vendor_id = vendor_id.strip() if vendor_id else None
+            if vendor_id and vendor_id.lower() == "intel64 family 6":
+                vendor_id = "GenuineIntel"
+            elif vendor_id and vendor_id.lower() == "authenticamd":
+                vendor_id = "AuthenticAMD"
+            device_id = _cpuid_display_model(getattr(proc, "ProcessorId", None))
         except Exception:
-            name = ""
+            pass
+
         flags = _fast_cpu_flags()
-        # Cache for future calls
+        gen = _detect_cpu_gen(device_id)
+        cpuid_arch = cpu_data.architecture_from_device_id(device_id, vendor_id)
+
+        igpu_arch = None
+        if self.igpu is not None and self.igpu.device_id:
+            igpu_vendor_str = hex(self.igpu.vendor_id)
+            igpu_arch = cpu_data.architecture_from_igpu_device_id(self.igpu.device_id, igpu_vendor_str)
+
+        architecture = igpu_arch or cpuid_arch
         _cached_cpu_name = name
-        # Extract leafs: AVX extensions and BMI1/BMI2/SHA
+        _cached_cpu_flags = flags
+        _cached_cpu_gen = gen
+        _cached_cpu_vendor_id = vendor_id
+        _cached_cpu_device_id = device_id
+        _cached_cpu_architecture = architecture
         leafs = [f for f in flags if f.startswith("AVX") or f in ("BMI1", "BMI2", "SHA",
                                                                   "POPCNT", "AES", "PCLMULQDQ")]
-        self.cpu = CPU(name, flags, leafs, _detect_cpu_gen())
+        self.cpu = CPU(name, flags, leafs, gen, vendor_id, device_id, architecture)
 
     def smbios_probe(self):
         try:

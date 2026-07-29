@@ -26,8 +26,8 @@ class Constants:
         self.launcher_script:           str = None
         # OpenCore Version
         self.opencore_version:           str = "1.0.6"
-        self.nightly_build:              str = "4558.1200"
-        self.support_version:            str = "1.0.245834437prefix" # prefix: unstable core.
+        self.nightly_build:              str = "4573.1"
+        self.support_version:            str = "1.0.245834538prefix" # prefix: unstable core. canary: very unstable
 
         # Kext Versioning
         ## Acidanthera
@@ -63,7 +63,7 @@ class Constants:
         self.repo_link:                       str = "https://github.com/pyquick/MacBoxTool/releases/"
         self.installer_pkg_url:               str = f"{self.repo_link}/releases/download/{self.macboxtool_version}/AutoPkg-Assets.pkg"
         self.installer_pkg_url_nightly:       str = "http://nightly.link/pyquick/MacBoxTool/workflows/build-app-wxpython/main/AutoPkg-Assets.pkg.zip"
-        self.user_download_file:              str = f"/Users/{getpass.getuser()}/Downloads"
+        self.user_download_file:              str = str(Path.home() / "Downloads")
         self.github_token:                    str = ""
 
 
@@ -164,10 +164,19 @@ class Constants:
         self.detected_os_version: str = ""  # OS Version
 
         # Get resource path
-        self.current_path:  Path = Path(__file__).parent.parent.resolve()
+        # Windows builds are deployed as a folder next to MacBoxTool.exe.  PyInstaller
+        # stores bundled data in _internal (sys._MEIPASS), while the executable itself
+        # remains in the outer application directory.
+        if sys.platform == "win32" and getattr(sys, "frozen", False):
+            self.current_path:  Path = Path(sys.executable).resolve().parent
+            self.original_path: Path = self.current_path
+            resource_path = Path(getattr(sys, "_MEIPASS", self.current_path))
+        else:
+            self.current_path:  Path = Path(__file__).parent.parent.resolve()
+            self.original_path: Path = Path(__file__).parent.parent.resolve()
+            resource_path = self.current_path
         self.user_path:     Path = Path.home() / ".macboxtool"
-        self.original_path: Path = Path(__file__).parent.parent.resolve()
-        self.payload_path:  Path = self.current_path / Path("payloads")
+        self.payload_path:  Path = resource_path / Path("payloads")
 
         # Patcher Settings
         ## Internal settings

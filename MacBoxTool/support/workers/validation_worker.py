@@ -13,6 +13,7 @@ from typing import Optional
 from PySide2.QtCore import QThread, Signal
 
 from ..integrity_verification import ChunklistVerification, ChunklistStatus
+from ..network_handler import TLS_CERTIFICATE_BUNDLE
 
 
 class ValidationWorker(QThread):
@@ -147,7 +148,8 @@ class ValidationWorker(QThread):
             response = requests.get(
                 self.chunklist_url,
                 timeout=30,
-                stream=True
+                stream=True,
+                verify=TLS_CERTIFICATE_BUNDLE
             )
 
             if response.status_code != 200:

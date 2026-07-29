@@ -14,7 +14,10 @@ import json
 @dataclass
 class CpuInfo:
     name: str = ""
-    vendor: str = ""  # "intel" / "amd"
+    vendor: str = ""  # "intel" / "amd" / "apple"
+    vendor_id: str = ""
+    device_id: Optional[int] = None
+    architecture: str = ""
     generation: str = ""  # "alder_lake", "zen3", etc.
     core_count: int = 0
     thread_count: int = 0
@@ -90,15 +93,20 @@ class HardwareInfo:
         if computer.cpu:
             info.cpu.name = computer.cpu.name
             info.cpu.flags = computer.cpu.flags.copy()
-            # Extract vendor and generation from name or constants
-            cpu_name_lower = computer.cpu.name.lower() if computer.cpu.name else ""
-            if "intel" in cpu_name_lower or "core" in cpu_name_lower:
-                info.cpu.vendor = "intel"
-            elif "amd" in cpu_name_lower or "ryzen" in cpu_name_lower or "athlon" in cpu_name_lower:
-                info.cpu.vendor = "amd"
+            info.cpu.vendor_id = getattr(computer.cpu, "vendor_id", None) or ""
+            info.cpu.device_id = getattr(computer.cpu, "device_id", None)
+            info.cpu.architecture = getattr(computer.cpu, "architecture", None) or ""
+            if info.cpu.architecture:
+                info.cpu.generation = info.cpu.architecture
 
-            # Detect generation from cpu name (fallback - best effort)
-            # Note: cpu_gen and chipset are computed in builder.py, not stored on constants
+            vendor_id_lower = info.cpu.vendor_id.lower()
+            cpu_name_lower = computer.cpu.name.lower() if computer.cpu.name else ""
+            if "intel" in vendor_id_lower or "intel" in cpu_name_lower or "core" in cpu_name_lower:
+                info.cpu.vendor = "intel"
+            elif "amd" in vendor_id_lower or "amd" in cpu_name_lower or "ryzen" in cpu_name_lower or "athlon" in cpu_name_lower:
+                info.cpu.vendor = "amd"
+            elif "apple" in vendor_id_lower or "apple" in cpu_name_lower:
+                info.cpu.vendor = "apple"
 
         # GPU info
         for gpu in computer.gpus:
@@ -220,7 +228,7 @@ class HardwareInfo:
             return False, "Platform is required"
 
         # Validate CPU vendor
-        if self.cpu.vendor and self.cpu.vendor not in ["intel", "amd"]:
+        if self.cpu.vendor and self.cpu.vendor not in ["intel", "amd", "apple"]:
             return False, f"Invalid CPU vendor: {self.cpu.vendor}"
 
         # Validate GPU vendors

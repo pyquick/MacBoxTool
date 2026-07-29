@@ -107,7 +107,7 @@ class GeneratePackage:
             pkg_welcome=self._generate_uninstaller_welcome(),
         ).build() is True
 
-        print(f"Generating MacBoxTool{self._pkg_suffix}.pkg")
+        print(f"Generating MacBoxTool-PySide2{self._pkg_suffix}.pkg")
 
         _tmp_pkg_preinstall = tempfile.NamedTemporaryFile(delete=False)
         _tmp_pkg_postinstall = tempfile.NamedTemporaryFile(delete=False)
@@ -117,7 +117,7 @@ class GeneratePackage:
             f.write(GenerateScripts().postinstall_pkg())
 
         assert macos_pkg_builder.Packages(
-            pkg_output=f"./dist/MacBoxTool{self._pkg_suffix}.pkg",
+            pkg_output=f"./dist/MacBoxTool-PySide2{self._pkg_suffix}.pkg",
             pkg_bundle_id="com.pyquick.macboxtool",
             pkg_version=self._constants.macboxtool_version,
             pkg_allow_relocation=False,

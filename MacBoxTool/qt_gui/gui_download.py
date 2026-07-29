@@ -214,6 +214,21 @@ class DownloadCard(CardWidget):
         self.contentLabel.setText(self._get_status_text())
         self._update_button_state()
 
+    def handle_validation_failure(self, error_message: str):
+        """Offer a one-time retry when installer validation detects corrupt data."""
+        if getattr(self, "_validation_failure_shown", False):
+            return
+        self._validation_failure_shown = True
+        answer = QMessageBox.question(
+            self.window(),
+            "Validation Failed",
+            f"{error_message}\n\nThe downloaded file may be corrupt. Download it again?",
+            QMessageBox.Retry | QMessageBox.Cancel,
+            QMessageBox.Retry,
+        )
+        if answer == QMessageBox.Retry:
+            self.retry_download_signal.emit(self.download)
+
     def set_status(self, status: DownloadStatus):
         """Set download status and update UI accordingly"""
         self.download.status = status

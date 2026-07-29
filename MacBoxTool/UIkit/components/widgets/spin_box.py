@@ -180,7 +180,7 @@ class SpinBoxBase:
         painter.setRenderHints(QPainter.Antialiasing)
         painter.setPen(Qt.NoPen)
 
-        rect = QRectF(0, 0, self.width(), self.height()).adjusted(1, 1, -1, -1)
+        rect = QRectF(0, 0, self.width(), self.height())
         _drawBottomRoundedBorder(painter, rect, self.focusedBorderColor())
 
     def paintEvent(self, e):

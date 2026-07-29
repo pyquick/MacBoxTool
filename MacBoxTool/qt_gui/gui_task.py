@@ -296,7 +296,10 @@ class TaskManager:
             download.downloaded_size = download.total_size
             logging.info(f"Legacy installer created: {message}")
         else:
-            download.status = DownloadStatus.FAILED
+            if message == "Setup cancelled":
+                download.status = DownloadStatus.CANCELLED
+            else:
+                download.status = DownloadStatus.FAILED
             download.error_message = message
             logging.error(f"Legacy installer setup failed: {message}")
 
@@ -954,10 +957,10 @@ class TaskInterface(ScrollArea):
                     self.window(),
                     "Replace Existing Installer",
                     f"{destination} already exists. Replace it after downloading?",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.No,
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No,
                 )
-                if answer != QMessageBox.StandardButton.Yes:
+                if answer != QMessageBox.Yes:
                     return
                 new_download.replace_existing_app = True
         new_download.chunklist_url = download.chunklist_url

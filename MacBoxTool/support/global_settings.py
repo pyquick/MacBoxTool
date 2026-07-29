@@ -173,8 +173,64 @@ class GlobalSettings:
             return None
         return result.stdout.rstrip("\n")
 
+    def _set_windows_credential(self, key: str, value: str) -> bool:
+        if sys.platform != "win32":
+            return False
+        try:
+            import win32cred
+        except ImportError:
+            logging.exception("Windows Credential Manager is unavailable")
+            return False
+
+        target = f"{KEYCHAIN_SERVICE}/{self._secure_account(key)}"
+        try:
+            if not value:
+                try:
+                    win32cred.CredDelete(target, win32cred.CRED_TYPE_GENERIC, 0)
+                except Exception as error:
+                    if getattr(error, "winerror", None) != 1168:
+                        raise
+                return True
+
+            credential = {
+                "Type": win32cred.CRED_TYPE_GENERIC,
+                "TargetName": target,
+                "UserName": self._secure_account(key),
+                "CredentialBlob": value.encode("utf-16-le"),
+                "Persist": win32cred.CRED_PERSIST_LOCAL_MACHINE,
+            }
+            win32cred.CredWrite(credential, 0)
+            return True
+        except Exception:
+            logging.exception(f"Failed to store {key} in Windows Credential Manager")
+            return False
+
+    def _get_windows_credential(self, key: str) -> str | None:
+        if sys.platform != "win32":
+            return None
+        try:
+            import win32cred
+            credential = win32cred.CredRead(
+                f"{KEYCHAIN_SERVICE}/{self._secure_account(key)}",
+                win32cred.CRED_TYPE_GENERIC,
+                0,
+            )
+            blob = credential.get("CredentialBlob", b"")
+            if isinstance(blob, bytes):
+                return blob.decode("utf-16-le").rstrip("\x00")
+            return str(blob) if blob else None
+        except Exception as error:
+            if getattr(error, "winerror", None) != 1168:
+                logging.exception(f"Failed to read {key} from Windows Credential Manager")
+            return None
+
     def set_secure_key(self, key: str, value: str) -> bool:
-        success = self._set_keychain_password(key, value)
+        if sys.platform == "darwin":
+            success = self._set_keychain_password(key, value)
+        elif sys.platform == "win32":
+            success = self._set_windows_credential(key, value)
+        else:
+            success = False
         if success:
             if key in self.settings:
                 self.settings.pop(key, None)
@@ -185,7 +241,12 @@ class GlobalSettings:
         return success
 
     def get_secure_key(self, key: str) -> str | None:
-        value = self._get_keychain_password(key)
+        if sys.platform == "darwin":
+            value = self._get_keychain_password(key)
+        elif sys.platform == "win32":
+            value = self._get_windows_credential(key)
+        else:
+            value = None
         logging.info(f"Getting {key} -> {self._log_value(key, value)}")
         return value
 

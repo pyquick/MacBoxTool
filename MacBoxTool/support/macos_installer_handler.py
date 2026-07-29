@@ -14,9 +14,12 @@ from ..constants import Constants
 
 
 from ..datasets import os_data
-
+import sys
+if sys.platform=="darwin":
+    from ..support import utilities
+else:
+    from ..support import utilities_win as utilities
 from . import (
-    utilities,
     subprocess_wrapper
 )
 

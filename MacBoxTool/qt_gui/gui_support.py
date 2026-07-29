@@ -60,6 +60,8 @@ class ProgressStatusHelper(QObject):
         qconfig.themeColorChanged.connect(self._refresh_style)
 
     def _status_color(self):
+        if self.status == "error":
+            return COLORS["error"]
         if self.status == "success" and self.message.lower().startswith("build complete"):
             return COLORS["success"]
         return themeColor().name()
@@ -481,9 +483,9 @@ class GaugePulseCallback(QObject):
     Note: This work-around is no longer needed on hosts using PatcherSupportPkg 1.1.2 or newer
     """
 
-    def __init__(self, global_constants: Constants, progress_bar: IndeterminateProgressRing|ProgressBar|QProgressBar|IndeterminateProgressBar) -> None:
+    def __init__(self, global_constants: Constants, progress_bar: IndeterminateProgressRing|ProgressBar|QProgressBar|IndeterminateProgressBar|ProgressRing) -> None:
         super().__init__()
-        self.progress_bar: IndeterminateProgressRing|ProgressBar|QProgressBar|IndeterminateProgressBar = progress_bar
+        self.progress_bar: IndeterminateProgressRing|ProgressBar|QProgressBar|IndeterminateProgressBar|ProgressRing = progress_bar
         self.timer = QTimer()
         self.timer.timeout.connect(self._pulse)
 
@@ -584,7 +586,7 @@ class ThreadHandler(logging.Handler):
         QMetaObject.invokeMethod(
             self.text_edit,
             method,
-            Qt.ConnectionType.QueuedConnection,
+            Qt.QueuedConnection,
             QGenericArgument("QString", msg)
         )
 
@@ -614,11 +616,11 @@ class RestartHost:
             self.parent,
             "Reboot to apply?",
             message,
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.Yes
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes
         )
 
-        if reply == QMessageBox.StandardButton.Yes:
+        if reply == QMessageBox.Yes:
             self.parent.hide()
             QApplication.processEvents()
             try:

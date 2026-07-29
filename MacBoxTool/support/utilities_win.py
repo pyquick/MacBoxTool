@@ -2,14 +2,34 @@
 utilities_win.py: Utility functions for MacBoxTool for Windows
 """
 
+import os
 import math
 import shutil
 import logging
 import binascii
+import struct
+import hashlib
+import zlib
+import tempfile
+import xml.etree.ElementTree as ET
 
 from pathlib import Path
 
 from .. import constants
+
+def disable_cls():
+    global clear
+    clear = False
+
+def cls():
+    global clear
+    if not clear:
+        return
+
+    if not check_recovery():
+        os.system("cls" if os.name == "nt" else "clear")
+    else:
+        logging.info("c")
 
 def hexswap(input_hex: str):
     #Example: 0x12345678
@@ -442,6 +462,189 @@ def get_free_space(disk=None):
 
 def block_os_updaters():
     pass
+
+
+# ---------------------------------------------------------------------------
+# macOS pkg extraction — Windows implementation
+# ---------------------------------------------------------------------------
+
+def get_downloads_dir() -> str:
+    """Return the user's Downloads directory on Windows.
+
+    Uses shell32 to resolve the real Downloads folder rather than
+    hard‑coding ``C:\\Users\\...`` so it works on systems where the
+    Downloads folder was relocated (OneDrive redirect, etc.).
+    """
+    import ctypes
+    from ctypes import wintypes
+
+    buf = ctypes.create_unicode_buffer(wintypes.MAX_PATH)
+    ctypes.windll.shell32.SHGetFolderPathW(
+        None,  # CSIDL_DOWNLOADS
+        0x002A,  # FOLDERID_Downloads / CSIDL_DOWNLOADS
+        None,
+        0,
+        buf,
+    )
+    return buf.value
+
+
+def extract_pkg(pkg_path: str | Path, output_dir: str | Path) -> bool:
+    """Extract an Apple ``.pkg`` (XAR) on Windows.
+
+    Prefers 7‑Zip when available, otherwise falls back to a pure‑Python
+    XAR extractor.  Returns ``True`` on success.
+    """
+    pkg_path = Path(pkg_path)
+    output_dir = Path(output_dir)
+
+    if not pkg_path.exists():
+        logging.error(f"pkg not found: {pkg_path}")
+        return False
+
+    # -- 7-Zip fast path -------------------------------------------------
+    seven_zip = _find_seven_zip()
+    if seven_zip:
+        import subprocess
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+        result = subprocess.run(
+            [seven_zip, "x", str(pkg_path), f"-o{output_dir}", "-y"],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return True
+        logging.warning(f"7-Zip extraction failed, falling back to pure Python: {result.stderr}")
+
+    # -- Pure Python XAR fallback ----------------------------------------
+    return _extract_xar_pure(pkg_path, output_dir)
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+def _find_seven_zip() -> str | None:
+    """Locate the 7‑Zip executable on the system."""
+    import subprocess
+    import sys
+
+    known = [
+        Path(os.environ.get("ProgramFiles", "C:\\Program Files")) / "7-Zip" / "7z.exe",
+        Path(os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)")) / "7-Zip" / "7z.exe",
+    ]
+    for candidate in known:
+        if candidate.exists():
+            return str(candidate)
+
+    # Try PATH
+    try:
+        subprocess.run(["7z", "--help"], capture_output=True)
+        return "7z"
+    except FileNotFoundError:
+        pass
+
+    return None
+
+
+# XAR header format (big-endian)
+_XAR_HEADER = struct.Struct(">IHHQQI")
+# magic (4) + size (2) + version (2) + toc_compressed_size (8)
+# + toc_uncompressed_size (8) + checksum_algo (4) = 28 bytes
+
+
+def _extract_xar_pure(pkg_path: Path, output_dir: Path) -> bool:
+    """Pure‑Python extraction of a XAR archive (no external tools)."""
+    try:
+        with open(pkg_path, "rb") as f:
+            header_bytes = f.read(_XAR_HEADER.size)
+            if len(header_bytes) < _XAR_HEADER.size:
+                return False
+
+            magic, hdr_size, version, toc_comp_size, toc_uncomp_size, checksum_algo = (
+                _XAR_HEADER.unpack(header_bytes)
+            )
+            magic_str = header_bytes[:4]
+            if magic_str != b"xar!":
+                logging.error(f"Not a XAR file: {magic_str!r}")
+                return False
+
+            # Read the compressed TOC
+            f.seek(hdr_size)
+            toc_bytes = f.read(toc_comp_size)
+            if len(toc_bytes) < toc_comp_size:
+                return False
+
+            toc_xml = zlib.decompress(toc_bytes)
+            if len(toc_xml) != toc_uncomp_size:
+                logging.warning("TOC size mismatch, continuing anyway")
+
+            toc_root = ET.fromstring(toc_xml)
+
+            # XAR TOC namespace varies by toolchain:
+            #     http://code.google.com/p/xar/toc  (standard)
+            #     no namespace at all              (some Apple pkgs)
+            #     http://www.w3.org/2005/Atom       (misidentified)
+            # Strip namespaces entirely so we match against bare tag names.
+            for el in toc_root.iter():
+                if "}" in (el.tag or ""):
+                    el.tag = el.tag.split("}", 1)[1]
+
+            # Build output paths — keep directory structure
+            for file_el in toc_root.iter("file"):
+                name_el = file_el.find("name")
+                if name_el is None:
+                    continue
+                rel_path = name_el.text
+                dest = output_dir / rel_path.lstrip("/")
+
+                file_type = file_el.find("type")
+                if file_type is not None and file_type.text == "directory":
+                    dest.mkdir(parents=True, exist_ok=True)
+                    continue
+
+                dest.parent.mkdir(parents=True, exist_ok=True)
+
+                # Collect chunk data offsets (each <data> child has
+                # <offset> and <size>)
+                data_el = file_el.find("data")
+                offset_tag = data_el.find("offset") if data_el is not None else None
+                size_tag = data_el.find("size") if data_el is not None else None
+                if offset_tag is None or size_tag is None:
+                    continue
+
+                file_start = int(offset_tag.text)
+                file_size = int(size_tag.text)
+
+                # Handle archived/extracted — skip archived content
+                encoding = data_el.find("encoding")
+                encoding_style = encoding.get("style") if encoding is not None else None
+
+                with open(dest, "wb") as out:
+                    if encoding_style == "application/x-gzip":
+                        # Decompress with gzip (the data in the XAR is
+                        # stored gzip‑compressed per <encoding>)
+                        import gzip
+
+                        f.seek(file_start)
+                        raw = f.read(file_size)
+                        out.write(gzip.decompress(raw))
+                    elif encoding_style == "application/octet-stream":
+                        f.seek(file_start)
+                        out.write(f.read(file_size))
+                    else:
+                        # Uncompressed — read from archive position
+                        # (XAR stores the content directly)
+                        f.seek(file_start)
+                        out.write(f.read(file_size))
+
+        logging.info(f"Pure Python XAR extraction complete: {output_dir}")
+        return True
+
+    except Exception as e:
+        logging.error(f"XAR extraction failed: {e}")
+        return False
 
 
 # ---------------------------------------------------------------------------

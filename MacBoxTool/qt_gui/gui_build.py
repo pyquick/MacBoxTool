@@ -504,6 +504,11 @@ class BuildOCPage(ScrollArea):
         # Build button - always enabled regardless of physical model
         self.build_btn = PushButton(FluentIcon.DEVELOPER_TOOLS, "Build OpenCore EFI")
         self.build_btn.setFixedHeight(40)
+        setCustomStyleSheet(
+            self.build_btn,
+            "PushButton { border-radius: 20px; }",
+            "PushButton { border-radius: 20px; }",
+        )
         self.build_btn.clicked.connect(self._on_build)
         layout.addWidget(self.build_btn)
 

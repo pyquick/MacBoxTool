@@ -7,9 +7,7 @@ from .gui_build import BuildOCPage
 from .gui_about import AboutInterface
 from .gui_settings import SettingsInterface
 from .gui_task import TaskInterface, TaskManager
-from .gui_sys_patch import SysPatch
 from .gui_all_download import DownloadInterface
-from .gui_update import Updater
 from ..support import on_nightly
 
 WINDOW_MIN_SIZE = (1000, 700)
@@ -63,10 +61,8 @@ class Window(FluentWindow):
    
 
     def _setup_window(self):
-        self.setWindowTitle(
-            f"MacBoxTool ({self.constants.macboxtool_version}) "
-            f"{'(Nightly)' if on_nightly.CheckNightly(self.constants).check() else ''}"
-        )
+        nightly_suffix = " (Nightly)" if on_nightly.CheckNightly(self.constants).check() else ""
+        self.setWindowTitle(f"MacBoxTool ({self.constants.macboxtool_version}){nightly_suffix}")
         self.setMinimumSize(*WINDOW_MIN_SIZE)
         
         #self._restore_window_geometry()
@@ -76,7 +72,7 @@ class Window(FluentWindow):
         font_family = self.PLATFORM_FONTS.get(system, "Ubuntu")
         logging.info(f"Using font: {font_family}")
         font.setFamily(font_family)
-        font.setStyleHint(QFont.StyleHint.SansSerif)
+        font.setStyleHint(QFont.SansSerif)
         self.setFont(font)
 
     
@@ -237,13 +233,15 @@ class Window(FluentWindow):
                 NavigationItemPosition.SCROLL
             )
 
-            self.sys_patch_page=SysPatch(self.constants,self.gui_support,self.settings,self)
-            self.addSubInterface(
-                self.sys_patch_page,
-                FluentIcon.PASTE,
-                "Root Patching",
-                NavigationItemPosition.SCROLL
-            )
+            if sys.platform == "darwin":
+                from .gui_sys_patch import SysPatch
+                self.sys_patch_page = SysPatch(self.constants, self.gui_support, self.settings, self)
+                self.addSubInterface(
+                    self.sys_patch_page,
+                    FluentIcon.PASTE,
+                    "Root Patching",
+                    NavigationItemPosition.SCROLL
+                )
 
             self.download_page=DownloadInterface(self.constants,self.gui_support,self.settings,self)
             self.addSubInterface(
@@ -262,13 +260,15 @@ class Window(FluentWindow):
             )
             self.settings_nav_item.clicked.connect(lambda *_: self._rotate_settings_icon())
 
-            self.updater=Updater(self.constants,self.gui_support,self.settings,self)
-            self.addSubInterface(
-                self.updater,
-                FluentIcon.DOWNLOAD,
-                "Updater",
-                NavigationItemPosition.BOTTOM
-            )
+            if sys.platform == "darwin":
+                from .gui_update import Updater
+                self.updater = Updater(self.constants, self.gui_support, self.settings, self)
+                self.addSubInterface(
+                    self.updater,
+                    FluentIcon.DOWNLOAD,
+                    "Updater",
+                    NavigationItemPosition.BOTTOM
+                )
 
             self.about=AboutInterface(self.constants,self.gui_support,self.settings,self)
             self.addSubInterface(
@@ -295,12 +295,16 @@ class Window(FluentWindow):
             self.stackedWidget.setCurrentWidget(self.build)
             return
         if getattr(self.constants, "start_updater", False):
-            self.stackedWidget.setCurrentWidget(self.updater)
+            updater = getattr(self, "updater", None)
+            if updater is not None:
+                self.stackedWidget.setCurrentWidget(updater)
             return
         if getattr(self.constants, "start_sys_patch", False):
-            self.stackedWidget.setCurrentWidget(self.sys_patch_page)
-            if getattr(self.constants, "start_sys_patch_now", False):
-                QTimer.singleShot(0, self.sys_patch_page.start_root_patching)
+            sys_patch_page = getattr(self, "sys_patch_page", None)
+            if sys_patch_page is not None:
+                self.stackedWidget.setCurrentWidget(sys_patch_page)
+                if getattr(self.constants, "start_sys_patch_now", False):
+                    QTimer.singleShot(0, sys_patch_page.start_root_patching)
             return
 
     def _on_intro_navigate(self, target: str):
@@ -313,6 +317,10 @@ class Window(FluentWindow):
             self.stackedWidget.setCurrentWidget(self.about)
         elif target == Introduction.NAV_DOWNLOADS:
             self.stackedWidget.setCurrentWidget(self.download_page)
+        elif target == Introduction.NAV_PATCH:
+            sys_patch_page = getattr(self, "sys_patch_page", None)
+            if sys_patch_page is not None:
+                self.stackedWidget.setCurrentWidget(sys_patch_page)
 
     def _on_page_changed(self, index):
         widget = self.stackedWidget.widget(index)

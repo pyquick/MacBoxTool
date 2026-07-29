@@ -1,13 +1,16 @@
 """
 support.py: GitHub release and nightly manifest helpers for updates.
 """
+import json
 import logging
 import platform
 
 import requests
 from packaging import version
+from packaging.version import InvalidVersion
 
 from ... import constants as constants
+from ..network_handler import TLS_CERTIFICATE_BUNDLE
 from ..on_nightly import CheckNightly
 
 
@@ -26,10 +29,11 @@ class VisitGithubAPI:
         self.constants: constants.Constants = constants
         self.token: str = token or getattr(self.constants, "github_token", "") or ""
         self.url = f"https://api.github.com/repos/{user}/{repo_name}/releases/latest"
-        
         self.check_url = "https://pyquick.github.io/MacBoxTool/manifest.json"
-
-        self.find_latest_release_stable()
+        # Older macOS releases are served by this branch's PySide2 packages.
+        self.branch = "PySide2"
+        if fetch_latest:
+            self.find_latest_release_stable()
 
     def _github_headers(self) -> dict:
         """Build authenticated GitHub API headers when a token is configured."""
@@ -41,14 +45,60 @@ class VisitGithubAPI:
             headers["Authorization"] = f"Bearer {self.token}"
         return headers
 
+    @staticmethod
+    def _decode_json_response(response: requests.Response) -> dict:
+        """Decode API JSON, tolerating trailing commas added by network proxies."""
+        payload = response.text
+        try:
+            return json.loads(payload)
+        except json.JSONDecodeError as error:
+            cleaned_payload = []
+            in_string = False
+            escaped = False
+
+            for index, character in enumerate(payload):
+                if in_string:
+                    cleaned_payload.append(character)
+                    if escaped:
+                        escaped = False
+                    elif character == "\\":
+                        escaped = True
+                    elif character == '"':
+                        in_string = False
+                    continue
+
+                if character == '"':
+                    in_string = True
+                    cleaned_payload.append(character)
+                    continue
+
+                if character == ",":
+                    next_index = index + 1
+                    while next_index < len(payload) and payload[next_index].isspace():
+                        next_index += 1
+                    if next_index < len(payload) and payload[next_index] in "}]":
+                        continue
+
+                cleaned_payload.append(character)
+
+            cleaned_payload = "".join(cleaned_payload)
+            if cleaned_payload == payload:
+                raise RuntimeError(f"Invalid JSON response: {error}") from error
+
+            logging.warning("[Update] Retrying JSON parsing after removing trailing commas")
+            try:
+                return json.loads(cleaned_payload)
+            except json.JSONDecodeError as cleaned_error:
+                raise RuntimeError(f"Invalid JSON response: {cleaned_error}") from cleaned_error
+
     def find_latest_release_stable(self) -> None:
         """Fetch and validate the latest stable GitHub release payload."""
         
         logging.info(f"[Update] Requesting latest release: {self.url}")
-        response = requests.get(self.url, headers=self._github_headers(), verify=False, timeout=20)
+        response = requests.get(self.url, headers=self._github_headers(), verify=TLS_CERTIFICATE_BUNDLE, timeout=20)
         response.raise_for_status()
         
-        self.information: dict = response.json()
+        self.information: dict = self._decode_json_response(response)
         for key in ("tag_name", "assets", "target_commitish", "name", "published_at", "body"):
             if key not in self.information:
                 raise KeyError(f"GitHub latest release response missing '{key}'")
@@ -65,20 +115,31 @@ class VisitGithubAPI:
         """Return the workflow and artifact names for the current architecture."""
         if platform.machine() == "x86_64":
             return ["build-app-qt-intel", "MacBoxTool-PySide2-x86_64.pkg"]
-        if platform.machine() == "arm64":
-            return ["build-app-qt-arm", "MacBoxTool-PySide2-arm64.pkg"]
-        raise RuntimeError(f"Unsupported architecture: {platform.machine()}")
+        raise RuntimeError(f"Unsupported PySide2 update architecture: {platform.machine()}")
+
+    def _stable_manifest_versions(self, manifest: dict):
+        stable = manifest.get("stable_latest", {}).get(self.branch, {})
+        remote_version = str(stable.get("version", "")).strip()
+        remote_build = str(stable.get("build", "")).strip()
+        if not remote_version or not remote_build:
+            logging.info("[Update] No stable PySide2 release is published")
+            return None
+        try:
+            return version.parse(remote_version), version.parse(remote_build)
+        except InvalidVersion:
+            logging.warning("[Update] Ignoring invalid stable PySide2 manifest values")
+            return None
 
     def find_and_compare_latest_release_nightly(self) -> list[bool, str, str, str]:
         """Check the nightly manifest and return the nightly download URL."""
         workflow, artifact = self.arch_check()
-        self.nightly_url = f"https://nightly.link/pyquick/MacBoxTool/workflows/{workflow}/main/{artifact}.zip"
+        self.nightly_url = f"https://nightly.link/pyquick/MacBoxTool/workflows/{workflow}/PySide2/{artifact}.zip"
 
-        response = requests.get(self.check_url, verify=False, timeout=20)
+        response = requests.get(self.check_url, verify=TLS_CERTIFICATE_BUNDLE, timeout=20)
         response.raise_for_status()
-        manifest: dict = response.json()
+        manifest: dict = self._decode_json_response(response)
 
-        remote_build = str(manifest["nightly_latest"]["build"])
+        remote_build = str(manifest["nightly_latest"][self.branch]["build"])
         local_build = version.parse(str(self.constants.nightly_build))
         remote_build_version = version.parse(remote_build)
         
@@ -92,29 +153,33 @@ class VisitGithubAPI:
         Check stable is higher than nightly.
         Manifest.json is always higher than stable (or same as stable)
         """
-        response = requests.get(self.check_url, verify=False, timeout=20)
+        response = requests.get(self.check_url, verify=TLS_CERTIFICATE_BUNDLE, timeout=20)
         response.raise_for_status()
-        manifest: dict = response.json()
+        manifest: dict = self._decode_json_response(response)
 
         local_version = version.parse(str(self.constants.macboxtool_version))
         local_build = version.parse(str(self.constants.nightly_build))
 
-        manifest_version_stable = version.parse(str(manifest["stable_latest"]["version"]))
-        manifest_build_stable = version.parse(str(manifest["stable_latest"]["build"]))
+        stable_versions = self._stable_manifest_versions(manifest)
+        if stable_versions is None:
+            return False
+        manifest_version_stable, manifest_build_stable = stable_versions
 
         return manifest_version_stable >= local_version or manifest_build_stable >= local_build
 
 
     def compare_tags(self) -> bool:
         """Return True when the remote stable release is newer than local."""
-        response = requests.get(self.check_url, verify=False, timeout=20)
+        response = requests.get(self.check_url, verify=TLS_CERTIFICATE_BUNDLE, timeout=20)
         # Only stable can use it, nightly us is_higher_stable_is_coming()
         if CheckNightly(self.constants).check(): return False
         response.raise_for_status()
-        manifest: dict = response.json()
+        manifest: dict = self._decode_json_response(response)
 
-        manifest_version_stable = version.parse(str(manifest["stable_latest"]["version"]))
-        manifest_build_stable = version.parse(str(manifest["stable_latest"]["build"])) # manifest
+        stable_versions = self._stable_manifest_versions(manifest)
+        if stable_versions is None:
+            return False
+        manifest_version_stable, manifest_build_stable = stable_versions
 
         local_version = version.parse(str(self.constants.macboxtool_version))
         local_build = version.parse(str(self.constants.nightly_build))
@@ -137,6 +202,8 @@ class VisitGithubAPI:
         for asset in self.assets:
             name = asset["name"]
             if "Uninstaller" in name or "uninstaller" in name:
+                continue
+            if "PySide2" not in name:
                 continue
 
             if "x86_64" in name and "x86_64" in platform.machine():

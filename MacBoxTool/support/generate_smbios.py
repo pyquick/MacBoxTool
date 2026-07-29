@@ -4,7 +4,11 @@ generate_smbios.py: SMBIOS generation for MacBoxTool
 
 import logging
 
-from . import utilities
+import sys
+if sys.platform=="darwin":
+    from ..support import utilities
+else:
+    from ..support import utilities_win as utilities
 
 from ..datasets import (
     smbios_data,

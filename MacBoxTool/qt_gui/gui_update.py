@@ -161,15 +161,12 @@ class Updater(ScrollArea):
 
         # Check and install use an indeterminate ring.
         self.check_bar = IndeterminateProgressBar(self)
-        self.check_bar.setFixedSize(80, 80)
         self.check_bar.setVisible(False)
 
-        # Download uses a determinate ring with live percentage updates.
+        # Download uses a determinate bar with live percentage updates.
         self.progress_bar = ProgressBar(self)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
-        self.progress_bar.setTextVisible(True)
-        self.progress_bar.setFixedSize(80, 80)
         self.progress_bar.setVisible(False)
 
         self.progress_label = StrongBodyLabel("")
