@@ -10,6 +10,42 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import sys
 
 
+def _installer_download_size(installer_data: dict) -> int:
+    install_assistant = installer_data.get("InstallAssistant") or {}
+    components = install_assistant.get("LegacyComponents") or []
+
+    if components:
+        total_size = 0
+        for component in components:
+            try:
+                total_size += int(component.get("Size", 0) or 0)
+            except (AttributeError, TypeError, ValueError):
+                continue
+        if total_size:
+            return total_size
+
+    try:
+        return max(0, int(install_assistant.get("Size", 0) or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _format_file_size(size: int) -> str:
+    if size <= 0:
+        return "Unknown"
+
+    units = ("B", "KB", "MB", "GB", "TB")
+    value = float(size)
+    unit_index = 0
+    while value >= 1024 and unit_index < len(units) - 1:
+        value /= 1024
+        unit_index += 1
+
+    if unit_index == 0:
+        return f"{int(value)} {units[unit_index]}"
+    return f"{value:.2f} {units[unit_index]}"
+
+
 def _installer_icon_path(installer_data: dict, constants: Constants) -> str:
     install_assistant = installer_data.get("InstallAssistant") or {}
     xnu_major = install_assistant.get("XNUMajor", 0)
@@ -69,7 +105,7 @@ class InstallerCard(CardWidget):
 
     def _init_card(self):
         """Initialize card size and border"""
-        self.setFixedHeight(80)
+        self.setFixedHeight(96)
 
     def _init_icon(self):
         """Initialize macOS icon widget using XNUMajor"""
@@ -79,7 +115,7 @@ class InstallerCard(CardWidget):
         self.icon_widget.setFixedSize(48, 48)
 
     def _init_info_labels(self):
-        """Initialize title, date, and version labels"""
+        """Initialize title, date, version, and size labels"""
         title = self.installer_data.get("Title", "Unknown")
         build = self.installer_data.get("Build", "Unknown")
         self.title_label = BodyLabel(f"{title} {build}")
@@ -95,6 +131,9 @@ class InstallerCard(CardWidget):
         version_str = self.installer_data.get("Version", "0.0.0")
         build = self.installer_data.get("Build", "N/A")
         self.version_label = CaptionLabel(f"Version: {version_str} | Build: {build}")
+
+        size = _installer_download_size(self.installer_data)
+        self.size_label = CaptionLabel(f"Size: {_format_file_size(size)}")
 
     def _init_download_button(self):
         """Initialize download button"""
@@ -125,6 +164,7 @@ class InstallerCard(CardWidget):
         self.info_layout.addWidget(self.title_label, 0, Qt.AlignmentFlag.AlignVCenter)
         self.info_layout.addWidget(self.date_label, 0, Qt.AlignmentFlag.AlignVCenter)
         self.info_layout.addWidget(self.version_label, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.info_layout.addWidget(self.size_label, 0, Qt.AlignmentFlag.AlignVCenter)
         self.info_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.main_layout.addLayout(self.info_layout, 1)
 
@@ -519,6 +559,7 @@ class MacOSInstallerList(ScrollArea):
         filename = Path(url).name if direct_download else "InstallAssistant.pkg"
         download_obj = DownloadObject(url, save_path, filename)
         download_obj.display_name = f"{title} {build}"
+        download_obj.total_size = _installer_download_size(installer_data)
 
         if legacy_components:
             app_names = {

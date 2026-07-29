@@ -60,6 +60,9 @@ class ProgressStatusHelper(QObject):
         qconfig.themeColorChanged.connect(self._refresh_style)
 
     def _status_color(self):
+        # Force red error color when status is error (shows an X)
+        if self.status == "error":
+            return COLORS["error"]
         if self.status == "success" and self.message.lower().startswith("build complete"):
             return COLORS["success"]
         return themeColor().name()

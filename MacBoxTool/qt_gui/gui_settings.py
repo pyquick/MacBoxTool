@@ -734,6 +734,10 @@ class SettingsInterface(QWidget):
             parent=group
         )
 
+        if sys.platform == "win32":
+            for card in (self.trigger_exception_card, self.export_constants_card):
+                card.button.setStyleSheet("QPushButton { border-radius: 15px; }")
+
         self.github_token_card = SettingCard(
             FIF.GITHUB,
             "GitHub Token",
