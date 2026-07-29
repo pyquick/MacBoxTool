@@ -209,10 +209,16 @@ class MacBoxTool:
         try:
             _test_dir = Path.cwd()
             logging.info(f"{'Current working directory:'} {_test_dir}")
-        except FileNotFoundError:
-            _test_dir = Path(__file__).parent.parent.resolve()
-            os.chdir(_test_dir)
-            logging.warning(f"{'Current working directory was invalid, switched to:'} {_test_dir}")
+        except (FileNotFoundError, OSError, PermissionError):
+            try:
+                if getattr(sys, "frozen", False):
+                    _test_dir = Path(sys.executable).resolve().parent
+                else:
+                    _test_dir = Path(__file__).parent.parent.resolve()
+                os.chdir(str(_test_dir))
+                logging.warning(f"{'Current working directory was invalid, switched to:'} {_test_dir}")
+            except Exception:
+                logging.warning("Failed to switch working directory, continuing anyway")
 
 
 def main():
