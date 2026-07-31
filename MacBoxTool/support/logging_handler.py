@@ -18,12 +18,14 @@ from datetime import datetime
 
 from ..constants import Constants
 
+
 DATE_FORMAT:      str = "%Y-%m-%d %H-%M-%S"
 
 class LoggingHandler:
     def __init__(self, global_constants: Constants) -> None:
 
         self.constants:Constants  = global_constants
+
         log_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")
 
         self.log_filename: str  = f"MacBoxTool_{self.constants.macboxtool_version}_{log_time}.log"
@@ -215,7 +217,18 @@ class LoggingHandler:
             """
             logging.error("Uncaught exception in main thread", exc_info=(type, value, tb))
 
-            
+            # Send crash report in background (fire-and-forget)
+            try:
+                from ..support.crash_report import send_crash_report_async
+                tb_str = "".join(traceback.format_exception(type, value, tb))
+                send_crash_report_async(
+                    exception_type=type.__name__,
+                    exception_message=str(value),
+                    stack_trace=tb_str,
+                )
+            except Exception:
+                pass
+
             self._display_debug_properties()
             error_msg = "MacBoxTool encountered the following internal error:\n\n"
             error_msg += f"{type.__name__}: {value}"
@@ -242,6 +255,18 @@ class LoggingHandler:
             Reroute traceback in main thread to logging module (Windows)
             """
             logging.error("Uncaught exception in main thread", exc_info=(type, value, tb))
+
+            # Send crash report in background (fire-and-forget)
+            try:
+                from ..support.crash_report import send_crash_report_async
+                tb_str = "".join(traceback.format_exception(type, value, tb))
+                send_crash_report_async(
+                    exception_type=type.__name__,
+                    exception_message=str(value),
+                    stack_trace=tb_str,
+                )
+            except Exception:
+                pass
 
             if self.constants.cli_mode is True:
                 return
