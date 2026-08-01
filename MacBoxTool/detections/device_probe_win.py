@@ -145,6 +145,15 @@ _cached_cpu_device_id: int | None = None
 _cached_cpu_architecture: str | None = None
 
 
+# Map CPU vendor strings from sysctl / WMI to standard PCI vendor hex IDs.
+# This gives consistent output regardless of platform.
+_CPU_VENDOR_TEXT_TO_HEX: dict[str, str] = {
+    "GenuineIntel": "0x8086",
+    "AuthenticAMD": "0x1022",
+    "Apple":         "0x106B",
+}
+
+
 def _cpuid_display_model(processor_id: str | None) -> int | None:
     """Extract the CPUID display model from Win32_Processor.ProcessorId."""
     if not processor_id:
@@ -869,6 +878,8 @@ class Computer:
                 vendor_id = "GenuineIntel"
             elif vendor_id and vendor_id.lower() == "authenticamd":
                 vendor_id = "AuthenticAMD"
+            # Map vendor text to PCI vendor hex ID for cross-platform consistency.
+            vendor_id = _CPU_VENDOR_TEXT_TO_HEX.get(vendor_id, vendor_id)
             device_id = _cpuid_display_model(getattr(proc, "ProcessorId", None))
         except Exception:
             pass

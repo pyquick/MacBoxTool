@@ -132,8 +132,10 @@ KDKInfo.plist
 InstallESD.dmg
 .pybuilder/
 target/
+*plan*
+*Plan*
 *BaseSystem*
-*AppleD*
+*AppleDia*
 # Jupyter Notebook
 .ipynb_checkpoints
 

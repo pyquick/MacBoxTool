@@ -266,6 +266,7 @@ class AboutInterface(ScrollArea):
         if igpu:
             expandLayout.addWidget(BodyLabel("Integrated GPU"))
             expandLayout.addWidget(SettingCard(FIF.TAG, "Name", igpu.name or "N/A"))
+            expandLayout.addWidget(SettingCard(FIF.INFO, "Model", igpu.model or "N/A"))
             expandLayout.addWidget(SettingCard(FIF.CERTIFICATE, "Vendor ID", hex(igpu.vendor_id) if igpu.vendor_id else "N/A"))
             expandLayout.addWidget(SettingCard(FIF.CODE, "Device ID", hex(igpu.device_id) if igpu.device_id else "N/A"))
             if hasattr(igpu, "arch") and igpu.arch and str(igpu.arch) != "Unknown":
@@ -276,6 +277,7 @@ class AboutInterface(ScrollArea):
         if dgpu:
             expandLayout.addWidget(BodyLabel("Discrete GPU"))
             expandLayout.addWidget(SettingCard(FIF.TAG, "Name", dgpu.name or "N/A"))
+            expandLayout.addWidget(SettingCard(FIF.INFO, "Model", dgpu.model or "N/A"))
             expandLayout.addWidget(SettingCard(FIF.CERTIFICATE, "Vendor ID", hex(dgpu.vendor_id) if dgpu.vendor_id else "N/A"))
             expandLayout.addWidget(SettingCard(FIF.CODE, "Device ID", hex(dgpu.device_id) if dgpu.device_id else "N/A"))
             if hasattr(dgpu, "arch") and dgpu.arch and str(dgpu.arch) != "Unknown":
@@ -288,6 +290,7 @@ class AboutInterface(ScrollArea):
                 continue
             expandLayout.addWidget(BodyLabel(f"GPU #{i + 1}"))
             expandLayout.addWidget(SettingCard(FIF.TAG, "Name", gpu.name or "N/A"))
+            expandLayout.addWidget(SettingCard(FIF.INFO, "Model", gpu.model or "N/A"))
             expandLayout.addWidget(SettingCard(FIF.CERTIFICATE, "Vendor ID", hex(gpu.vendor_id) if gpu.vendor_id else "N/A"))
             expandLayout.addWidget(SettingCard(FIF.CODE, "Device ID", hex(gpu.device_id) if gpu.device_id else "N/A"))
             if hasattr(gpu, "arch") and gpu.arch and str(gpu.arch) != "Unknown":
@@ -298,6 +301,7 @@ class AboutInterface(ScrollArea):
         if wifi:
             expandLayout.addWidget(BodyLabel("WiFi"))
             expandLayout.addWidget(SettingCard(FIF.TAG, "Name", wifi.name or "N/A"))
+            expandLayout.addWidget(SettingCard(FIF.INFO, "Model", wifi.model or "N/A"))
             expandLayout.addWidget(SettingCard(FIF.CERTIFICATE, "Vendor ID", hex(wifi.vendor_id) if wifi.vendor_id else "N/A"))
             expandLayout.addWidget(SettingCard(FIF.CODE, "Device ID", hex(wifi.device_id) if wifi.device_id else "N/A"))
             if hasattr(wifi, "chipset") and wifi.chipset and str(wifi.chipset) != "Unknown":
@@ -309,6 +313,7 @@ class AboutInterface(ScrollArea):
             label_suffix = f" #{i + 1}" if len(ethernet_list) > 1 else ""
             expandLayout.addWidget(BodyLabel(f"Ethernet{label_suffix}"))
             expandLayout.addWidget(SettingCard(FIF.TAG, "Name", eth.name or "N/A"))
+            expandLayout.addWidget(SettingCard(FIF.INFO, "Model", eth.model or "N/A"))
             expandLayout.addWidget(SettingCard(FIF.CERTIFICATE, "Vendor ID", hex(eth.vendor_id) if eth.vendor_id else "N/A"))
             expandLayout.addWidget(SettingCard(FIF.CODE, "Device ID", hex(eth.device_id) if eth.device_id else "N/A"))
             if hasattr(eth, "chipset") and eth.chipset and str(eth.chipset) != "Unknown":
@@ -320,6 +325,7 @@ class AboutInterface(ScrollArea):
             label_suffix = f" #{i + 1}" if len(storage_list) > 1 else ""
             expandLayout.addWidget(BodyLabel(f"Storage{label_suffix}"))
             expandLayout.addWidget(SettingCard(FIF.TAG, "Name", stor.name or "N/A"))
+            expandLayout.addWidget(SettingCard(FIF.INFO, "Model", stor.model or "N/A"))
             expandLayout.addWidget(SettingCard(FIF.CERTIFICATE, "Vendor ID", hex(stor.vendor_id) if stor.vendor_id else "N/A"))
             expandLayout.addWidget(SettingCard(FIF.CODE, "Device ID", hex(stor.device_id) if stor.device_id else "N/A"))
             stor_type = "NVMe" if stor.class_code in (0x010802, 0x018002) else "SATA" if stor.class_code == 0x010601 else hex(stor.class_code) if stor.class_code else "N/A"

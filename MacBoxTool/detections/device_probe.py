@@ -30,6 +30,15 @@ def class_code_to_bytes(class_code: int) -> bytes:
     return class_code.to_bytes(4, byteorder="little")
 
 
+# Map CPU vendor strings from sysctl / WMI to standard PCI vendor hex IDs.
+# This gives consistent output regardless of platform.
+_CPU_VENDOR_TEXT_TO_HEX: dict[str, str] = {
+    "GenuineIntel": "0x8086",
+    "AuthenticAMD": "0x1022",
+    "Apple":         "0x106B",
+}
+
+
 @dataclass
 class CPU:
     name: str
@@ -1001,7 +1010,7 @@ class Computer:
 
         features = self._sysctl_value("machdep.cpu.features")
         flags = features.split() if features else []
-        vendor_id = self._sysctl_value("machdep.cpu.vendor")
+        vendor_text = self._sysctl_value("machdep.cpu.vendor")
         device_id = None
         model = self._sysctl_value("machdep.cpu.model")
         if model:
@@ -1012,8 +1021,11 @@ class Computer:
 
         machine = (self._sysctl_value("hw.machine") or platform.machine()).lower()
         if machine in ("arm64", "arm64e"):
-            vendor_id = vendor_id or "Apple"
+            vendor_text = vendor_text or "Apple"
             name = name or "Apple Silicon"
+        # Map CPU vendor text string to PCI vendor ID hex string for consistency
+        # across platforms.
+        vendor_id = _CPU_VENDOR_TEXT_TO_HEX.get(vendor_text, vendor_text)
 
         cpuid_arch = cpu_data.architecture_from_device_id(device_id, vendor_id)
 

@@ -167,7 +167,7 @@ CPUID_MODEL_TO_ARCHITECTURE: dict[int, str] = {
     189: "lunar_lake",
 }
 
-_INTEL_VENDOR_IDS = {"genuineintel", "intel", "intel corporation"}
+_INTEL_VENDOR_IDS = {"genuineintel", "intel", "intel corporation", "0x8086"}
 
 
 def architecture_from_device_id(device_id: int | None, vendor_id: str | None = None) -> str | None:
