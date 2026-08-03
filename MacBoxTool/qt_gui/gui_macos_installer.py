@@ -189,7 +189,7 @@ class InstallerCard(CardWidget):
                 "Download link copied to clipboard",
                 duration=2000,
                 position=InfoBarPosition.BOTTOM_RIGHT,
-                parent=self
+                parent=self.window(),
             )
 
     
