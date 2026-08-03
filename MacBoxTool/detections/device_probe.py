@@ -718,7 +718,8 @@ class Computer:
     mbt_sys_signed: Optional[bool] = False
     firmware_vendor: Optional[str] = None
     rosetta_active: Optional[bool] = False
-    
+    t2_chip: Optional[bool] = False
+
     @staticmethod
     def probe():
         if sys.platform == "win32":
@@ -739,6 +740,7 @@ class Computer:
         computer.bluetooth_probe()
         computer.topcase_probe()
         computer.t1_probe()
+        computer.t2_probe()
         computer.ambient_light_sensor_probe()
         computer.pcie_webcam_probe()
         computer.sata_disk_probe()
@@ -1128,6 +1130,31 @@ class Computer:
                     continue
                 self.t1_chip = True
                 break
+
+    def t2_probe(self):
+        """Detect Apple T2 controllers by their physical PCI identifiers."""
+        if sys.platform != "darwin":
+            return
+
+        matching = {
+            "IOProviderClass": "IOPCIDevice",
+            "IOPropertyMatch": [
+                {
+                    "vendor-id": (0x106B).to_bytes(4, byteorder="little"),
+                    "device-id": device_id.to_bytes(4, byteorder="little"),
+                }
+                for device_id in (0x1801, 0x1802)
+            ],
+        }
+        devices = ioiterator_to_list(
+            IOServiceGetMatchingServices(kIOMasterPortDefault, matching, None)[1]
+        )
+        device = next(devices, None)
+        if device:
+            self.t2_chip = True
+            IOObjectRelease(device)
+        for device in devices:
+            IOObjectRelease(device)
 
     def sata_disk_probe(self):
         if sys.platform != "darwin":

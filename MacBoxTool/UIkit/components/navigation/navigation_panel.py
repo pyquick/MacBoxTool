@@ -845,11 +845,24 @@ class NavigationPanel(QFrame):
         if rect.isNull() or rect.height() <= 0:
             return
 
-        fill = QColor(38, 38, 38, 96) if isDarkTheme() else QColor(255, 255, 255, 104)
-        outline = QColor(255, 255, 255, 24 if isDarkTheme() else 178)
-        if self.displayMode == NavigationDisplayMode.MENU:
-            fill = QColor(38, 38, 38, 132) if isDarkTheme() else QColor(255, 255, 255, 132)
-            outline = QColor(255, 255, 255, 32 if isDarkTheme() else 190)
+        if isDarkTheme():
+            fill = QColor(38, 38, 38, 96)
+            outline = QColor(255, 255, 255, 24)
+            if self.displayMode == NavigationDisplayMode.EXPAND:
+                fill = QColor(34, 34, 34, 108)
+                outline = QColor(255, 255, 255, 28)
+            elif self.displayMode == NavigationDisplayMode.MENU:
+                fill = QColor(32, 32, 32, 132)
+                outline = QColor(255, 255, 255, 32)
+        else:
+            fill = QColor(255, 255, 255, 104)
+            outline = QColor(255, 255, 255, 178)
+            if self.displayMode == NavigationDisplayMode.EXPAND:
+                fill = QColor(248, 248, 248, 112)
+                outline = QColor(255, 255, 255, 184)
+            elif self.displayMode == NavigationDisplayMode.MENU:
+                fill = QColor(246, 246, 246, 132)
+                outline = QColor(255, 255, 255, 190)
 
         painter.setBrush(fill)
         pen = QPen(outline)

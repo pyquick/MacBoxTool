@@ -740,6 +740,7 @@ class Computer:
     mbt_sys_signed:      bool           = False
     firmware_vendor:      Optional[str]  = None
     rosetta_active:       bool           = False
+    t2_chip:              bool           = False
     _wmi:                 object         = field(default=None, repr=False)
     _pci_cache:           list           = field(default_factory=list, repr=False)
     _usb_raw:             list           = field(default_factory=list, repr=False)
@@ -764,6 +765,7 @@ class Computer:
         computer.bluetooth_probe()
         computer.topcase_probe()
         computer.t1_probe()
+        computer.t2_probe()
         computer.ambient_light_sensor_probe()
         computer.pcie_webcam_probe()
         computer.sata_disk_probe()
@@ -977,6 +979,26 @@ class Computer:
                 parts = dev.serial_number.split(" ")
                 if "CPID:8002" in parts and ("BDID:12" in parts or "BDID:13" in parts):
                     self.t1_chip = True; return
+
+    def t2_probe(self):
+        """Detect currently-present Apple T2 controllers by PCI hardware ID."""
+        try:
+            devices = self._wmi.Win32_PnPEntity()
+        except Exception:
+            return
+
+        for device in devices:
+            pnp_device_id = getattr(device, "PNPDeviceID", "") or ""
+            match = _RE_PCI.search(pnp_device_id)
+            if not match:
+                continue
+            if int(match.group(1), 16) != 0x106B:
+                continue
+            if int(match.group(2), 16) not in (0x1801, 0x1802):
+                continue
+            if getattr(device, "Present", True) is not False:
+                self.t2_chip = True
+                return
 
     def ambient_light_sensor_probe(self):
         pass  # Not available on Windows

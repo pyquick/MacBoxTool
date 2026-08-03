@@ -10,8 +10,6 @@ from .gui_task import TaskInterface, TaskManager
 
 from .gui_all_download import DownloadInterface
 
-from ..support import on_nightly
-
 WINDOW_MIN_SIZE = (1000, 700)
 WINDOW_DEFAULT_SIZE = (1200, 800)
 class Widget(QFrame):
@@ -63,8 +61,6 @@ class Window(FluentWindow):
    
 
     def _setup_window(self):
-        nightly_suffix = " (Nightly)" if on_nightly.CheckNightly(self.constants).check() else ""
-        self.setWindowTitle(f"MacBoxTool ({self.constants.macboxtool_version}){nightly_suffix}")
         self.setMinimumSize(*WINDOW_MIN_SIZE)
         
         #self._restore_window_geometry()

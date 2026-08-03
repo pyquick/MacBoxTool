@@ -11,15 +11,13 @@ from ..support.on_nightly import CheckNightly
 import sys
 if sys.platform == "darwin":
     try:
-        from ..support.install_helper import check_helper_installed, install_privileged_helper, is_root
+        from ..support.install_helper import check_helper_installed, install_privileged_helper
     except ImportError:
         check_helper_installed = None
         install_privileged_helper = None
-        is_root = None
 else:
     check_helper_installed = None
     install_privileged_helper = None
-    is_root = None
 
 
 class HelperInstallWorker(QThread):
@@ -36,13 +34,6 @@ class HelperInstallWorker(QThread):
             self.finished_signal.emit(success, msg)
         else:
             self.finished_signal.emit(False, "Helper installation not available on this platform")
-        is_root = None
-
-    check_helper_installed = None
-    install_privileged_helper = None
-    is_root = None
-
-
 
 
 class Introduction(ScrollArea):
@@ -210,10 +201,12 @@ class Introduction(ScrollArea):
                 pass
 
     def _on_install_helper_clicked(self):
-        """Handle install helper button click - relaunch as root if needed."""
-        if not install_privileged_helper or (is_root and not is_root()):
-            # Need to get root privileges
-            self._relaunch_as_root()
+        """Handle install helper button click."""
+        if not install_privileged_helper:
+            self._on_install_helper_finished(
+                False,
+                "Helper installation not available on this platform",
+            )
             return
 
         # Show installing indicator
@@ -252,77 +245,6 @@ class Introduction(ScrollArea):
             InfoBar.error(
                 title="Installation Failed",
                 content=msg,
-                orient=Qt.Orientation.Horizontal,
-                isClosable=True,
-                position=InfoBarPosition.BOTTOM_RIGHT,
-                duration=5000,
-                parent=self
-            )
-
-    def _relaunch_as_root(self):
-        """Relaunch the application with sudo using AppleScript."""
-        import subprocess
-
-        # Get the current script path
-        script_path = sys.executable
-        app_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        main_script = os.path.join(app_path, "MacBoxTool", "app_entry.py")
-
-        # Build the AppleScript command
-        script = f'''
-        do shell script "echo 'Installing Privileged Helper...' && cd '{app_path}' && {script_path} -m MacBoxTool.support.install_helper" with administrator privileges
-        '''
-
-        try:
-            # Run AppleScript to get admin privileges and install
-            result = subprocess.run(
-                ["osascript", "-e", script],
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
-
-            if result.returncode == 0:
-                # Success - show message
-                InfoBar.success(
-                    title="Installed",
-                    content="Privileged Helper installed successfully!",
-                    orient=Qt.Orientation.Horizontal,
-                    isClosable=True,
-                    position=InfoBarPosition.BOTTOM_RIGHT,
-                    duration=3000,
-                    parent=self
-                )
-
-                # Refresh UI
-                self.update()
-            else:
-                # User cancelled or error
-                error_msg = result.stderr or "Installation was cancelled or failed."
-                InfoBar.warning(
-                    title="Installation",
-                    content=error_msg,
-                    orient=Qt.Orientation.Horizontal,
-                    isClosable=True,
-                    position=InfoBarPosition.BOTTOM_RIGHT,
-                    duration=5000,
-                    parent=self
-                )
-
-        except subprocess.TimeoutExpired:
-            InfoBar.error(
-                title="Timeout",
-                content="Installation timed out.",
-                orient=Qt.Orientation.Horizontal,
-                isClosable=True,
-                position=InfoBarPosition.BOTTOM_RIGHT,
-                duration=5000,
-                parent=self
-            )
-        except Exception as e:
-            InfoBar.error(
-                title="Error",
-                content=f"Failed to install: {str(e)}",
                 orient=Qt.Orientation.Horizontal,
                 isClosable=True,
                 position=InfoBarPosition.BOTTOM_RIGHT,
