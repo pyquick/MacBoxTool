@@ -26,7 +26,7 @@ class Constants:
         self.launcher_script:           str = None
         # OpenCore Version
         self.opencore_version:           str = "1.0.6"
-        self.nightly_build:              str = "4582.6"
+        self.nightly_build:              str = "4584.1"
         self.support_version:            str = "1.0.246834538prefix" # prefix: unstable core. canary: very unstable
 
         # Kext Versioning

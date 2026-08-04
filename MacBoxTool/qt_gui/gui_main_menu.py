@@ -263,12 +263,15 @@ class Window(FluentWindow):
                 )
 
             self.about=AboutInterface(self.constants,self.gui_support,self.settings,self)
-            self.addSubInterface(
+            channel_color = self.about.channel_color
+            self.about_nav_item = self.addSubInterface(
                 self.about,
-                FluentIcon.INFO,
+                FluentIcon.INFO.colored(channel_color, channel_color),
                 "About",
                 NavigationItemPosition.BOTTOM
             )
+            self.about_nav_item.setTextColor(channel_color, channel_color)
+            self.about_nav_item.setIndicatorColor(channel_color, channel_color)
         finally:
             self.endAddSubInterfaceBatch()
 

@@ -3,6 +3,7 @@ gui_about.py: Show about UI
 """
 
 from ..include import *
+from ..support import on_nightly
 from .gui_support import DefGUI
 
 def _wrap_text(items: list, width: int = 50) -> str:
@@ -38,6 +39,8 @@ class AboutInterface(ScrollArea):
         self.setObjectName("About")
         # Add constants
         self.constants=global_constants
+        self.is_nightly = on_nightly.CheckNightly(self.constants).check()
+        self.channel_color = "#F9A825" if self.is_nightly else "#2E7D32"
         self.gui_support=ui_support
         self.settings=global_settings
         #Add QWidgets
@@ -126,7 +129,7 @@ class AboutInterface(ScrollArea):
         )
         nbuild_card=SettingCard(
             FIF.DEVELOPER_TOOLS,
-            "Nightly Build",
+            "Nightly Build" if self.is_nightly else "Stable Build",
             f"{self.constants.nightly_build}",
             self
         )
