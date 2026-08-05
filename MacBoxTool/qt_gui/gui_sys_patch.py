@@ -98,6 +98,10 @@ class SysPatch(ScrollArea):
         self.is_busy = False
         self.page_state = "initial"
         self.pending_auto_patch = bool(getattr(self.constants, "start_sys_patch_now", False))
+        self.gui_patch_mode = bool(
+            getattr(self.constants, "start_sys_patch", False) or
+            getattr(self.constants, "update_stage", AutoUpdateStages.INACTIVE) != AutoUpdateStages.INACTIVE
+        )
         self.patch_checkboxes = {}
         self.detection_worker = None
         self.patch_worker = None
@@ -175,7 +179,11 @@ class SysPatch(ScrollArea):
         self.refresh_button.clicked.connect(lambda: self.refresh(force=True))
         button_layout.addWidget(self.refresh_button)
         button_layout.addStretch()
-        self.expandLayout.addWidget(button_row)
+        self.button_row = button_row
+        self.expandLayout.addWidget(self.button_row)
+
+        if self.gui_patch_mode:
+            self.button_row.hide()
 
         self.progress_ring = IndeterminateProgressRing(self)
         self.progress_ring.setFixedSize(36, 36)

@@ -2,7 +2,7 @@
 gui_build.py: Build OpenCore EFI for unsupported Macs
 """
 from ..include import *
-from .gui_support import DefGUI, ProgressStatusHelper
+from .gui_support import DefGUI, ProgressStatusHelper, AutoUpdateStages
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QUrl
 
@@ -608,6 +608,10 @@ class BuildOCPage(ScrollArea):
             self.install_btn.setVisible(
                 sys.platform == "darwin" and check_helper_installed and check_helper_installed()
             )
+            # Auto-update flow: auto-trigger install after build
+            if getattr(self.constants, "update_stage", AutoUpdateStages.INACTIVE) != AutoUpdateStages.INACTIVE:
+                self.constants.update_stage = AutoUpdateStages.INSTALLING
+                QTimer.singleShot(200, self._on_install_clicked)
         else:
             self.progress_helper.update("error", f"Build failed: {info}")
             self.open_folder_btn.setVisible(False)
@@ -646,6 +650,14 @@ class BuildOCPage(ScrollArea):
                 duration=4000,
                 parent=self
             )
+            # Auto-update flow: navigate to sys_patch after install
+            if getattr(self.constants, "update_stage", AutoUpdateStages.INACTIVE) != AutoUpdateStages.INACTIVE:
+                self.constants.update_stage = AutoUpdateStages.ROOT_PATCHING
+                self.constants.start_sys_patch = True
+                self.constants.start_sys_patch_now = True
+                win = self.window()
+                if hasattr(win, "navigate_to_sys_patch"):
+                    QTimer.singleShot(500, win.navigate_to_sys_patch)
         else:
             InfoBar.error(
                 title="Install Failed",

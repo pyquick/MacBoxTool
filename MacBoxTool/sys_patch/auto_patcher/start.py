@@ -191,7 +191,7 @@ class StartAutomaticPatching:
     def _open_gui_if_needed(self):
         if QApplication.instance() is not None:
             return
-        from ...qt_gui.gui_go_in import OpenGUI
+        from ...qt_gui.gui_entry import OpenGUI
         settings = global_settings.GlobalSettings(self.constants)
         OpenGUI(self.constants, settings).gui_main_menu()
 

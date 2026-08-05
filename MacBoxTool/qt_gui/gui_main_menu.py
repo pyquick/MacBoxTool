@@ -1,5 +1,5 @@
 from ..include import *
-from .gui_support import DefGUI
+from .gui_support import DefGUI, AutoUpdateStages
 
 from .gui_introduction import Introduction
 from .gui_build import BuildOCPage
@@ -286,6 +286,20 @@ class Window(FluentWindow):
             rotate()
 
     def _apply_startup_navigation(self):
+        if getattr(self.constants, "start_update_installed", False):
+            self.constants.has_checked_updates = True
+            reply = QMessageBox.question(
+                self,
+                "Update successful!",
+                f"MacBoxTool has been updated to version {self.constants.macboxtool_version}.\n\nWould you like to update OpenCore and your root volume patches?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes,
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                self.constants.update_stage = AutoUpdateStages.CHECKING
+                self.stackedWidget.setCurrentWidget(self.build)
+                QTimer.singleShot(500, self.build._on_build)
+            return
         if getattr(self.constants, "start_build_install", False):
             self.stackedWidget.setCurrentWidget(self.build)
             return
@@ -294,8 +308,7 @@ class Window(FluentWindow):
             return
         if getattr(self.constants, "start_sys_patch", False):
             self.stackedWidget.setCurrentWidget(self.sys_patch_page)
-            if getattr(self.constants, "start_sys_patch_now", False):
-                QTimer.singleShot(0, self.sys_patch_page.start_root_patching)
+            # SysPatch handles auto-patch via its own pending_auto_patch mechanism
             return
 
     def _on_intro_navigate(self, target: str):
@@ -312,6 +325,12 @@ class Window(FluentWindow):
             sys_patch_page = getattr(self, "sys_patch_page", None)
             if sys_patch_page is not None:
                 self.stackedWidget.setCurrentWidget(sys_patch_page)
+
+    def navigate_to_sys_patch(self):
+        """Navigate to SysPatch page. Called by BuildOCPage after install in update flow."""
+        sys_patch_page = getattr(self, "sys_patch_page", None)
+        if sys_patch_page is not None:
+            self.stackedWidget.setCurrentWidget(sys_patch_page)
 
     def _on_page_changed(self, index):
         widget = self.stackedWidget.widget(index)

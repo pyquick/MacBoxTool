@@ -6,6 +6,7 @@ import os
 import math
 import shutil
 import logging
+import argparse
 import binascii
 import struct
 import hashlib
@@ -678,3 +679,56 @@ def clear_test_args():
     """Clear test arguments after use."""
     global _test_args_model
     _test_args_model = None
+
+
+def check_cli_args():
+    """Parse CLI arguments. Returns None if no action flag detected (launch GUI)."""
+    parser = argparse.ArgumentParser()
+    # Build flags
+    parser.add_argument("--build", help="Build OpenCore", action="store_true", required=False)
+    parser.add_argument("--verbose", help="Enable verbose boot", action="store_true", required=False)
+    parser.add_argument("--debug_oc", help="Enable OpenCore DEBUG", action="store_true", required=False)
+    parser.add_argument("--debug_kext", help="Enable kext DEBUG", action="store_true", required=False)
+    parser.add_argument("--hide_picker", help="Hide OpenCore picker", action="store_true", required=False)
+    parser.add_argument("--disable_sip", help="Disable SIP", action="store_true", required=False)
+    parser.add_argument("--disable_smb", help="Disable SecureBootModel", action="store_true", required=False)
+    parser.add_argument("--vault", help="Enable OpenCore Vaulting", action="store_true", required=False)
+    parser.add_argument("--support_all", help="Allow OpenCore on natively supported Models", action="store_true", required=False)
+    parser.add_argument("--firewire", help="Enable FireWire Booting", action="store_true", required=False)
+    parser.add_argument("--nvme", help="Enable NVMe Booting", action="store_true", required=False)
+    parser.add_argument("--wlan", help="Enable Wake on WLAN support", action="store_true", required=False)
+    parser.add_argument("--moderate_smbios", help="Moderate SMBIOS Patching", action="store_true", required=False)
+    parser.add_argument("--disable_tb", help="Disable Thunderbolt", action="store_true", required=False)
+    parser.add_argument("--force_surplus", help="Force SurPlus in all newer OSes", action="store_true", required=False)
+    # Build flags with values
+    parser.add_argument("--model", action="store", help="Set custom model", required=False)
+    parser.add_argument("--disk", action="store", help="Specifies disk to install to", required=False)
+    parser.add_argument("--smbios_spoof", action="store", help="Set SMBIOS patching mode", required=False)
+    # sys_patch flags
+    parser.add_argument("--patch_sys_vol", help="Patches root volume", action="store_true", required=False)
+    parser.add_argument("--unpatch_sys_vol", help="Unpatches root volume, EXPERIMENTAL", action="store_true", required=False)
+    parser.add_argument("--prepare_for_update", help="Prepares host for macOS update", action="store_true", required=False)
+    parser.add_argument("--cache_os", help="Caches patcher files for incoming OS", action="store_true", required=False)
+    # Validation
+    parser.add_argument("--validate", help="Runs Validation Tests for CI", action="store_true", required=False)
+    # GUI flags
+    parser.add_argument("--gui_patch", help="Starts GUI in Root Patcher", action="store_true", required=False)
+    parser.add_argument("--gui_unpatch", help="Starts GUI in Root Unpatcher", action="store_true", required=False)
+    parser.add_argument("--auto_patch", help="Check if patches are needed and prompt user", action="store_true", required=False)
+    parser.add_argument("--update_installed", help="Prompt user to finish updating via GUI", action="store_true", required=False)
+    # Legacy flags
+    parser.add_argument("--version", help="Show version information", action="store_true", required=False)
+    parser.add_argument("--probe-hardware", help="Probe and display hardware information", action="store_true", required=False)
+
+    args = parser.parse_args()
+    if not (
+        args.build or
+        args.patch_sys_vol or
+        args.unpatch_sys_vol or
+        args.validate or
+        args.auto_patch or
+        args.prepare_for_update or
+        args.cache_os
+    ):
+        return None
+    return args
