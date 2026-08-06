@@ -6,6 +6,7 @@ from .gui_build import BuildOCPage
 
 from .gui_about import AboutInterface
 from .gui_settings import SettingsInterface
+from .gui_hardware_support import HardwareSupport
 from .gui_task import TaskInterface, TaskManager
 
 from .gui_all_download import DownloadInterface
@@ -241,6 +242,14 @@ class Window(FluentWindow):
                 self.download_page,
                 FluentIcon.SYNC,
                 "Downloads",
+                NavigationItemPosition.SCROLL
+            )
+
+            self.hardware_support = HardwareSupport(self.constants, self.gui_support, self)
+            self.addSubInterface(
+                self.hardware_support,
+                FluentIcon.CERTIFICATE,
+                "Hardware Support",
                 NavigationItemPosition.SCROLL
             )
 

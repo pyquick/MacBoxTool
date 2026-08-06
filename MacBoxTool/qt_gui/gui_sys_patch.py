@@ -42,8 +42,15 @@ class PatchDetectionWorker(QThread):
         try:
             patches = HardwarePatchsetDetection(constants=self.constants).device_properties
             self.finished_signal.emit(patches)
-        except Exception:
-            self.error_signal.emit(traceback.format_exc())
+        except Exception as error:
+            stack_trace = traceback.format_exc()
+            send_error_report_async(
+                exception_type=type(error).__name__,
+                exception_message=str(error),
+                stack_trace=stack_trace,
+                operation="sys_patch_detection",
+            )
+            self.error_signal.emit(stack_trace)
 
 
 class PatchRunWorker(QThread):
@@ -71,10 +78,24 @@ class PatchRunWorker(QThread):
                 patcher.start_unpatch()
             else:
                 patcher.start_patch()
-            self.finished_signal.emit(self.constants.root_patcher_succeeded is True)
-        except Exception:
+            succeeded = self.constants.root_patcher_succeeded is True
+            if succeeded is False:
+                send_error_report_async(
+                    exception_type="RootPatchFailed",
+                    exception_message="Root patching did not complete successfully",
+                    operation="sys_patch_revert" if self.revert else "sys_patch",
+                )
+            self.finished_signal.emit(succeeded)
+        except Exception as error:
+            stack_trace = traceback.format_exc()
+            send_error_report_async(
+                exception_type=type(error).__name__,
+                exception_message=str(error),
+                stack_trace=stack_trace,
+                operation="sys_patch_revert" if self.revert else "sys_patch",
+            )
             logging.error("An internal error occurred while running the Root Patcher:\n")
-            logging.error(traceback.format_exc())
+            logging.error(stack_trace)
             self.finished_signal.emit(False)
         finally:
             logger.removeHandler(handler)

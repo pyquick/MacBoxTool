@@ -97,8 +97,15 @@ class BuildWorker(QThread):
             self.finished_signal.emit(True, str(self.constants.opencore_release_folder))
         except Exception as e:
             import traceback
+            stack_trace = traceback.format_exc()
+            send_error_report_async(
+                exception_type=type(e).__name__,
+                exception_message=str(e),
+                stack_trace=stack_trace,
+                operation="build_efi",
+            )
             self.log_signal.emit(f"[ERROR] {e}")
-            self.log_signal.emit(traceback.format_exc())
+            self.log_signal.emit(stack_trace)
             self.finished_signal.emit(False, str(e))
         finally:
             root_logger.removeHandler(handler)

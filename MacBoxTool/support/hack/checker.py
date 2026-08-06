@@ -1,0 +1,379 @@
+"""Hardware compatibility scoring for Hackintosh and Apple hardware."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+import platform as host_platform
+import re
+from typing import Any, Iterable
+
+
+class CompatStatus(str, Enum):
+    """Compatibility states shared by the scorer and GUI."""
+
+    PERFECT = "perfect"
+    CONDITIONAL = "conditional"
+    INCOMPATIBLE = "incompatible"
+    UNKNOWN = "unknown"
+
+
+@dataclass
+class ComponentResult:
+    """Compatibility result for one displayed hardware category."""
+
+    category: str
+    name: str
+    score: int = 0
+    status: CompatStatus = CompatStatus.UNKNOWN
+    details: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+    grade_cap: str | None = None
+
+
+@dataclass
+class CompatibilityReport:
+    """Aggregated compatibility result."""
+
+    score: int
+    grade: str
+    status: CompatStatus
+    components: list[ComponentResult]
+    platform: str
+    os_name: str = "Unknown"
+    grade_caps: list[str] = field(default_factory=list)
+
+
+_GRADE_ORDER = ("S", "A", "B", "C", "D")
+_GRADE_CAP_ORDER = {grade: index for index, grade in enumerate(_GRADE_ORDER)}
+_HACKINTOSH_MAX_SCORE = 140
+
+
+def _text(value: Any) -> str:
+    """Convert probe values and enum values to text."""
+    return "" if value is None else str(getattr(value, "value", value))
+
+
+def _name(device: Any) -> str:
+    """Get the best available device name."""
+    return (_text(getattr(device, "name", "")) or _text(getattr(device, "model", "")) or "Unknown").strip()
+
+
+def _contains(device: Any, *values: str) -> bool:
+    """Find text in common hardware identification fields."""
+    text = " ".join(
+        _text(getattr(device, field, ""))
+        for field in ("name", "model", "chipset", "arch", "architecture", "device_id")
+    ).lower()
+    return any(value.lower() in text for value in values)
+
+
+def _is_windows(platform_name: str) -> bool:
+    """Return whether the current report targets Windows."""
+    return platform_name.lower() in {"windows", "win32"}
+
+
+def _cpu_generation(cpu: Any) -> int | None:
+    """Infer an Intel Core generation from probe information."""
+    architecture = _text(getattr(cpu, "architecture", "")).lower().replace(" ", "_")
+    generations = {
+        1: ("nehalem", "westmere"), 2: ("sandy_bridge",), 3: ("ivy_bridge",),
+        4: ("haswell", "haswell_e"), 5: ("broadwell", "broadwell_e"),
+        6: ("skylake", "skylake_x"), 7: ("kaby_lake",), 8: ("coffee_lake",),
+        9: ("whiskey_lake",), 10: ("comet_lake", "ice_lake"),
+        11: ("rocket_lake", "tiger_lake"), 12: ("alder_lake",),
+        13: ("raptor_lake",), 14: ("meteor_lake",), 15: ("arrow_lake", "lunar_lake"),
+    }
+    for generation, names in generations.items():
+        if any(name in architecture for name in names):
+            return generation
+    match = re.search(r"(?:i[3579]|core)\s*[- ]?(\d{4,5})", _text(getattr(cpu, "name", "")).lower())
+    if match:
+        number = match.group(1)
+        return int(number[:2]) if len(number) == 5 else int(number[:1])
+    return None
+
+
+def _apple_cpu_score(cpu: Any) -> tuple[int, str] | None:
+    """Return the Apple Silicon score and model label."""
+    value = " ".join((_text(getattr(cpu, "name", "")), _text(getattr(cpu, "architecture", "")))).lower()
+    if not ("apple" in value or re.search(r"\bm[1-5]\b", value) or "arm64" in value):
+        return None
+    match = re.search(r"\bm([1-5])\b", value)
+    if not match:
+        return 0, "Apple Silicon"
+    suffix = next(((label, score) for label, score in (("ultra", 36), ("max", 19), ("pro", 10)) if label in value), ("", 0))
+    score = {"1": 35, "2": 40, "3": 48, "4": 52, "5": 64}[match.group(1)] + suffix[1]
+    return score, f"M{match.group(1)}{(' ' + suffix[0].title()) if suffix[0] else ''}"
+
+
+def check_cpu(cpu: Any, platform_name: str = "Darwin") -> ComponentResult:
+    """Evaluate CPU support and its score contribution."""
+    if not cpu:
+        return ComponentResult("CPU", "Unknown", status=CompatStatus.UNKNOWN, notes=["CPU data is unavailable"])
+    name = _name(cpu)
+    apple = _apple_cpu_score(cpu)
+    if apple:
+        score, label = apple
+        return ComponentResult("CPU", name, score, CompatStatus.PERFECT, [f"Apple Silicon {label}"])
+
+    vendor = _text(getattr(cpu, "vendor_id", "") or getattr(cpu, "vendor", "")).lower()
+    if "amd" in vendor or "1022" in vendor or _contains(cpu, "ryzen", "threadripper", "epyc", "athlon"):
+        supported = any(token in _text(getattr(cpu, "architecture", "")).lower() for token in ("zen", "bulldozer", "piledriver", "steamroller", "excavator")) or _contains(cpu, "ryzen", "threadripper")
+        return ComponentResult("CPU", name, 10 if supported else 0, CompatStatus.CONDITIONAL if supported else CompatStatus.INCOMPATIBLE, ["AMD CPU support requires a kernel patch" if supported else "Unsupported AMD CPU"], grade_cap="B" if supported else "C")
+
+    generation = _cpu_generation(cpu)
+    if generation is None:
+        return ComponentResult("CPU", name, status=CompatStatus.UNKNOWN, notes=["Intel generation could not be determined"])
+    if generation <= 3:
+        return ComponentResult("CPU", name, 15, CompatStatus.CONDITIONAL, ["Supported with limitations"], ["AVX2 and macOS 13 or newer need additional work"])
+    if generation <= 6:
+        return ComponentResult("CPU", name, 25, CompatStatus.CONDITIONAL, ["Strong compatibility"], ["Integrated graphics is unsupported on macOS 13 or newer"])
+    if generation <= 10:
+        return ComponentResult("CPU", name, 30, CompatStatus.PERFECT, ["Excellent Hackintosh CPU"])
+    if generation == 11:
+        return ComponentResult("CPU", name, 24, CompatStatus.CONDITIONAL, ["Strong compatibility"], ["Integrated graphics cannot be driven"])
+    return ComponentResult("CPU", name, 27, CompatStatus.CONDITIONAL, ["Strong compatibility"], ["Hybrid cores need OpenCore configuration; integrated graphics cannot be driven"])
+
+
+def _gpu_arch(gpu: Any) -> str:
+    """Get a normalized GPU architecture string."""
+    return _text(getattr(gpu, "arch", "") or getattr(gpu, "family", "")).lower()
+
+
+def _gpu_vendor(gpu: Any) -> str:
+    """Identify the GPU vendor from probe data."""
+    vendor = _text(getattr(gpu, "vendor", "")).lower()
+    if vendor:
+        return vendor
+    if _contains(gpu, "nvidia", "geforce", "gtx", "rtx"):
+        return "nvidia"
+    if _contains(gpu, "amd", "radeon", "rx"):
+        return "amd"
+    if _contains(gpu, "intel", "uhd", "iris", "hd graphics"):
+        return "intel"
+    return "unknown"
+
+
+def _gpu_capability(gpu: Any, capability: str) -> bool:
+    """Use explicit capability flags or conservative architecture inference."""
+    explicit = getattr(gpu, capability, None)
+    if explicit is not None:
+        return bool(explicit)
+    arch = _gpu_arch(gpu)
+    if capability == "qe_ci":
+        return not any(token in arch for token in ("unknown", "arc", "xe", "turing", "ampere", "ada"))
+    if capability == "metal":
+        return any(token in arch for token in ("ivy", "haswell", "broadwell", "skylake", "kaby", "coffee", "comet", "ice", "polaris", "vega", "navi", "rdna"))
+    if capability == "metal3":
+        return any(token in arch for token in ("navi", "rdna2", "rdn2"))
+    return False
+
+
+def _gpu_result(gpu: Any, platform_name: str) -> ComponentResult:
+    """Evaluate one GPU for aggregation by check_gpus."""
+    name = _name(gpu)
+    vendor = _gpu_vendor(gpu)
+    arch = _gpu_arch(gpu)
+    if _is_windows(platform_name):
+        return ComponentResult("GPU", name, status=CompatStatus.PERFECT if vendor != "unknown" else CompatStatus.UNKNOWN, details=["Windows driver compatibility detected"])
+    if vendor == "nvidia":
+        if "kepler" in arch:
+            return ComponentResult("GPU", name, 2, CompatStatus.CONDITIONAL, ["NVIDIA Kepler has limited support"], grade_cap="B")
+        return ComponentResult("GPU", name, -2, CompatStatus.INCOMPATIBLE, ["No supported macOS driver"], grade_cap="C")
+    if vendor == "intel":
+        if any(token in arch for token in ("arc", "xe", "alder", "raptor", "meteor", "arrow")):
+            return ComponentResult("GPU", name, -2, CompatStatus.INCOMPATIBLE, ["Integrated graphics cannot be driven"], grade_cap="C")
+        if _contains(gpu, "uhd 630", "uhd graphics 630"):
+            return ComponentResult("GPU", name, 5, CompatStatus.PERFECT, ["Supported Intel graphics"])
+        if _contains(gpu, "hd 4000", "hd graphics 4000", "hd 5000", "hd 6000", "hd 630", "iris"):
+            return ComponentResult("GPU", name, 2, CompatStatus.CONDITIONAL, ["Supported Intel graphics"])
+        return ComponentResult("GPU", name, -2, CompatStatus.INCOMPATIBLE, ["Unsupported Intel graphics"], grade_cap="C")
+    if vendor == "amd":
+        if re.search(r"\brx\s*(5[6-9]\d|6\d{3})\b", name.lower()) and "6950" not in name.lower():
+            return ComponentResult("GPU", name, 15, CompatStatus.PERFECT, ["Native AMD graphics support"])
+        return ComponentResult("GPU", name, 5, CompatStatus.CONDITIONAL, ["AMD graphics needs compatibility confirmation"])
+    return ComponentResult("GPU", name, status=CompatStatus.UNKNOWN, notes=["GPU vendor could not be determined"])
+
+
+def check_gpus(gpus: Iterable[Any] | None, computer: Any = None, platform_name: str = "Darwin") -> ComponentResult:
+    """Evaluate all GPUs as one card and count graphics capabilities once."""
+    devices = list(gpus or [])
+    if not devices:
+        return ComponentResult("GPU", "Not detected", status=CompatStatus.UNKNOWN, notes=["GPU data is unavailable"])
+    results = [_gpu_result(gpu, platform_name) for gpu in devices]
+    names = ", ".join(result.name for result in results)
+    if _is_windows(platform_name):
+        status = CompatStatus.UNKNOWN if any(result.status == CompatStatus.UNKNOWN for result in results) else CompatStatus.PERFECT
+        return ComponentResult("GPU", names, status=status, details=["Windows graphics support is detected"])
+
+    score = sum(result.score for result in results)
+    qe_ci = any(_gpu_capability(gpu, "qe_ci") for gpu in devices)
+    metal = any(_gpu_capability(gpu, "metal") for gpu in devices)
+    metal3 = any(_gpu_capability(gpu, "metal3") for gpu in devices)
+    metal4 = any(_gpu_capability(gpu, "metal4") for gpu in devices)
+    if qe_ci:
+        score += 15
+    if metal:
+        score += 20
+    score += 25 if metal3 else 40 if metal4 else 0
+
+    vendors = {_gpu_vendor(gpu) for gpu in devices}
+    model = _text(getattr(computer, "reported_model", "") or getattr(computer, "real_model", ""))
+    has_intel = any(_gpu_vendor(gpu) == "intel" and result.status != CompatStatus.INCOMPATIBLE for gpu, result in zip(devices, results))
+    has_amd = any(_gpu_vendor(gpu) == "amd" and result.status != CompatStatus.INCOMPATIBLE for gpu, result in zip(devices, results))
+    if has_intel and has_amd and model.startswith(("iMac", "MacBookPro")):
+        score += 5
+
+    caps = [result.grade_cap for result in results if result.grade_cap]
+    details = ["Full graphics acceleration" if qe_ci and metal else "Graphics acceleration has limitations"]
+    notes = [note for result in results for note in result.notes]
+    if has_intel and has_amd and model.startswith(("iMac", "MacBookPro")):
+        details.append("Supported Intel and AMD graphics combination")
+    status = CompatStatus.INCOMPATIBLE if any(result.status == CompatStatus.INCOMPATIBLE for result in results) else CompatStatus.CONDITIONAL if any(result.status in (CompatStatus.CONDITIONAL, CompatStatus.UNKNOWN) for result in results) else CompatStatus.PERFECT
+    return ComponentResult("GPU", names, score, status, details, notes, max(caps, key=_GRADE_CAP_ORDER.get) if caps else None)
+
+
+def check_gpu(gpu: Any, platform_name: str = "Darwin") -> ComponentResult:
+    """Backward-compatible single-GPU entry point."""
+    result = check_gpus([gpu] if gpu else [], platform_name=platform_name)
+    return result
+
+
+def _is_hackintosh(computer: Any) -> bool:
+    """Return whether firmware identifies a non-Apple host."""
+    firmware = _text(getattr(computer, "firmware_vendor", "")).lower() if computer else ""
+    return bool(firmware and firmware != "apple")
+
+
+def check_wifi(wifi: Any, platform_name: str = "Darwin", computer: Any = None) -> ComponentResult:
+    """Evaluate Wi-Fi compatibility."""
+    if not wifi:
+        return ComponentResult("Wi-Fi", "Not detected", status=CompatStatus.UNKNOWN, notes=["Wi-Fi card was not detected"])
+    name = _name(wifi)
+    value = " ".join(_text(getattr(wifi, field, "")) for field in ("name", "model", "chipset", "device_id")).lower()
+    if any(token in value for token in ("4364", "4377", "2018", "applebcmwlanbusinterfacepcie")):
+        if _is_hackintosh(computer):
+            return ComponentResult("Wi-Fi", name, status=CompatStatus.INCOMPATIBLE, details=["Apple-exclusive Wi-Fi is not compatible with Hackintosh"])
+        return ComponentResult("Wi-Fi", name, 20, CompatStatus.PERFECT, ["Apple-native Wi-Fi"] if not _is_windows(platform_name) else ["Native Windows Wi-Fi"])
+    if any(token in value for token in ("94360", "943602", "94352", "airportbrcm4360")):
+        return ComponentResult("Wi-Fi", name, 15, CompatStatus.PERFECT, ["Native Wi-Fi support"])
+    if "intel" in value or "0x8086" in value:
+        return ComponentResult("Wi-Fi", name, 5, CompatStatus.CONDITIONAL, ["Intel Wi-Fi support"], ["Additional Wi-Fi software is required"])
+    if "dw560" in value:
+        return ComponentResult("Wi-Fi", name, 5, CompatStatus.CONDITIONAL, ["Dell DW560 support"])
+    return ComponentResult("Wi-Fi", name, status=CompatStatus.UNKNOWN, notes=["Wi-Fi chipset needs confirmation"])
+
+
+def check_board(computer: Any) -> ComponentResult:
+    """Evaluate motherboard settings and Apple security chips."""
+    if not computer:
+        return ComponentResult("Motherboard", "Unknown", status=CompatStatus.UNKNOWN)
+    model = _text(getattr(computer, "reported_model", "") or getattr(computer, "real_model", ""))
+    value = " ".join((model, _text(getattr(computer, "reported_board_id", "")), _text(getattr(computer, "chipset", "")))).lower()
+    score, details, notes = 0, [], []
+    if getattr(computer, "cfg_lock", None) is True or getattr(computer, "cfg_lock_locked", None) is True:
+        score -= 5
+        details.append("CFG Lock must be disabled")
+    else:
+        details.append("CFG Lock is not reported as enabled")
+    if getattr(computer, "t2_chip", False):
+        score += 15
+        details.append("Apple T2 security chip")
+    elif getattr(computer, "t1_chip", False):
+        score += 5
+        details.append("Apple T1 security chip")
+    if any(token in value for token in ("z390", "z490", "z590", "z690", "z790")) and "z370" not in value:
+        notes.append("Native NVRAM may be unavailable; apply the PMC patch")
+    status = CompatStatus.CONDITIONAL if score < 15 or notes else CompatStatus.PERFECT
+    return ComponentResult("Motherboard", model or "Unknown", score, status, details, notes)
+
+
+def check_storage(storages: Iterable[Any] | None) -> ComponentResult:
+    """Evaluate all storage devices as one category."""
+    devices = list(storages or [])
+    if not devices:
+        return ComponentResult("Storage", "Not detected", status=CompatStatus.UNKNOWN, notes=["Storage device was not detected"])
+    score, details, notes, cap = 0, [], [], None
+    for storage in devices:
+        value = " ".join(_text(getattr(storage, field, "")) for field in ("name", "model")).lower()
+        if "apple" in value:
+            score += 20
+            details.append(f"{_name(storage)}: Apple SSD")
+        elif "western digital" in value or re.search(r"\bwd\b", value):
+            score += 10
+            details.append(f"{_name(storage)}: recommended SSD")
+        elif any(token in value for token in ("pm981", "pm991", "9a1")):
+            score -= 2
+            cap = "B"
+            details.append(f"{_name(storage)}: known-problem NVMe")
+            notes.append("This NVMe model limits the overall grade to B")
+        else:
+            score += 5
+            details.append(f"{_name(storage)}: compatible storage")
+    status = CompatStatus.INCOMPATIBLE if score < 0 else CompatStatus.CONDITIONAL if notes else CompatStatus.PERFECT
+    return ComponentResult("Storage", ", ".join(_name(device) for device in devices), score, status, details, notes, cap)
+
+
+def _needs_system_patches(computer: Any, cpu_result: ComponentResult, gpu_result: ComponentResult) -> bool | None:
+    """Determine whether detected hardware needs macOS root patches."""
+    if not computer:
+        return None
+    if cpu_result.status == CompatStatus.UNKNOWN or gpu_result.status == CompatStatus.UNKNOWN:
+        return None
+    return cpu_result.status == CompatStatus.CONDITIONAL and _cpu_generation(getattr(computer, "cpu", None)) in range(1, 7) or gpu_result.status == CompatStatus.INCOMPATIBLE
+
+
+def _system_results(constants: Any, computer: Any, cpu_result: ComponentResult, gpu_result: ComponentResult) -> list[ComponentResult]:
+    """Evaluate patch requirements and the current macOS version."""
+    patched = bool(_text(getattr(computer, "mbt_sys_version", ""))) if computer else False
+    needs_patches = _needs_system_patches(computer, cpu_result, gpu_result)
+    if not patched and needs_patches is False:
+        patch = ComponentResult("System Patch", "macOS", 5, CompatStatus.PERFECT, ["No patches required"])
+    elif needs_patches is None:
+        patch = ComponentResult("System Patch", "macOS", status=CompatStatus.UNKNOWN, notes=["Patch requirement needs confirmation"])
+    else:
+        patch = ComponentResult("System Patch", "macOS", status=CompatStatus.CONDITIONAL, details=["Patches required"])
+
+    kernel = int(getattr(constants, "detected_os", 0) or 0)
+    cpu_is_apple = _apple_cpu_score(getattr(computer, "cpu", None)) is not None
+    if kernel >= 26 and cpu_is_apple:
+        score, status, detail = 10, CompatStatus.PERFECT, "macOS 27 or newer on Apple Silicon"
+    elif kernel >= 26:
+        score, status, detail = 0, CompatStatus.CONDITIONAL, "macOS 27 or newer needs confirmation on Hackintosh"
+    elif kernel >= 25:
+        score, status, detail = 5, CompatStatus.PERFECT, "macOS 26 compatibility target"
+    elif kernel >= 22:
+        score, status, detail = 1, CompatStatus.PERFECT, "macOS 13 or newer"
+    else:
+        score, status, detail = 0, CompatStatus.CONDITIONAL, "macOS version is older than macOS 13"
+    os_result = ComponentResult("macOS", _text(getattr(constants, "detected_os_version", "")) or "Unknown", score, status, [detail])
+    return [patch, os_result]
+
+
+def _grade(score: int, caps: Iterable[str]) -> str:
+    """Apply the fixed Hackintosh score thresholds and hardware caps."""
+    grade = "S" if score >= _HACKINTOSH_MAX_SCORE - 5 else "A" if score >= _HACKINTOSH_MAX_SCORE - 17 else "B" if score >= 90 else "C" if score >= 40 else "D"
+    for cap in caps:
+        if _GRADE_CAP_ORDER.get(cap, 4) > _GRADE_CAP_ORDER[grade]:
+            grade = cap
+    return grade
+
+
+def check_hardware(computer: Any, constants: Any = None, platform_name: str | None = None) -> CompatibilityReport:
+    """Evaluate detected hardware without probing or mutating the system."""
+    platform_name = platform_name or host_platform.system()
+    cpu_result = check_cpu(getattr(computer, "cpu", None), platform_name)
+    gpu_result = check_gpus(getattr(computer, "gpus", []), computer, platform_name)
+    components = [cpu_result, gpu_result, check_wifi(getattr(computer, "wifi", None), platform_name, computer), check_board(computer), check_storage(getattr(computer, "storage", []))]
+    components.extend(_system_results(constants, computer, cpu_result, gpu_result))
+    caps = [result.grade_cap for result in components if result.grade_cap]
+    score = max(0, sum(result.score for result in components))
+    status = CompatStatus.INCOMPATIBLE if any(result.status == CompatStatus.INCOMPATIBLE for result in components) else CompatStatus.CONDITIONAL if any(result.status in (CompatStatus.CONDITIONAL, CompatStatus.UNKNOWN) for result in components) else CompatStatus.PERFECT
+    os_name = _text(getattr(constants, "detected_os_version", "")) if constants else "Unknown"
+    return CompatibilityReport(score, _grade(score, caps), status, components, platform_name, os_name, caps)
+
+
+evaluate = check_hardware
+
+__all__ = ["CompatStatus", "ComponentResult", "CompatibilityReport", "check_cpu", "check_gpu", "check_gpus", "check_wifi", "check_board", "check_storage", "check_hardware", "evaluate"]

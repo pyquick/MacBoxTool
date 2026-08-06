@@ -17,8 +17,8 @@ import requests
 
 # ── Configuration ──────────────────────────────────────────────
 CRASH_SERVER_URL: str = "http://127.0.0.1:8080/api/v1/crash-report"
-CRASH_API_KEY:  str = "crs_1r4lA_ybvu1VqzwS2nUXkUwfY---SXkOWkcSyaWt4qI"
-ALLOWED_HOSTNAME: str = "JN26"
+CRASH_API_KEY:  str = "crs_lvrPC3XE4yUCXPrdIt_44EAVQXnkqXcbSgWLDYktG1g"
+ALLOWED_HOSTNAME: str = "GhltbmA2141.local"
 PROJECT_NAME:    str = "MacBoxTool"
 
 # ── Constants ──────────────────────────────────────────────────
@@ -180,6 +180,41 @@ def send_crash_report_async(
     """
     thread = threading.Thread(
         target=send_crash_report,
+        args=(exception_type, exception_message, stack_trace, log_text),
+        kwargs=extra,
+        daemon=True,
+    )
+    thread.start()
+
+
+def send_error_report(
+    exception_type: str,
+    exception_message: str,
+    stack_trace: str = "",
+    log_text: str = "",
+    **extra: Any,
+) -> bool:
+    """Send a handled error report without classifying it as a crash."""
+    extra["error_severity"] = "error"
+    return send_crash_report(
+        exception_type=exception_type,
+        exception_message=exception_message,
+        stack_trace=stack_trace,
+        log_text=log_text,
+        **extra,
+    )
+
+
+def send_error_report_async(
+    exception_type: str,
+    exception_message: str,
+    stack_trace: str = "",
+    log_text: str = "",
+    **extra: Any,
+) -> None:
+    """Send a handled error report in a background thread."""
+    thread = threading.Thread(
+        target=send_error_report,
         args=(exception_type, exception_message, stack_trace, log_text),
         kwargs=extra,
         daemon=True,

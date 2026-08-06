@@ -1,1 +1,5 @@
-from ...datasets import cpu_data
+"""CPU compatibility checks."""
+
+from .checker import check_cpu
+
+__all__ = ["check_cpu"]

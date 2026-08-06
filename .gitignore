@@ -16,9 +16,12 @@ Universal-Binaries
 Universal-Binaries_overlay
 downloads/
 eggs/
+*Hackintosh*
+*Hack*
 MacBoxTool.plist
 .claude
 *.zip
+*test*
 .eggs/
 test.py
 EFI_Build/
