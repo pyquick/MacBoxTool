@@ -8,7 +8,7 @@ import re
 import hashlib
 import winreg
 from dataclasses import dataclass, field
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 import wmi
 
 from ..datasets import cpu_data, pci_data, usb_data
@@ -741,6 +741,7 @@ class Computer:
     firmware_vendor:      Optional[str]  = None
     rosetta_active:       bool           = False
     t2_chip:              bool           = False
+    security_chip_details: list[dict[str, Any]] = field(default_factory=list)
     _wmi:                 object         = field(default=None, repr=False)
     _pci_cache:           list           = field(default_factory=list, repr=False)
     _usb_raw:             list           = field(default_factory=list, repr=False)
@@ -974,11 +975,23 @@ class Computer:
             if dev.vendor_id != 0x5ac:
                 continue
             if dev.device_id == 0x8600:
-                self.t1_chip = True; return
+                self.t1_chip = True
+                self.security_chip_details.append({
+                    "type": "Apple T1", "vendor_id": dev.vendor_id,
+                    "device_id": dev.device_id, "name": dev.product_name,
+                    "source": "USB",
+                })
+                return
             if dev.device_id == 0x1281 and dev.serial_number:
                 parts = dev.serial_number.split(" ")
                 if "CPID:8002" in parts and ("BDID:12" in parts or "BDID:13" in parts):
-                    self.t1_chip = True; return
+                    self.t1_chip = True
+                    self.security_chip_details.append({
+                        "type": "Apple T1", "vendor_id": dev.vendor_id,
+                        "device_id": dev.device_id, "name": dev.product_name,
+                        "source": "USB DFU",
+                    })
+                    return
 
     def t2_probe(self):
         """Detect currently-present Apple T2 controllers by PCI hardware ID."""
@@ -998,6 +1011,11 @@ class Computer:
                 continue
             if getattr(device, "Present", True) is not False:
                 self.t2_chip = True
+                self.security_chip_details.append({
+                    "type": "Apple T2", "vendor_id": int(match.group(1), 16),
+                    "device_id": int(match.group(2), 16),
+                    "name": getattr(device, "Name", None), "source": "PCI/WMI",
+                })
                 return
 
     def ambient_light_sensor_probe(self):

@@ -31,6 +31,24 @@ class ComponentResult:
     grade_cap: str | None = None
 
 
+@dataclass(frozen=True)
+class NativeMacOSRange:
+    """Native macOS support range without third-party or system patches."""
+
+    minimum: str | None = None
+    maximum: str | None = None
+    reason: str | None = None
+
+    @property
+    def label(self) -> str:
+        """Format the native support range for display."""
+        if self.reason:
+            return self.reason
+        if not self.minimum or not self.maximum:
+            return "Unknown"
+        return f"macOS {self.minimum} – macOS {self.maximum}"
+
+
 @dataclass
 class CompatibilityReport:
     """Aggregated compatibility result."""
@@ -47,6 +65,74 @@ class CompatibilityReport:
 _GRADE_ORDER = ("S", "A", "B", "C", "D")
 _GRADE_CAP_ORDER = {grade: index for index, grade in enumerate(_GRADE_ORDER)}
 _HACKINTOSH_MAX_SCORE = 140
+_PROBLEMATIC_SAMSUNG_NVME = {
+    0xA808: "Samsung PM981",
+    0xA80A: "Samsung PM9A1",
+}
+_CPU_NATIVE_MINIMUMS = {
+    "yonah": "10.4", "conroe": "10.4", "penryn": "10.5",
+    "nehalem": "10.5", "westmere": "10.6", "sandy_bridge": "10.7",
+    "sandy_bridge_e": "10.7", "ivy_bridge": "10.8", "ivy_bridge_e": "10.9",
+    "haswell": "10.9", "haswell_e": "10.10", "broadwell": "10.10",
+    "broadwell_e": "10.11", "skylake": "10.11", "skylake_x": "10.13",
+    "kaby_lake": "10.12", "kaby_lake_or_coffee_lake": "10.12",
+    "coffee_lake": "10.13", "whiskey_lake": "10.14", "comet_lake": "10.15",
+    "ice_lake": "10.15", "rocket_lake": "11.3", "tiger_lake": "11.0",
+    "alder_lake": "12", "raptor_lake": "13", "meteor_lake": "14",
+    "arrow_lake": "15", "lunar_lake": "15",
+}
+_APPLE_SILICON_MINIMUMS = {
+    "1": "11",
+    "2": "12.4",
+    "3": "14.1",
+    "4": "15.1",
+    "5": "26",
+}
+_GPU_NATIVE_RANGES = {
+    "r500": ("10.4", "10.7"),
+    "gma 950": ("10.4", "10.7"),
+    "gma x3100": ("10.5", "10.7"),
+    "iron lake": ("10.6", "10.13"),
+    "sandy bridge": ("10.7", "10.13"),
+    "ivy bridge": ("10.8", "11"),
+    "haswell": ("10.9", "12"),
+    "broadwell": ("10.10", "12"),
+    "skylake": ("10.11", "12"),
+    "kaby lake": ("10.12", "26"),
+    "coffee lake": ("10.13", "26"),
+    "comet lake": ("10.15", "26"),
+    "ice lake": ("10.15", "26"),
+    "terascale 1": ("10.4", "10.13"),
+    "terascale 2": ("10.7", "10.13"),
+    "legacy gcn v1": ("10.10", "12"),
+    "legacy gcn v2": ("10.11", "12"),
+    "legacy gcn v3": ("10.12", "12"),
+    "polaris": ("10.12", "26"),
+    "vega": ("10.13", "26"),
+    "navi": ("10.15", "26"),
+    "curie": ("10.4", "10.7"),
+    "tesla": ("10.4", "10.13"),
+    "fermi": ("10.6", "10.13"),
+    "kepler": ("10.8", "11"),
+}
+_APPLE_WIFI_MINIMUMS = {
+    0x43DC: "10.12",
+    0x4464: "10.14",
+    0x4488: "10.14",
+}
+_APPLE_SILICON_WIFI_MINIMUMS = {
+    0x4425: "11",
+    0x4433: "12",
+}
+_RDNA2_DEVICE_IDS = {
+    0x73A2,
+    0x73A3,
+    0x73AB,
+    0x73BF,
+    0x73E0,
+    0x73E3,
+    0x73FF,
+}
 
 
 def _text(value: Any) -> str:
@@ -57,6 +143,19 @@ def _text(value: Any) -> str:
 def _name(device: Any) -> str:
     """Get the best available device name."""
     return (_text(getattr(device, "name", "")) or _text(getattr(device, "model", "")) or "Unknown").strip()
+
+
+def _hardware_id(value: Any) -> int | None:
+    """Normalize integer and hexadecimal hardware identifiers."""
+    if value in (None, ""):
+        return None
+    if isinstance(value, int):
+        return value
+    try:
+        text = str(value).strip()
+        return int(text, 16 if text.lower().startswith("0x") or any(character in "abcdefABCDEF" for character in text) else 10)
+    except (TypeError, ValueError):
+        return None
 
 
 def _contains(device: Any, *values: str) -> bool:
@@ -76,6 +175,8 @@ def _is_windows(platform_name: str) -> bool:
 def _cpu_generation(cpu: Any) -> int | None:
     """Infer an Intel Core generation from probe information."""
     architecture = _text(getattr(cpu, "architecture", "")).lower().replace(" ", "_")
+    if architecture in {"yonah", "conroe", "penryn"}:
+        return 0
     generations = {
         1: ("nehalem", "westmere"), 2: ("sandy_bridge",), 3: ("ivy_bridge",),
         4: ("haswell", "haswell_e"), 5: ("broadwell", "broadwell_e"),
@@ -105,6 +206,80 @@ def _apple_cpu_score(cpu: Any) -> tuple[int, str] | None:
     suffix = next(((label, score) for label, score in (("ultra", 36), ("max", 19), ("pro", 10)) if label in value), ("", 0))
     score = {"1": 35, "2": 40, "3": 48, "4": 52, "5": 64}[match.group(1)] + suffix[1]
     return score, f"M{match.group(1)}{(' ' + suffix[0].title()) if suffix[0] else ''}"
+
+
+def native_cpu_macos_range(cpu: Any) -> NativeMacOSRange:
+    """Return the fully native macOS range for a CPU."""
+    if not cpu:
+        return NativeMacOSRange()
+    apple = _apple_cpu_score(cpu)
+    if apple:
+        match = re.search(r"\bm([1-5])(?:\s|\b)", _text(getattr(cpu, "name", "")).lower())
+        if not match:
+            return NativeMacOSRange()
+        return NativeMacOSRange(_APPLE_SILICON_MINIMUMS[match.group(1)], "27+")
+
+    vendor = _text(getattr(cpu, "vendor_id", "") or getattr(cpu, "vendor", "")).lower()
+    if "amd" in vendor or "1022" in vendor or _contains(cpu, "ryzen", "threadripper", "epyc", "athlon"):
+        return NativeMacOSRange(reason="Not natively supported")
+
+    architecture = _text(getattr(cpu, "architecture", "")).lower().replace(" ", "_")
+    minimum = _CPU_NATIVE_MINIMUMS.get(architecture)
+    generation = _cpu_generation(cpu)
+    if not minimum or generation is None:
+        return NativeMacOSRange()
+    return NativeMacOSRange(minimum, "12" if generation <= 3 else "26")
+
+
+def native_gpu_macos_range(gpu: Any) -> NativeMacOSRange:
+    """Return the macOS range containing native drivers for one GPU."""
+    if not gpu:
+        return NativeMacOSRange()
+    vendor = _gpu_vendor(gpu)
+    arch = _gpu_arch(gpu).replace("_", " ").strip()
+    if vendor == "nvidia" and arch in {"maxwell", "pascal", "turing", "ampere", "ada"}:
+        return NativeMacOSRange(reason="Not natively supported")
+    if vendor == "intel" and any(value in arch for value in ("arc", "xe", "alder", "raptor", "meteor", "arrow")):
+        return NativeMacOSRange(reason="Not natively supported")
+    if vendor == "amd" and ("spoof" in arch or arch == "rdna3"):
+        return NativeMacOSRange(reason="Not natively supported")
+    if vendor == "amd" and arch == "navi" and _hardware_id(getattr(gpu, "device_id", None)) in _RDNA2_DEVICE_IDS:
+        return NativeMacOSRange("11.4", "26")
+    native_range = _GPU_NATIVE_RANGES.get(arch)
+    if not native_range:
+        return NativeMacOSRange()
+    return NativeMacOSRange(*native_range)
+
+
+def native_wifi_macos_range(wifi: Any, computer: Any = None) -> NativeMacOSRange:
+    """Return the fully native macOS range for one Wi-Fi card."""
+    if not wifi:
+        return NativeMacOSRange()
+    vendor_id = _hardware_id(getattr(wifi, "vendor_id", None))
+    device_id = _hardware_id(getattr(wifi, "device_id", None))
+    value = " ".join(
+        _text(getattr(wifi, field, ""))
+        for field in ("name", "model", "chipset")
+    ).lower()
+    if vendor_id == 0x8086 or "intel" in value:
+        return NativeMacOSRange(reason="Not natively supported")
+    if "thirdparty" in value or "airportbrcmfixup" in value:
+        return NativeMacOSRange(reason="Not natively supported")
+    if any(token in value for token in ("airportbrcm4331", "airportbrcm43224", "atheros40")):
+        return NativeMacOSRange("10.6", "11")
+    if any(token in value for token in ("airportbrcm4360", "airportbrcmnic")):
+        return NativeMacOSRange("10.8", "13")
+    if vendor_id == 0x14E4 and device_id in _APPLE_SILICON_WIFI_MINIMUMS:
+        if _is_hackintosh(computer):
+            return NativeMacOSRange(reason="Not natively supported")
+        return NativeMacOSRange(_APPLE_SILICON_WIFI_MINIMUMS[device_id], "27+")
+    if vendor_id == 0x14E4 and device_id in _APPLE_WIFI_MINIMUMS:
+        if _is_hackintosh(computer):
+            return NativeMacOSRange(reason="Not natively supported")
+        return NativeMacOSRange(_APPLE_WIFI_MINIMUMS[device_id], "26")
+    if vendor_id not in (0x14E4, 0x168C):
+        return NativeMacOSRange(reason="Not natively supported")
+    return NativeMacOSRange()
 
 
 def check_cpu(cpu: Any, platform_name: str = "Darwin") -> ComponentResult:
@@ -142,10 +317,17 @@ def _gpu_arch(gpu: Any) -> str:
 
 
 def _gpu_vendor(gpu: Any) -> str:
-    """Identify the GPU vendor from probe data."""
+    """Identify the GPU vendor from probe data and PCI identifiers."""
     vendor = _text(getattr(gpu, "vendor", "")).lower()
     if vendor:
         return vendor
+    vendor_id = _hardware_id(getattr(gpu, "vendor_id", None))
+    if vendor_id in {0x1002, 0x1022}:
+        return "amd"
+    if vendor_id == 0x10DE:
+        return "nvidia"
+    if vendor_id == 0x8086:
+        return "intel"
     if _contains(gpu, "nvidia", "geforce", "gtx", "rtx"):
         return "nvidia"
     if _contains(gpu, "amd", "radeon", "rx"):
@@ -157,6 +339,8 @@ def _gpu_vendor(gpu: Any) -> str:
 
 def _gpu_capability(gpu: Any, capability: str) -> bool:
     """Use explicit capability flags or conservative architecture inference."""
+    if capability.startswith("metal") and getattr(gpu, "disable_metal", False):
+        return False
     explicit = getattr(gpu, capability, None)
     if explicit is not None:
         return bool(explicit)
@@ -164,6 +348,9 @@ def _gpu_capability(gpu: Any, capability: str) -> bool:
     if capability == "qe_ci":
         return not any(token in arch for token in ("unknown", "arc", "xe", "turing", "ampere", "ada"))
     if capability == "metal":
+        metal2 = getattr(gpu, "metal2", None)
+        if metal2 is not None:
+            return bool(metal2)
         return any(token in arch for token in ("ivy", "haswell", "broadwell", "skylake", "kaby", "coffee", "comet", "ice", "polaris", "vega", "navi", "rdna"))
     if capability == "metal3":
         return any(token in arch for token in ("navi", "rdna2", "rdn2"))
@@ -209,14 +396,14 @@ def check_gpus(gpus: Iterable[Any] | None, computer: Any = None, platform_name: 
 
     score = sum(result.score for result in results)
     qe_ci = any(_gpu_capability(gpu, "qe_ci") for gpu in devices)
-    metal = any(_gpu_capability(gpu, "metal") for gpu in devices)
     metal3 = any(_gpu_capability(gpu, "metal3") for gpu in devices)
     metal4 = any(_gpu_capability(gpu, "metal4") for gpu in devices)
+    metal = metal3 or metal4 or any(_gpu_capability(gpu, "metal") for gpu in devices)
     if qe_ci:
         score += 15
     if metal:
         score += 20
-    score += 25 if metal3 else 40 if metal4 else 0
+    score += 40 if metal4 else 25 if metal3 else 0
 
     vendors = {_gpu_vendor(gpu) for gpu in devices}
     model = _text(getattr(computer, "reported_model", "") or getattr(computer, "real_model", ""))
@@ -228,9 +415,15 @@ def check_gpus(gpus: Iterable[Any] | None, computer: Any = None, platform_name: 
     caps = [result.grade_cap for result in results if result.grade_cap]
     details = ["Full graphics acceleration" if qe_ci and metal else "Graphics acceleration has limitations"]
     notes = [note for result in results for note in result.notes]
+    if metal4:
+        details.append("Metal 4 support")
+    elif metal3:
+        details.append("Metal 3 support")
+    elif metal:
+        details.append("Metal 2 support")
     if has_intel and has_amd and model.startswith(("iMac", "MacBookPro")):
         details.append("Supported Intel and AMD graphics combination")
-    status = CompatStatus.INCOMPATIBLE if any(result.status == CompatStatus.INCOMPATIBLE for result in results) else CompatStatus.CONDITIONAL if any(result.status in (CompatStatus.CONDITIONAL, CompatStatus.UNKNOWN) for result in results) else CompatStatus.PERFECT
+    status = CompatStatus.INCOMPATIBLE if any(result.status == CompatStatus.INCOMPATIBLE for result in results) else CompatStatus.PERFECT if metal else CompatStatus.CONDITIONAL
     return ComponentResult("GPU", names, score, status, details, notes, max(caps, key=_GRADE_CAP_ORDER.get) if caps else None)
 
 
@@ -277,12 +470,20 @@ def check_board(computer: Any) -> ComponentResult:
         details.append("CFG Lock must be disabled")
     else:
         details.append("CFG Lock is not reported as enabled")
+    security_chips = list(getattr(computer, "security_chip_details", []) or [])
     if getattr(computer, "t2_chip", False):
         score += 15
         details.append("Apple T2 security chip")
-    elif getattr(computer, "t1_chip", False):
+    if getattr(computer, "t1_chip", False):
         score += 5
         details.append("Apple T1 security chip")
+    for chip in security_chips:
+        chip_type = _text(chip.get("type", "Apple security chip"))
+        vendor_id = _hardware_id(chip.get("vendor_id"))
+        device_id = _hardware_id(chip.get("device_id"))
+        source = _text(chip.get("source", ""))
+        identity = ":".join(f"{hardware_id:04X}" for hardware_id in (vendor_id, device_id) if hardware_id is not None)
+        details.append(" | ".join(value for value in (chip_type, identity, source) if value))
     if any(token in value for token in ("z390", "z490", "z590", "z690", "z790")) and "z370" not in value:
         notes.append("Native NVRAM may be unavailable; apply the PMC patch")
     status = CompatStatus.CONDITIONAL if score < 15 or notes else CompatStatus.PERFECT
@@ -296,21 +497,22 @@ def check_storage(storages: Iterable[Any] | None) -> ComponentResult:
         return ComponentResult("Storage", "Not detected", status=CompatStatus.UNKNOWN, notes=["Storage device was not detected"])
     score, details, notes, cap = 0, [], [], None
     for storage in devices:
-        value = " ".join(_text(getattr(storage, field, "")) for field in ("name", "model")).lower()
-        if "apple" in value:
+        vendor_id = _hardware_id(getattr(storage, "vendor_id", None))
+        device_id = _hardware_id(getattr(storage, "device_id", None))
+        if vendor_id == 0x106B:
             score += 20
-            details.append(f"{_name(storage)}: Apple SSD")
-        elif "western digital" in value or re.search(r"\bwd\b", value):
+            details.append(f"{_name(storage)}: Apple storage controller")
+        elif vendor_id == 0x15B7:
             score += 10
-            details.append(f"{_name(storage)}: recommended SSD")
-        elif any(token in value for token in ("pm981", "pm991", "9a1")):
+            details.append(f"{_name(storage)}: recommended Western Digital controller")
+        elif vendor_id == 0x144D and device_id in _PROBLEMATIC_SAMSUNG_NVME:
             score -= 2
             cap = "B"
-            details.append(f"{_name(storage)}: known-problem NVMe")
-            notes.append("This NVMe model limits the overall grade to B")
+            details.append(f"{_name(storage)}: known-problem {_PROBLEMATIC_SAMSUNG_NVME[device_id]} controller")
+            notes.append("This NVMe controller limits the overall grade to B")
         else:
             score += 5
-            details.append(f"{_name(storage)}: compatible storage")
+            details.append(f"{_name(storage)}: compatible storage controller")
     status = CompatStatus.INCOMPATIBLE if score < 0 else CompatStatus.CONDITIONAL if notes else CompatStatus.PERFECT
     return ComponentResult("Storage", ", ".join(_name(device) for device in devices), score, status, details, notes, cap)
 
@@ -376,4 +578,9 @@ def check_hardware(computer: Any, constants: Any = None, platform_name: str | No
 
 evaluate = check_hardware
 
-__all__ = ["CompatStatus", "ComponentResult", "CompatibilityReport", "check_cpu", "check_gpu", "check_gpus", "check_wifi", "check_board", "check_storage", "check_hardware", "evaluate"]
+__all__ = [
+    "CompatStatus", "ComponentResult", "CompatibilityReport", "NativeMacOSRange",
+    "native_cpu_macos_range", "native_gpu_macos_range", "native_wifi_macos_range",
+    "check_cpu", "check_gpu", "check_gpus", "check_wifi", "check_board",
+    "check_storage", "check_hardware", "evaluate",
+]
