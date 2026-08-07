@@ -266,6 +266,8 @@ class HardwareSupport(ScrollArea):
         """Choose visual state for a native macOS range."""
         if native_range.reason == "Not natively supported":
             return FluentIcon.CLOSE, COLORS["error"]
+        if native_range.reason and native_range.reason.startswith("Compatible with"):
+            return FluentIcon.INFO, COLORS["warning"]
         if native_range.minimum and native_range.maximum:
             return FluentIcon.COMPLETED, COLORS["success"]
         return FluentIcon.INFO, COLORS["warning"]

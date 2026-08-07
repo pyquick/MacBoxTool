@@ -262,7 +262,7 @@ def native_wifi_macos_range(wifi: Any, computer: Any = None) -> NativeMacOSRange
         for field in ("name", "model", "chipset")
     ).lower()
     if vendor_id == 0x8086 or "intel" in value:
-        return NativeMacOSRange(reason="Not natively supported")
+        return NativeMacOSRange(reason="Compatible with itlwm/AirportItlwm (hardware support)")
     if "thirdparty" in value or "airportbrcmfixup" in value:
         return NativeMacOSRange(reason="Not natively supported")
     if any(token in value for token in ("airportbrcm4331", "airportbrcm43224", "atheros40")):
@@ -452,7 +452,7 @@ def check_wifi(wifi: Any, platform_name: str = "Darwin", computer: Any = None) -
     if any(token in value for token in ("94360", "943602", "94352", "airportbrcm4360")):
         return ComponentResult("Wi-Fi", name, 15, CompatStatus.PERFECT, ["Native Wi-Fi support"])
     if "intel" in value or "0x8086" in value:
-        return ComponentResult("Wi-Fi", name, 5, CompatStatus.CONDITIONAL, ["Intel Wi-Fi support"], ["Additional Wi-Fi software is required"])
+        return ComponentResult("Wi-Fi", name, 5, CompatStatus.CONDITIONAL, ["Intel Wi-Fi support"], ["Requires itlwm/AirportItlwm kext for hardware support"])
     if "dw560" in value:
         return ComponentResult("Wi-Fi", name, 5, CompatStatus.CONDITIONAL, ["Dell DW560 support"])
     return ComponentResult("Wi-Fi", name, status=CompatStatus.UNKNOWN, notes=["Wi-Fi chipset needs confirmation"])
