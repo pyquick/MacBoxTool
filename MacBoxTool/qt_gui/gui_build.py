@@ -468,7 +468,6 @@ class BuildOCPage(ScrollArea):
         self.target_model = self.settings.find_key("MODEL") or "MacPro7,1"
 
         self._init_ui()
-        qconfig.themeChanged.connect(self._update_theme)
 
     def _init_ui(self):
         self.expandLayout.setContentsMargins(
@@ -676,9 +675,6 @@ class BuildOCPage(ScrollArea):
                 parent=self
             )
         self.install_worker = None
-
-    def _update_theme(self):
-        pass
 
     def _stop_worker(self, worker, timeout: int = 5000):
         if not worker:

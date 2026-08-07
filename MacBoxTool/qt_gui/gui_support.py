@@ -20,12 +20,18 @@ from pathlib import Path
 
 
 class ThemeAwareCard(CardWidget):
-    def __init__(self, get_style_fn, parent=None):
+    def __init__(self, get_style_fn, icon=None, parent=None):
         super().__init__(parent)
         self.setBorderRadius(RADIUS["card"])
         self._get_style = get_style_fn
+        self._icon = icon
+        self._icon_label = None
         self._apply_style()
         qconfig.themeChanged.connect(self._apply_style)
+
+    def set_theme_icon_label(self, label):
+        self._icon_label = label
+        self._apply_style()
 
     def _apply_style(self):
         if not is_qt_object_valid(self):
@@ -38,6 +44,8 @@ class ThemeAwareCard(CardWidget):
                 border-radius: {RADIUS["card"]}px;
             }}
         """)
+        if self._icon and self._icon_label and is_qt_object_valid(self._icon_label):
+            self._icon_label.setPixmap(self._icon.icon(color=style["text"]).pixmap(40, 40))
 
 class ProgressStatusHelper(QObject):
     def __init__(self, status_icon_label, progress_label, progress_bar, progress_container):
@@ -97,11 +105,13 @@ class ProgressStatusHelper(QObject):
 class DefGUI():
     def __init__(self,global_constants:Constants):
         self.constants:Constants=global_constants
-        if qconfig.theme == Theme.DARK:
-            self.card_styles = self.card_styles_dark()
-        else:
-            self.card_styles = self.card_styles_light()
+        self._light_card_styles = self.card_styles_light()
+        self._dark_card_styles = self.card_styles_dark()
+        self.card_styles = self._current_card_styles()
         qconfig.themeChanged.connect(self.update_theme)
+
+    def _current_card_styles(self):
+        return self._dark_card_styles if qconfig.theme == Theme.DARK else self._light_card_styles
 
     def build_icon_label(self, icon: FluentIcon, color: str, size: int = 32) -> QLabel:
         label = QLabel()
@@ -136,10 +146,7 @@ class DefGUI():
         return self.colored_icon(FluentIcon.ACCEPT, COLORS["success"])
     
     def update_theme(self):
-        if qconfig.theme == Theme.DARK:
-            self.card_styles = self.card_styles_dark()
-        else:
-            self.card_styles = self.card_styles_light()
+        self.card_styles = self._current_card_styles()
 
     
     def card_styles_light(self):
@@ -214,25 +221,17 @@ class DefGUI():
         resolved_icon = icon
         get_style = lambda: self.card_styles.get(card_type, self.card_styles["note"])
 
-        def apply_style_if_valid(widget: QWidget, style_sheet: str):
-            if is_qt_object_valid(widget):
-                widget.setStyleSheet(style_sheet)
-
         if resolved_icon is None:
             resolved_icon = get_style()["default_icon"]
 
-        card = ThemeAwareCard(get_style, parent)
+        card = ThemeAwareCard(get_style, resolved_icon, parent)
 
         main_layout = QHBoxLayout(card)
         main_layout.setContentsMargins(SPACING["large"], SPACING["large"], SPACING["large"], SPACING["large"])
         main_layout.setSpacing(SPACING["large"])
 
         icon_label = self.build_icon_label(resolved_icon, get_style()["text"], size=40)
-        def _refresh_icon():
-            if is_qt_object_valid(icon_label):
-                icon_label.setPixmap(resolved_icon.icon(color=get_style()["text"]).pixmap(40, 40))
-        _refresh_icon()
-        qconfig.themeChanged.connect(_refresh_icon)
+        card.set_theme_icon_label(icon_label)
         main_layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
         text_layout = QVBoxLayout()
@@ -240,10 +239,8 @@ class DefGUI():
 
         if title:
             title_label = StrongBodyLabel(title)
-            light_styles = self.card_styles_light()
-            dark_styles = self.card_styles_dark()
-            light_style = light_styles.get(card_type, light_styles["note"])
-            dark_style = dark_styles.get(card_type, dark_styles["note"])
+            light_style = self._light_card_styles.get(card_type, self._light_card_styles["note"])
+            dark_style = self._dark_card_styles.get(card_type, self._dark_card_styles["note"])
             title_label.setTextColor(light_style["text"], dark_style["text"])
             font = title_label.font()
             font.setPixelSize(16)
@@ -254,7 +251,6 @@ class DefGUI():
             body_label = BodyLabel(body)
             body_label.setWordWrap(True)
             body_label.setOpenExternalLinks(True)
-            apply_style_if_valid(body_label, "line-height: 1.6;")
             text_layout.addWidget(body_label)
 
         if custom_widget:

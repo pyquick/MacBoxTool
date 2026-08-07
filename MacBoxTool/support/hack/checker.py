@@ -526,16 +526,64 @@ def _needs_system_patches(computer: Any, cpu_result: ComponentResult, gpu_result
     return cpu_result.status == CompatStatus.CONDITIONAL and _cpu_generation(getattr(computer, "cpu", None)) in range(1, 7) or gpu_result.status == CompatStatus.INCOMPATIBLE
 
 
+def _cached_system_patch_result(constants: Any, computer: Any) -> ComponentResult | None:
+    """Build a system patch result from a current Sys Patch cache."""
+    getter = getattr(constants, "get_sys_patch_cache", None)
+    cache = getter() if callable(getter) else None
+    if not cache:
+        return None
+
+    properties = cache.get("properties", {})
+    patch_names = [
+        str(name) for name, enabled in properties.items()
+        if enabled is True and not str(name).startswith(("Settings", "Validation"))
+    ]
+    blocked = bool(properties.get("Validation: Patching not possible", False))
+    dirty = bool(properties.get("Validation: Root volume dirty", False))
+    patched = bool(_text(getattr(computer, "mbt_sys_version", ""))) if computer else False
+    no_new_patches = cache.get("no_new_patches") is True
+
+    if not patch_names:
+        return ComponentResult("System Patch", "macOS", 5, CompatStatus.PERFECT, ["No patches required"])
+    if blocked:
+        reasons = [
+            str(name).removeprefix("Validation: ")
+            for name, enabled in properties.items()
+            if enabled is True and str(name).startswith("Validation: ")
+            and str(name) not in {
+                "Validation: Patching not possible",
+                "Validation: Unpatching not possible",
+            }
+        ]
+        return ComponentResult(
+            "System Patch", "macOS", status=CompatStatus.INCOMPATIBLE,
+            details=["Root patches required"], notes=reasons or ["Root patching is not possible"],
+        )
+    if patched and no_new_patches:
+        return ComponentResult(
+            "System Patch", _text(getattr(computer, "mbt_sys_version", "macOS")), 5,
+            CompatStatus.PERFECT, ["All required root patches are installed"],
+        )
+
+    details = ["Root patches required", *patch_names]
+    notes = ["Root volume must be restored before repatching"] if dirty else []
+    if patched:
+        notes.append("Installed root patches require an update")
+    return ComponentResult("System Patch", "macOS", status=CompatStatus.CONDITIONAL, details=details, notes=notes)
+
+
 def _system_results(constants: Any, computer: Any, cpu_result: ComponentResult, gpu_result: ComponentResult) -> list[ComponentResult]:
     """Evaluate patch requirements and the current macOS version."""
+    patch = _cached_system_patch_result(constants, computer)
     patched = bool(_text(getattr(computer, "mbt_sys_version", ""))) if computer else False
     needs_patches = _needs_system_patches(computer, cpu_result, gpu_result)
-    if not patched and needs_patches is False:
-        patch = ComponentResult("System Patch", "macOS", 5, CompatStatus.PERFECT, ["No patches required"])
-    elif needs_patches is None:
-        patch = ComponentResult("System Patch", "macOS", status=CompatStatus.UNKNOWN, notes=["Patch requirement needs confirmation"])
-    else:
-        patch = ComponentResult("System Patch", "macOS", status=CompatStatus.CONDITIONAL, details=["Patches required"])
+    if patch is None:
+        if not patched and needs_patches is False:
+            patch = ComponentResult("System Patch", "macOS", 5, CompatStatus.PERFECT, ["No patches required"])
+        elif needs_patches is None:
+            patch = ComponentResult("System Patch", "macOS", status=CompatStatus.UNKNOWN, notes=["Patch requirement needs confirmation"])
+        else:
+            patch = ComponentResult("System Patch", "macOS", status=CompatStatus.CONDITIONAL, details=["Patches required"])
 
     kernel = int(getattr(constants, "detected_os", 0) or 0)
     cpu_is_apple = _apple_cpu_score(getattr(computer, "cpu", None)) is not None

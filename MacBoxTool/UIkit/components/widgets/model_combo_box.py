@@ -10,6 +10,7 @@ from .menu import RoundMenu, MenuAnimationType, IndicatorMenuItemDelegate
 from .line_edit import LineEdit, LineEditButton
 from .combo_box import ComboBoxMenu
 from ...common.animation import TranslateYAnimation
+from ...common.border_radius import installDynamicBorderRadius
 from ...common.icon import FluentIconBase, isDarkTheme
 from ...common.icon import FluentIcon as FIF
 from ...common.font import setFont
@@ -39,6 +40,7 @@ class ModelComboBoxBase:
         self.setModel(QStandardItemModel(self))
 
         FluentStyleSheet.COMBO_BOX.apply(self)
+        installDynamicBorderRadius(self, "ModelComboBox")
         self.installEventFilter(self)
 
     def setModel(self, model: QAbstractItemModel):

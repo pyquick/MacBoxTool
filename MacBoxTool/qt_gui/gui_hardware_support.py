@@ -101,7 +101,10 @@ class HardwareSupport(ScrollArea):
         layout.setSpacing(SPACING["small"])
 
         score_label = StrongBodyLabel(f"Score: {report.score}")
-        score_label.setStyleSheet("font-size: 40px; font-weight: 700;")
+        score_font = score_label.font()
+        score_font.setPixelSize(40)
+        score_font.setWeight(QFont.Weight.Bold)
+        score_label.setFont(score_font)
         layout.addWidget(score_label)
 
         metadata = BodyLabel(f"Grade: {report.grade}  |  OS: {report.os_name or 'Unknown'}")
@@ -224,7 +227,10 @@ class HardwareSupport(ScrollArea):
         text_layout.setSpacing(2)
         title_label = BodyLabel(title)
         if color:
-            title_label.setStyleSheet(f"color: {color}; font-weight: 600;")
+            title_label.setTextColor(color, color)
+            title_font = title_label.font()
+            title_font.setWeight(QFont.Weight.DemiBold)
+            title_label.setFont(title_font)
         text_layout.addWidget(title_label)
         if subtitle:
             subtitle_label = CaptionLabel(subtitle)
@@ -237,17 +243,11 @@ class HardwareSupport(ScrollArea):
 
     @staticmethod
     def _separator() -> QFrame:
-        """Create a subtle theme-aware separator between card rows."""
+        """Create a subtle separator without per-widget theme callbacks."""
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.NoFrame)
         separator.setFixedHeight(1)
-
-        def apply_style():
-            color = "rgba(255, 255, 255, 22)" if isDarkTheme() else "rgba(0, 0, 0, 18)"
-            separator.setStyleSheet(f"background-color: {color}; border: none;")
-
-        apply_style()
-        qconfig.themeChanged.connect(apply_style)
+        separator.setStyleSheet("background-color: rgba(128, 128, 128, 35); border: none;")
         return separator
 
     @staticmethod
@@ -285,7 +285,10 @@ class HardwareSupport(ScrollArea):
         layout.setSpacing(0)
 
         heading = StrongBodyLabel(title)
-        heading.setStyleSheet("font-size: 16px; font-weight: 600;")
+        heading_font = heading.font()
+        heading_font.setPixelSize(16)
+        heading_font.setWeight(QFont.Weight.DemiBold)
+        heading.setFont(heading_font)
         heading.setContentsMargins(SPACING["large"], SPACING["large"], SPACING["large"], SPACING["medium"])
         layout.addWidget(heading)
 

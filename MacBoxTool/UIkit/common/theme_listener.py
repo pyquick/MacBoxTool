@@ -33,7 +33,7 @@ class SystemThemeListener(QThread):
     @Slot()
     def _applyThemeChange(self):
         qconfig.themeChanged.emit(Theme.AUTO)
-        updateStyleSheet()
+        updateStyleSheet(lazy=True)
         qconfig.themeChangedFinished.emit()
 
     def _onThemeChanged(self, theme: str):

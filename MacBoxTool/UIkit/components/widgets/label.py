@@ -64,7 +64,6 @@ class FluentLabelBase(QLabel):
         FluentStyleSheet.LABEL.apply(self)
         self.setFont(self.getFont())
         self.setTextColor()
-        qconfig.themeChanged.connect(lambda: self.setTextColor(self.lightColor, self.darkColor))
 
         self.customContextMenuRequested.connect(self._onContextMenuRequested)
         return self

@@ -64,10 +64,6 @@ class Introduction(ScrollArea):
         self.scrollWidget.setStyleSheet("QWidget { background: transparent; }")
         self.ui_support=ui_support
 
-        setTheme(Theme.AUTO)
-
-        qconfig.themeChanged.connect(self.update_theme)
-
         self._init_ui()
 
     def _github_headers(self) -> dict:
@@ -88,10 +84,6 @@ class Introduction(ScrollArea):
         """Navigate to target page."""
         if self.navigation_callback:
             self.navigation_callback(target)
-
-    def update_theme(self):
-        self.update()
-
 
     def _init_ui(self):
         self.expandLayout.setContentsMargins(SPACING["xxlarge"], SPACING["xlarge"], SPACING["xxlarge"], SPACING["xlarge"])

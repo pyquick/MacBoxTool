@@ -442,6 +442,14 @@ class SysPatch(ScrollArea):
             return
 
         self._reset_to_initial_state()
+        if force:
+            self.constants.invalidate_sys_patch_cache()
+        else:
+            cache = self.constants.get_sys_patch_cache()
+            if cache:
+                self.no_new_patches = bool(cache.get("no_new_patches"))
+                self._on_patches_detected(cache.get("properties", {}), cache_result=False)
+                return
         self.page_state = "detecting"
         self._set_status("Root Patching", "Fetching patches for host...")
         self._set_busy(True, show_progress_ring=True)
@@ -459,7 +467,7 @@ class SysPatch(ScrollArea):
         self._set_status("Detection Failed", error, "error")
         self._set_busy(False)
 
-    def _on_patches_detected(self, patches: dict):
+    def _on_patches_detected(self, patches: dict, cache_result: bool = True):
         self.page_state = "ready"
         self.patches = patches or {}
         self.can_unpatch = bool(self.patches) and not self.patches[HardwarePatchsetValidation.UNPATCHING_NOT_POSSIBLE]
@@ -472,7 +480,9 @@ class SysPatch(ScrollArea):
             self.patches = {}
             self.can_unpatch = False
 
-        self.no_new_patches = not self._check_if_new_patches_needed(self.patches) if self.patches else False
+        if cache_result:
+            self.no_new_patches = not self._check_if_new_patches_needed(self.patches) if self.patches else False
+            self.constants.set_sys_patch_cache(self.patches, self.no_new_patches)
         self._render_patch_list()
         self._set_busy(False)
 
@@ -656,6 +666,7 @@ class SysPatch(ScrollArea):
             return False
 
         self._remove_download_card()
+        self.constants.invalidate_sys_patch_cache()
         logging.info("KDK download complete")
         return True
 
@@ -689,6 +700,7 @@ class SysPatch(ScrollArea):
             return False
 
         self._remove_download_card()
+        self.constants.invalidate_sys_patch_cache()
         logging.info("Metallib installation complete")
         return True
 
@@ -718,6 +730,7 @@ class SysPatch(ScrollArea):
 
     def _finish_patch_run(self, success: bool):
         self._set_busy(False)
+        self.constants.invalidate_sys_patch_cache()
 
         if self.constants.root_patcher_succeeded is False:
             if success is False:

@@ -32,14 +32,17 @@ class Window(FluentWindow):
     
     PLATFORM_FONTS = {
         "Windows": "Segoe UI",
-        "Darwin": "SF Pro Display",
+        "Darwin": ".AppleSystemUIFont",
         "Linux": "Ubuntu"
     }
     def __init__(self,global_constants:Constants,global_settings:GlobalSettings,parent=None):
         super().__init__(parent=parent)
         self.constants = global_constants
         self.settings=global_settings
-        
+        system = platform.system()
+        font_family = self.PLATFORM_FONTS.get(system, "Ubuntu")
+        qconfig.set(qconfig.fontFamilies, [font_family], save=False)
+
 
         logging.info("init gui")
 
@@ -50,14 +53,8 @@ class Window(FluentWindow):
         self.gui_support=DefGUI(self.constants)
         self._init_state()
         self._setup_window()
-        setTheme(Theme.AUTO)
+        setTheme(Theme.AUTO, lazy=True)
         self._init_ui()
-        
-        
-        qconfig.themeChanged.connect(self.update_theme)
-
-    def update_theme(self):
-        self.update()
 
    
 
@@ -67,8 +64,7 @@ class Window(FluentWindow):
         #self._restore_window_geometry()
 
         font = QFont()
-        system = platform.system()
-        font_family = self.PLATFORM_FONTS.get(system, "Ubuntu")
+        font_family = qconfig.get(qconfig.fontFamilies)[0]
         logging.info(f"Using font: {font_family}")
         font.setFamily(font_family)
         font.setStyleHint(QFont.StyleHint.SansSerif)
