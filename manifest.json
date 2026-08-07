@@ -2,7 +2,7 @@
     "nightly_latest": {
         "main": {
             "version": "0.0.4",
-            "build": "4611.1",
+            "build": "4611.4",
             "core": "1.1.000039489prefix",
             "minver": "22"
         },
