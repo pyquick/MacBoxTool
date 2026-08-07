@@ -6,6 +6,7 @@ constants.py: Defines versioning, file paths and other settings for the patcher
 from pathlib import Path
 import sys
 import getpass
+import platform
 if sys.platform=="darwin":
     from .detections import device_probe
 else:
@@ -26,7 +27,7 @@ class Constants:
         self.launcher_script:           str = None
         # OpenCore Version
         self.opencore_version:           str = "1.0.6"
-        self.nightly_build:              str = "4611.4"
+        self.nightly_build:              str = "4618.1"
         self.support_version:            str = "1.1.000039489prefix" # prefix: unstable core. canary: very unstable
 
         # Kext Versioning
@@ -61,8 +62,13 @@ class Constants:
         self.discord_link:                    str = ""
         self.guide_link:                      str = "https://dortania.github.io/OpenCore-Legacy-Patcher/"
         self.repo_link:                       str = "https://github.com/pyquick/MacBoxTool/releases/"
-        self.installer_pkg_url:               str = f"{self.repo_link}/releases/download/{self.macboxtool_version}/AutoPkg-Assets.pkg"
-        self.installer_pkg_url_nightly:       str = "http://nightly.link/pyquick/MacBoxTool/workflows/build-app-wxpython/main/AutoPkg-Assets.pkg.zip"
+
+        # Architecture suffix for AutoPkg-Assets package
+        _arch = platform.machine()
+        _pkg_suffix = f"-{_arch}" if _arch in ("x86_64", "arm64") else ""
+        self.autopkg_assets_name:             str = f"AutoPkg-Assets{_pkg_suffix}.pkg"
+        self.installer_pkg_url:               str = f"{self.repo_link}download/{self.macboxtool_version}/{self.autopkg_assets_name}"
+        self.installer_pkg_url_nightly:       str = f"http://nightly.link/pyquick/MacBoxTool/workflows/build-app-wxpython/main/{self.autopkg_assets_name}.zip"
         self.user_download_file:              str = str(Path.home() / "Downloads")
         self.github_token:                    str = ""
 
@@ -1169,11 +1175,11 @@ class Constants:
 
     @property
     def installer_pkg_path(self):
-        return self.payload_path / Path("AutoPkg-Assets.pkg")
+        return self.payload_path / Path(self.autopkg_assets_name)
 
     @property
     def installer_pkg_zip_path(self):
-        return self.payload_path / Path("AutoPkg-Assets.pkg.zip")
+        return self.payload_path / Path(f"{self.autopkg_assets_name}.zip")
 
     # Apple Payloads Paths
     @property

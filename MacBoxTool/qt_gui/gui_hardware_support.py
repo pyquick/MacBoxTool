@@ -42,7 +42,7 @@ class HardwareSupport(ScrollArea):
         self.setWidget(self.scrollWidget)
         self.setWidgetResizable(True)
         self.enableTransparentBackground()
-        self.refresh()
+        self._report_fingerprint: tuple | None = None
 
     @staticmethod
     def _text(value) -> str:
@@ -382,14 +382,27 @@ class HardwareSupport(ScrollArea):
 
     def refresh(self) -> None:
         """Recalculate and display the current hardware report."""
+        computer = self.constants.computer
+        report = evaluate(computer, self.constants)
+
+        fingerprint = (
+            report.score,
+            report.status,
+            report.grade,
+            report.platform,
+            report.os_name,
+            tuple((c.category, c.status, c.score) for c in report.components),
+        )
+        if fingerprint == self._report_fingerprint:
+            return
+        self._report_fingerprint = fingerprint
+
         self._clear_layout()
         self.expandLayout.setContentsMargins(
             SPACING["xxlarge"], SPACING["xlarge"], SPACING["xxlarge"], SPACING["xlarge"]
         )
         self.expandLayout.setSpacing(SPACING["large"])
 
-        computer = self.constants.computer
-        report = evaluate(computer, self.constants)
         statuses = self._component_statuses(report)
         self.expandLayout.addWidget(SubtitleLabel("Hardware Support"))
         self.expandLayout.addWidget(self._score_panel(report))
