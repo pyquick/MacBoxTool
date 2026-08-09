@@ -13,6 +13,31 @@ from .gui_all_download import DownloadInterface
 
 WINDOW_MIN_SIZE = (1000, 700)
 WINDOW_DEFAULT_SIZE = (1200, 800)
+
+
+def _xcode_version() -> int | None:
+    """Return the Xcode major version, or None if not found."""
+    import shutil
+    if not shutil.which("xcodebuild"):
+        return None
+    try:
+        import subprocess
+        r = subprocess.run(
+            ["xcodebuild", "-version"], capture_output=True, text=True, timeout=15
+        )
+        if r.returncode != 0:
+            return None
+        # "Xcode 26.6" -> 26
+        for part in r.stdout.split():
+            try:
+                return int(float(part))
+            except ValueError:
+                continue
+    except Exception:
+        return None
+    return None
+
+
 class Widget(QFrame):
 
     def __init__(self, text: str, parent=None):
@@ -109,6 +134,7 @@ class Window(FluentWindow):
             getattr(self, "sys_patch_page", None),
             getattr(self, "download_page", None),
             getattr(self, "updater", None),
+            getattr(self, "icon_converter", None),
         ):
             cleanup = getattr(page, "cleanup_workers", None)
             if callable(cleanup):
@@ -248,6 +274,16 @@ class Window(FluentWindow):
                 "Hardware Support",
                 NavigationItemPosition.SCROLL
             )
+
+            if _xcode_version() is not None and _xcode_version() >= 26:
+                from .gui_converter import IconConverterInterface
+                self.icon_converter=IconConverterInterface(self.constants,self.gui_support,self.settings,self)
+                self.addSubInterface(
+                    self.icon_converter,
+                    FluentIcon.PHOTO,
+                    "Icon Converter",
+                    NavigationItemPosition.SCROLL
+                )
 
             self.settings_page=SettingsInterface(self.constants,self.gui_support,self.settings,self)
             self.settings_nav_item = self.addSubInterface(

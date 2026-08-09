@@ -17,8 +17,8 @@ import requests
 
 # ── Configuration ──────────────────────────────────────────────
 CRASH_SERVER_URL: str = "http://127.0.0.1:8080/api/v1/crash-report"
-CRASH_API_KEY:  str = "crs_lvrPC3XE4yUCXPrdIt_44EAVQXnkqXcbSgWLDYktG1g"
-ALLOWED_HOSTNAME: str = "GhltbmA2141.local"
+CRASH_API_KEY:  str = "crs_iq8Ka_xEbbRhpaJDStgH7p1dQfPt5OAopl2s8CkzZUA"
+ALLOWED_HOSTNAME: str = "Ghltbms-Mac-Pro.local"
 PROJECT_NAME:    str = "MacBoxTool"
 
 # ── Constants ──────────────────────────────────────────────────

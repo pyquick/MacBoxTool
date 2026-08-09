@@ -556,8 +556,8 @@ def _cached_system_patch_result(constants: Any, computer: Any) -> ComponentResul
             }
         ]
         return ComponentResult(
-            "System Patch", "macOS", status=CompatStatus.INCOMPATIBLE,
-            details=["Root patches required"], notes=reasons or ["Root patching is not possible"],
+            "System Patch", "macOS", status=CompatStatus.CONDITIONAL,
+            details=["Root patches required"], notes=reasons or ["Root patching requires system configuration changes"],
         )
     if patched and no_new_patches:
         return ComponentResult(
