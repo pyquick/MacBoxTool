@@ -327,7 +327,7 @@ class Updater(ScrollArea):
                     "Update available",
                     duration=3000,
                     position=InfoBarPosition.BOTTOM_RIGHT,
-                    parent=self.scrollWidget,
+                    parent=self,
                 )
                 if self.auto_download_install:
                     QTimer.singleShot(0, self.download_update)

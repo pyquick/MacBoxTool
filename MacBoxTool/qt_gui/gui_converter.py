@@ -173,11 +173,10 @@ class IconConverterInterface(ScrollArea):
             SPACING["xxlarge"], SPACING["xlarge"],
         )
         self.expandLayout.setSpacing(SPACING["large"])
-
-        self.expandLayout.addWidget(SubtitleLabel("Icon Converter"))
-        self.expandLayout.addWidget(BodyLabel(
-            "Convert a macOS 26 .icon file to Assets.car and AppIcon.icns"
-        ))
+        
+        converter_text=SubtitleLabel("Icon Converter")
+        converter_text.setStyleSheet("font-size: 24px; font-weight: bold;")
+        self.expandLayout.addWidget(converter_text)
 
         self._build_import_group()
         self._build_export_group()
@@ -267,8 +266,6 @@ class IconConverterInterface(ScrollArea):
 
         self.info_layout.addWidget(self._separator())
         self.info_layout.addWidget(self._row(FluentIcon.TAG, name, "File name"))
-        self.info_layout.addWidget(self._separator())
-        self.info_layout.addWidget(self._row(FluentIcon.LINK, str(p.parent), "Source directory"))
         self.info_layout.addWidget(self._separator())
         self.info_layout.addWidget(self._row(FluentIcon.DEVELOPER_TOOLS, type_text, detail))
         self.info_layout.addWidget(self._separator())

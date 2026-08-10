@@ -404,7 +404,9 @@ class HardwareSupport(ScrollArea):
         self.expandLayout.setSpacing(SPACING["large"])
 
         statuses = self._component_statuses(report)
-        self.expandLayout.addWidget(SubtitleLabel("Hardware Support"))
+        text=SubtitleLabel("Hardware Support")
+        text.setStyleSheet("font-size: 24px; font-weight: bold;")
+        self.expandLayout.addWidget(text)
         self.expandLayout.addWidget(self._score_panel(report))
         self.expandLayout.addWidget(self._comment_card(report))
         self.expandLayout.addWidget(
