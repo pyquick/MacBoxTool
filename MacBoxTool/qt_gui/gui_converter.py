@@ -72,22 +72,14 @@ class IconConverterInterface(ScrollArea):
         self._build_ui()
 
     # ==================================================================
-    # Shared building blocks (HardwareSupport pattern)
+    # Shared building blocks
     # ==================================================================
-
-    @staticmethod
-    def _separator() -> QFrame:
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.NoFrame)
-        sep.setFixedHeight(1)
-        sep.setStyleSheet("background-color: rgba(128, 128, 128, 35); border: none;")
-        return sep
 
     def _row(self, icon: FluentIcon, title: str, subtitle="", color=None) -> QWidget:
         row = QWidget()
         layout = QHBoxLayout(row)
-        layout.setContentsMargins(SPACING["large"], SPACING["medium"], SPACING["large"], SPACING["medium"])
-        layout.setSpacing(SPACING["large"])
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(SPACING["medium"])
 
         if self.gui_support:
             iw = self.gui_support.build_icon_label(icon, color or COLORS["primary"], size=22)
@@ -116,20 +108,29 @@ class IconConverterInterface(ScrollArea):
         return row
 
     def _hw_card(self, heading_text: str) -> tuple[CardWidget, QVBoxLayout]:
+        c = CardWidget()
+        c.setBorderRadius(RADIUS["card"])
+        l = QVBoxLayout(c)
+        l.setContentsMargins(SPACING["large"], SPACING["large"], SPACING["large"], SPACING["large"])
+        l.setSpacing(SPACING["medium"])
+
         h = StrongBodyLabel(heading_text)
         f = h.font()
         f.setPixelSize(16)
         f.setWeight(QFont.Weight.DemiBold)
         h.setFont(f)
-        h.setContentsMargins(SPACING["large"], SPACING["large"], SPACING["large"], SPACING["medium"])
-
-        c = CardWidget()
-        c.setBorderRadius(RADIUS["card"])
-        l = QVBoxLayout(c)
-        l.setContentsMargins(0, 0, 0, 0)
-        l.setSpacing(0)
         l.addWidget(h)
         return c, l
+
+    @staticmethod
+    def _replace_content(layout: QVBoxLayout, content_start: int):
+        while layout.count() > content_start:
+            item = layout.takeAt(content_start)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+            elif item.layout():
+                IconConverterInterface._clear_layout(item.layout())
 
     # ==================================================================
     # Helpers
@@ -254,23 +255,10 @@ class IconConverterInterface(ScrollArea):
 
         size = self._fmt_size(self._dir_size(p) if is_bundle else p.stat().st_size)
 
-        self._clear_layout(self.info_layout)
-        # Re-add heading
-        h = StrongBodyLabel("Icon Information")
-        f = h.font()
-        f.setPixelSize(16)
-        f.setWeight(QFont.Weight.DemiBold)
-        h.setFont(f)
-        h.setContentsMargins(SPACING["large"], SPACING["large"], SPACING["large"], SPACING["medium"])
-        self.info_layout.addWidget(h)
-
-        self.info_layout.addWidget(self._separator())
+        self._replace_content(self.info_layout, 1)
         self.info_layout.addWidget(self._row(FluentIcon.TAG, name, "File name"))
-        self.info_layout.addWidget(self._separator())
         self.info_layout.addWidget(self._row(FluentIcon.DEVELOPER_TOOLS, type_text, detail))
-        self.info_layout.addWidget(self._separator())
         self.info_layout.addWidget(self._row(FluentIcon.CODE, size, "Total size"))
-        self.info_layout.addWidget(self._separator())
 
     # ── Action card ──
 
@@ -278,16 +266,21 @@ class IconConverterInterface(ScrollArea):
         self.action_card, self.action_layout = self._hw_card("Convert")
 
         w = QWidget()
-        l = QHBoxLayout(w)
-        l.setContentsMargins(SPACING["large"], SPACING["medium"], SPACING["large"], SPACING["medium"])
+        l = QVBoxLayout(w)
+        l.setContentsMargins(0, 0, 0, 0)
+        l.setSpacing(SPACING["medium"])
 
-        self.convert_btn = PrimaryPushButton("Convert to Assets.car & AppIcon.icns")
-        self.convert_btn.setFixedHeight(44)
+        self.convert_btn = PushButton(FluentIcon.DEVELOPER_TOOLS, "Convert to Assets.car & AppIcon.icns")
+        self.convert_btn.setFixedHeight(40)
+        setCustomStyleSheet(
+            self.convert_btn,
+            "PushButton { border-radius: 20px; }",
+            "PushButton { border-radius: 20px; }",
+        )
         self.convert_btn.clicked.connect(self._start_conversion)
         self.convert_btn.setEnabled(False)
-        l.addWidget(self.convert_btn, 1)
+        l.addWidget(self.convert_btn)
 
-        self.action_layout.addWidget(self._separator())
         self.action_layout.addWidget(w)
         self.expandLayout.addWidget(self.action_card)
 
@@ -298,23 +291,23 @@ class IconConverterInterface(ScrollArea):
 
         bar_w = QWidget()
         bl = QVBoxLayout(bar_w)
-        bl.setContentsMargins(SPACING["large"], SPACING["medium"], SPACING["large"], SPACING["medium"])
+        bl.setContentsMargins(0, 0, 0, 0)
+        bl.setSpacing(SPACING["medium"])
         self.build_bar = IndeterminateProgressBar(start=False)
         bl.addWidget(self.build_bar)
 
-        self.build_layout.addWidget(self._separator())
         self.build_layout.addWidget(bar_w)
 
         log_w = QWidget()
         ll = QVBoxLayout(log_w)
-        ll.setContentsMargins(SPACING["large"], 0, SPACING["large"], SPACING["large"])
+        ll.setContentsMargins(0, 0, 0, 0)
+        ll.setSpacing(SPACING["medium"])
 
         self.build_log = TextEdit()
         self.build_log.setReadOnly(True)
         self.build_log.setMinimumHeight(200)
         ll.addWidget(self.build_log)
 
-        self.build_layout.addWidget(self._separator())
         self.build_layout.addWidget(log_w)
 
         self.build_card.hide()
@@ -328,37 +321,25 @@ class IconConverterInterface(ScrollArea):
         self.expandLayout.addWidget(self.result_card)
 
     def _refresh_result(self, car_path: str, icns_path: str):
-        self._clear_layout(self.result_layout)
-
-        # Re-add heading (cleared above)
-        h = StrongBodyLabel("Conversion Complete")
-        f = h.font()
-        f.setPixelSize(16)
-        f.setWeight(QFont.Weight.DemiBold)
-        h.setFont(f)
-        h.setContentsMargins(SPACING["large"], SPACING["large"], SPACING["large"], SPACING["medium"])
-        self.result_layout.addWidget(h)
+        self._replace_content(self.result_layout, 1)
 
         car_size = self._fmt_size(Path(car_path).stat().st_size)
         icns_size = self._fmt_size(Path(icns_path).stat().st_size)
 
         # Assets.car
-        self.result_layout.addWidget(self._separator())
         car_row = self._row(FluentIcon.ACCEPT, "Assets.car", car_size, COLORS["success"])
         self._add_row_button(car_row, "Save", self._save_car)
         self.result_layout.addWidget(car_row)
-        self.result_layout.addWidget(self._separator())
 
         # AppIcon.icns
         icns_row = self._row(FluentIcon.ACCEPT, "AppIcon.icns", icns_size, COLORS["success"])
         self._add_row_button(icns_row, "Save", self._save_icns)
         self.result_layout.addWidget(icns_row)
-        self.result_layout.addWidget(self._separator())
 
         # Actions
         aw = QWidget()
         al = QHBoxLayout(aw)
-        al.setContentsMargins(SPACING["large"], SPACING["medium"], SPACING["large"], SPACING["medium"])
+        al.setContentsMargins(0, 0, 0, 0)
         al.setSpacing(SPACING["medium"])
         sb = PrimaryPushButton("Save Both")
         sb.clicked.connect(self._save_both)

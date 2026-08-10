@@ -266,10 +266,16 @@ class ImageLabel(QLabel):
         self.setImage(image)
 
     def _postInit(self):
-        pass
+        self._scaledImage = QImage()
+        self._scaledImageKey = None
+
+    def _invalidateScaledImage(self):
+        self._scaledImage = QImage()
+        self._scaledImageKey = None
 
     def _onFrameChanged(self, index: int):
         self.image = self.movie().currentImage()
+        self._invalidateScaledImage()
         self.update()
 
     def setBorderRadius(self, topLeft: int, topRight: int, bottomLeft: int, bottomRight: int):
@@ -283,6 +289,7 @@ class ImageLabel(QLabel):
     def setImage(self, image: Union[str, QPixmap, QImage] = None):
         """ set the image of label """
         self.image = image or QImage()
+        self._invalidateScaledImage()
 
         if isinstance(image, str):
             reader = QImageReader(image)
@@ -384,12 +391,17 @@ class ImageLabel(QLabel):
         path.arcTo(0, 0, d, d, -180, -90)
 
         # draw image
-        image = self.image.scaled(
-            self.size()*self.devicePixelRatioF(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+        dpr = self.devicePixelRatioF()
+        targetSize = self.size() * dpr
+        cacheKey = (targetSize.width(), targetSize.height(), dpr)
+        if self._scaledImageKey != cacheKey:
+            self._scaledImage = self.image.scaled(
+                targetSize, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+            self._scaledImageKey = cacheKey
 
         painter.setPen(Qt.NoPen)
         painter.setClipPath(path)
-        painter.drawImage(self.rect(), image)
+        painter.drawImage(self.rect(), self._scaledImage)
 
     @Property(int)
     def topLeftRadius(self):
@@ -435,6 +447,7 @@ class AvatarWidget(ImageLabel):
     """
 
     def _postInit(self):
+        super()._postInit()
         self.setRadius(48)
         self.lightBackgroundColor = QColor(0, 0, 0, 50)
         self.darkBackgroundColor = QColor(255, 255, 255, 50)

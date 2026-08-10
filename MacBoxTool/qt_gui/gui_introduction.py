@@ -36,6 +36,24 @@ class HelperInstallWorker(QThread):
             self.finished_signal.emit(False, "Helper installation not available on this platform")
 
 
+class OCLPVersionWorker(QThread):
+    """Fetch the latest OCLP-R version without blocking the GUI thread."""
+
+    version_found = Signal(object)
+
+    def __init__(self, global_constants: Constants):
+        super().__init__()
+        self.constants = global_constants
+
+    def run(self):
+        version_value = Introduction.find_oclp_version_for(self.constants)
+        if version_value is not None and not self.isInterruptionRequested():
+            self.version_found.emit(version_value)
+
+
+_active_oclp_version_workers = set()
+
+
 class Introduction(ScrollArea):
 
     # Navigation target constants
@@ -54,6 +72,8 @@ class Introduction(ScrollArea):
 
         self.constants = global_constants
         self.navigation_callback = None  # For page navigation
+        self._oclp_version_worker = None
+        self._is_closing = False
 
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
@@ -94,6 +114,7 @@ class Introduction(ScrollArea):
         self.expandLayout.addWidget(self._create_hero_section())
 
         self.expandLayout.addWidget(self._create_note_card())
+        QTimer.singleShot(0, self._fetch_oclp_version)
 
         self.expandLayout.addWidget(self._create_warning_card())
 
@@ -153,7 +174,14 @@ class Introduction(ScrollArea):
             self.expandLayout.insertWidget(4, button)
 
     def cleanup_workers(self):
-        """Stop helper installation worker before this page is destroyed."""
+        """Stop workers owned by this page before it is destroyed."""
+        self._is_closing = True
+        version_worker = self._oclp_version_worker
+        if version_worker and version_worker.isRunning():
+            version_worker.requestInterruption()
+            if not version_worker.wait(2000):
+                logging.info("OCLPVersionWorker is still finishing during shutdown")
+
         worker = getattr(self, "_install_worker", None)
         if worker and worker.isRunning():
             worker.requestInterruption()
@@ -278,9 +306,10 @@ class Introduction(ScrollArea):
         title_label.setStyleSheet("font-size: 24px; font-weight: bold;")
         return title_label
 
-    def find_oclp_version(self):
+    @staticmethod
+    def find_oclp_version_for(global_constants: Constants):
         REPO_LATEST_RELEASE_URL: str = "https://api.github.com/repos/hackdoc/OCLP-R/releases/latest"
-        network_utilities = NetworkUtilities(self.constants)
+        network_utilities = NetworkUtilities(global_constants)
         if not network_utilities.verify_network_connection(REPO_LATEST_RELEASE_URL, 1):
             return None
 
@@ -302,18 +331,56 @@ class Introduction(ScrollArea):
             return latest_remote_version
         except version.InvalidVersion:
             return None
+
+    def find_oclp_version(self):
+        return self.find_oclp_version_for(self.constants)
+
+    @staticmethod
+    def _oclp_note_body(oclp_version):
+        return (
+            f"The long awaited version {oclp_version} of OCLP-R is here, bringing <b>initial support for macOS Tahoe 26</b> to the community!<br><br>"
+            "<b>Please Note:</b><br>"
+            f"- Only OCLP-R {oclp_version} from the <a href=\"https://github.com/hackdoc/OCLP-R/releases/download/{oclp_version}/OCLP-R.pkg\" style=\"color: #0078D4; text-decoration: none;\">pyquick/OCLP-R</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
+            "- Official Dortania releases or older patches <b>will NOT work</b> with macOS Tahoe 26."
+        )
+
     def _create_note_card(self):
-        self.oclp_version=self.find_oclp_version() or "3.1.6"
-        return self.ui_support.custom_card(
+        self.oclp_version = "3.1.6"
+        card = self.ui_support.custom_card(
             card_type="note",
             title="OCLP-R: - Now Supports macOS Tahoe 26!",
-            body=(
-                f"The long awaited version {self.oclp_version} of OCLP-R is here, bringing <b>initial support for macOS Tahoe 26</b> to the community!<br><br>"
-                "<b>Please Note:</b><br>"
-                f"- Only OCLP-R {self.oclp_version} from the <a href=\"https://github.com/hackdoc/OCLP-R/releases/download/{self.oclp_version}/OCLP-R.pkg\" style=\"color: #0078D4; text-decoration: none;\">pyquick/OCLP-R</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
-                "- Official Dortania releases or older patches <b>will NOT work</b> with macOS Tahoe 26."
-            )
+            body=self._oclp_note_body(self.oclp_version),
         )
+        body_labels = [
+            label for label in card.findChildren(BodyLabel)
+            if not isinstance(label, StrongBodyLabel)
+        ]
+        self._oclp_note_body_label = body_labels[0] if body_labels else None
+        return card
+
+    def _fetch_oclp_version(self):
+        if self._is_closing or self._oclp_version_worker is not None:
+            return
+
+        worker = OCLPVersionWorker(self.constants)
+        self._oclp_version_worker = worker
+        _active_oclp_version_workers.add(worker)
+        worker.version_found.connect(self._update_oclp_note_card)
+        worker.finished.connect(self._on_oclp_version_worker_finished)
+        worker.finished.connect(lambda: _active_oclp_version_workers.discard(worker))
+        worker.finished.connect(worker.deleteLater)
+        worker.start()
+
+    def _update_oclp_note_card(self, oclp_version):
+        if self._is_closing or self._oclp_note_body_label is None:
+            return
+        self.oclp_version = oclp_version
+        self._oclp_note_body_label.setText(self._oclp_note_body(oclp_version))
+
+    def _on_oclp_version_worker_finished(self):
+        if self.sender() is self._oclp_version_worker:
+            self._oclp_version_worker = None
+
     def _create_nightly_warning_card(self):
         
         return self.ui_support.custom_card(
