@@ -11,7 +11,10 @@ from .support.toggle_theme import ThemeManager
 
 from .support import subprocess_wrapper
 from .support.network_handler import *
-from .support.crash_report import *
+try:
+    from .support.crash_report import *
+except ImportError:
+    pass
 #constants
 from .constants import *
 

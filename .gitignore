@@ -300,3 +300,5 @@ requirements_test.txt
 
 # Testing - Test suite (local development only)
 tests/
+MacBoxTool/support/crash_report.py
+MacBoxTool/support/__pycache__/crash_report.*

@@ -77,7 +77,10 @@ from PySide6.QtCore import *
 from PySide6.QtGui import *
 from .support.logging_handler import LoggingHandler
 from .support.global_settings import GlobalSettings
-from .support import crash_report
+try:
+    from .support import crash_report
+except ImportError:
+    crash_report = None
 if sys.platform=="darwin":
     from .detections import device_probe
 else:
@@ -94,7 +97,8 @@ class MacBoxTool:
         super().__init__()
         self.constants: Constants = Constants()
         self.constants.cli_mode = cli_mode
-        crash_report.install()
+        if crash_report is not None:
+            crash_report.install()
         LoggingHandler(self.constants)
         self._generate_base_data()
         self.install_requirements()
