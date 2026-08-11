@@ -306,7 +306,7 @@ class Updater(ScrollArea):
                     "Failed to check update",
                     duration=3000,
                     position=InfoBarPosition.BOTTOM_RIGHT,
-                    parent=self.scrollWidget,
+                    parent=self,
                 )
                 return
 
