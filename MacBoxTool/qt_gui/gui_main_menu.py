@@ -172,11 +172,14 @@ class Window(FluentWindow):
         self._shutdown_in_progress = True
         self._save_window_geometry()
 
-        # Let the window disappear first, then process blocking cleanup work.
+        # Hide window immediately, then run cleanup synchronously.
+        # QTimer.singleShot(0) is unreliable when Command+Q triggers
+        # an application-level quit (threads get destroyed before the
+        # timer fires). Sync cleanup ensures threads are stopped first.
         event.accept()
         self.hide()
         QApplication.processEvents()
-        QTimer.singleShot(0, self._perform_shutdown_cleanup)
+        self._perform_shutdown_cleanup()
 
     def update_status(self, message, status_type="INFO"):
         if status_type == "success":
