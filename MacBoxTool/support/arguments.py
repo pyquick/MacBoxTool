@@ -25,6 +25,10 @@ from ..datasets import (
     os_data
 )
 
+from ..support import kdk_handler, metallib_handler
+from ..support.network_handler import NetworkUtilities
+from ..sys_patch.patchsets import HardwarePatchsetDetection, HardwarePatchsetSettings
+
 from . import (
     utilities,
     defaults,
@@ -146,14 +150,151 @@ class arguments:
 
     def _cache_os_handler(self) -> None:
         """
-        Fetch KDK for incoming OS
+        Fetch KDK/Metallib for incoming OS (CLI-only)
         """
         results = subprocess.run(["/bin/ps", "-ax"], stdout=subprocess.PIPE)
         if results.stdout.decode("utf-8").count("MacBoxTool --cache_os") > 1:
             logging.info("Another instance of OS caching is running, exiting")
             return
 
-        gui_entry.EntryPoint(self.constants).start(entry=gui_entry.SupportedEntryPoints.OS_CACHE)
+        # Read staged update from Preflight.plist
+        os_data = utilities.fetch_staged_update(variant="Preflight")
+        if os_data[0] is None:
+            logging.info("No staged update found, exiting")
+            return
+
+        os_version, os_build = os_data
+        logging.info(f"Staged update found: {os_version} ({os_build})")
+
+        # Detect hardware requirements for incoming OS
+        results = HardwarePatchsetDetection(
+            constants=self.constants,
+            xnu_major=int(os_build[:2]),
+            xnu_minor=0,
+            os_build=os_build,
+            os_version=os_version,
+        ).device_properties
+
+        needs_kdk = bool(results.get(HardwarePatchsetSettings.KERNEL_DEBUG_KIT_REQUIRED, False))
+        needs_metallib = bool(results.get(HardwarePatchsetSettings.METALLIB_SUPPORT_PKG_REQUIRED, False))
+
+        if not needs_kdk and not needs_metallib:
+            logging.info("No additional resources required for incoming OS, exiting")
+            return
+
+        # Create KDK/Metallib objects and retrieve download objects
+        download_tasks: list[tuple[str, object, object]] = []
+
+        kdk_obj = None
+        metallib_obj = None
+
+        if needs_kdk:
+            logging.info("KDK required, resolving...")
+            kdk_obj = kdk_handler.KernelDebugKitObject(
+                self.constants, os_build, os_version,
+                passive=True, check_backups_only=True,
+            )
+            if kdk_obj.success:
+                dl = kdk_obj.retrieve_download()
+                if dl is not None:
+                    download_tasks.append(("KDK", dl, kdk_obj))
+                else:
+                    logging.info("KDK already cached, skipping")
+            else:
+                logging.warning(f"KDK resolution failed: {kdk_obj.error_msg}")
+
+        if needs_metallib:
+            logging.info("MetallibSupportPkg required, resolving...")
+            metallib_obj = metallib_handler.MetalLibraryObject(
+                self.constants, os_build, os_version,
+            )
+            if metallib_obj.success:
+                dl = metallib_obj.retrieve_download()
+                if dl is not None:
+                    download_tasks.append(("Metallib", dl, metallib_obj))
+                else:
+                    logging.info("Metallib already cached, skipping")
+            else:
+                logging.warning(f"Metallib resolution failed: {metallib_obj.error_msg}")
+
+        if not download_tasks:
+            logging.info("All resources already cached, exiting")
+            return
+
+        # Download files
+        net_util = NetworkUtilities(self.constants)
+
+        for name, dl_obj, _ in download_tasks:
+            file_path = Path(dl_obj.save_path) / dl_obj.filename
+            logging.info(f"Downloading {name} ({dl_obj.filename})...")
+            if not self._download_file(net_util, dl_obj.url, file_path):
+                logging.error(f"Failed to download {name}")
+                return
+            logging.info(f"{name} download complete")
+
+        # Validate and install
+        if kdk_obj and needs_kdk:
+            logging.info("Validating KDK checksum...")
+            if not kdk_obj.validate_kdk_checksum():
+                logging.error(f"KDK checksum validation failed: {kdk_obj.error_msg}")
+                return
+            logging.info("KDK checksum validated")
+
+            kdk_path = self.constants.kdk_download_path
+            if kdk_path.exists():
+                logging.info("Installing KDK backup (only_install_backup=True)...")
+                if not kdk_handler.KernelDebugKitUtilities().install_kdk_dmg(
+                    kdk_path, only_install_backup=True,
+                ):
+                    logging.error("Failed to install KDK backup")
+                    return
+                logging.info("KDK backup installed successfully")
+
+        if metallib_obj and needs_metallib:
+            logging.info("Installing MetallibSupportPkg...")
+            if not metallib_obj.install_metallib():
+                logging.error("Failed to install MetallibSupportPkg")
+                return
+            logging.info("MetallibSupportPkg installed successfully")
+
+        logging.info("OS caching completed successfully")
+
+    def _download_file(self, net_util: NetworkUtilities, url: str, file_path: Path) -> bool:
+        """
+        Download a file synchronously with progress logging.
+        """
+        try:
+            response = net_util.get(url, stream=True, timeout=60)
+        except Exception as e:
+            logging.error(f"Download request failed: {e}")
+            return False
+
+        if response.status_code != 200:
+            logging.error(f"Download failed: HTTP {response.status_code}")
+            return False
+
+        total_size = int(response.headers.get("content-length", 0))
+        downloaded = 0
+        last_percent = -1
+
+        try:
+            with open(file_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total_size > 0:
+                            percent = downloaded * 100 // total_size
+                            if percent >= last_percent + 10:
+                                last_percent = percent
+                                logging.info(f"  {percent}% ({downloaded}/{total_size})")
+        except Exception as e:
+            logging.error(f"Download write error: {e}")
+            if file_path.exists():
+                file_path.unlink()
+            return False
+
+        return True
 
 
     def _clean_le_handler(self) -> None:
