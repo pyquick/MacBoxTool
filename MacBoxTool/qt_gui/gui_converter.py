@@ -306,6 +306,7 @@ class IconConverterInterface(ScrollArea):
         self.build_log = TextEdit()
         self.build_log.setReadOnly(True)
         self.build_log.setMinimumHeight(200)
+        self.build_log.setVisible(self.constants.show_logs)
         ll.addWidget(self.build_log)
 
         self.build_layout.addWidget(log_w)
@@ -316,7 +317,7 @@ class IconConverterInterface(ScrollArea):
     # ── Result card ──
 
     def _build_result_card(self):
-        self.result_card, self.result_layout = self._hw_card("Conversion Complete")
+        self.result_card, self.result_layout = self._hw_card("Products")
         self.result_card.hide()
         self.expandLayout.addWidget(self.result_card)
 
