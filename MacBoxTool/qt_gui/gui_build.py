@@ -3,6 +3,13 @@ gui_build.py: Build OpenCore EFI for unsupported Macs
 """
 from ..include import *
 from .gui_support import DefGUI, ProgressStatusHelper, AutoUpdateStages
+
+try:
+    from ..support.crash_report import send_error_report_async
+except Exception:
+    # crash_report.py is a dev-only module; skip silently when unavailable
+    def send_error_report_async(*args, **kwargs) -> None:
+        pass
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QUrl
 

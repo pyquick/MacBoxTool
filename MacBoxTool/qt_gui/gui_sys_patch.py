@@ -5,6 +5,13 @@ gui_sys_patch.py: Root patching interface
 from ..include import *
 from .gui_support import AutoUpdateStages, DefGUI, PayloadMount, ProgressStatusHelper, RestartHost
 
+try:
+    from ..support.crash_report import send_error_report_async
+except Exception:
+    # crash_report.py is a dev-only module; skip silently when unavailable
+    def send_error_report_async(*args, **kwargs) -> None:
+        pass
+
 from ..datasets import os_data
 from ..support import kdk_handler, metallib_handler
 from ..support.network_handler import DownloadStatus, DownloadWorker

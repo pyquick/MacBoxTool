@@ -225,6 +225,7 @@ class LoggingHandler:
                     exception_type=type.__name__,
                     exception_message=str(value),
                     stack_trace=tb_str,
+                    release=self.constants.macboxtool_version,
                 )
             except Exception:
                 pass
@@ -264,6 +265,7 @@ class LoggingHandler:
                     exception_type=type.__name__,
                     exception_message=str(value),
                     stack_trace=tb_str,
+                    release=self.constants.macboxtool_version,
                 )
             except Exception:
                 pass

@@ -150,7 +150,7 @@ class arguments:
 
     def _cache_os_handler(self) -> None:
         """
-        Fetch KDK/Metallib for incoming OS (CLI-only)
+        Fetch KDK/Metallib for incoming OS, notifying the user via CLI and GUI popup
         """
         results = subprocess.run(["/bin/ps", "-ax"], stdout=subprocess.PIPE)
         if results.stdout.decode("utf-8").count("MacBoxTool --cache_os") > 1:
@@ -164,7 +164,7 @@ class arguments:
             return
 
         os_version, os_build = os_data
-        logging.info(f"Staged update found: {os_version} ({os_build})")
+        logging.info(f"macOS Update detected: {os_version} ({os_build})")
 
         # Detect hardware requirements for incoming OS
         results = HardwarePatchsetDetection(
@@ -221,6 +221,20 @@ class arguments:
             logging.info("All resources already cached, exiting")
             return
 
+        # Notify user via CLI and GUI popup
+        resource_names = ", ".join(name for name, _, _ in download_tasks)
+        logging.info(f"macOS Update detected, downloading {resource_names} for macOS {os_version} ({os_build})")
+        if self.constants.launcher_script is None:
+            try:
+                subprocess.Popen(
+                    [self.constants.launcher_binary, "--gui_os_update", os_version, os_build],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True,
+                )
+            except Exception as e:
+                logging.warning(f"Failed to show GUI popup: {e}")
+
         # Download files
         net_util = NetworkUtilities(self.constants)
 
@@ -261,7 +275,7 @@ class arguments:
 
     def _download_file(self, net_util: NetworkUtilities, url: str, file_path: Path) -> bool:
         """
-        Download a file synchronously with progress logging.
+        Download a file synchronously without progress output.
         """
         try:
             response = net_util.get(url, stream=True, timeout=60)
@@ -273,21 +287,11 @@ class arguments:
             logging.error(f"Download failed: HTTP {response.status_code}")
             return False
 
-        total_size = int(response.headers.get("content-length", 0))
-        downloaded = 0
-        last_percent = -1
-
         try:
             with open(file_path, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
-                        downloaded += len(chunk)
-                        if total_size > 0:
-                            percent = downloaded * 100 // total_size
-                            if percent >= last_percent + 10:
-                                last_percent = percent
-                                logging.info(f"  {percent}% ({downloaded}/{total_size})")
         except Exception as e:
             logging.error(f"Download write error: {e}")
             if file_path.exists():

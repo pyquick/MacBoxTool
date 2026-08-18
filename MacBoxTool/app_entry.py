@@ -244,6 +244,14 @@ def main():
         print(f"Hardware: {device_probe.Computer().probe()}")
         return
 
+    if "--gui_os_update" in sys.argv:
+        idx = sys.argv.index("--gui_os_update")
+        os_version = sys.argv[idx + 1] if len(sys.argv) > idx + 1 else None
+        os_build = sys.argv[idx + 2] if len(sys.argv) > idx + 2 else None
+        from .qt_gui.gui_os_update import show_os_update_popup
+        show_os_update_popup(os_version, os_build)
+        return
+
     # Parse CLI args; returns None if no action flag present
     args = utilities.check_cli_args()
 
