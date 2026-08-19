@@ -8,8 +8,8 @@
         },
         "PySide2": {
             "version": "0.0.4",
-            "build": "4573.1",
-            "core": "1.0.245834538prefix",
+            "build": "4638.2",
+            "core": "1.1.000039489prefix",
             "minver": "17"
         }
     },
