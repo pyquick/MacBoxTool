@@ -6,7 +6,7 @@ from ..include import *
 
 # Additional imports for converted wxPython classes
 from PySide2.QtWidgets import QMenuBar, QMenu, QMessageBox, QProgressBar, QPlainTextEdit, QTextEdit, QMainWindow, QWidget
-from PySide2.QtCore import QMetaObject, Qt, Q_ARG, QTimer, QObject
+from PySide2.QtCore import QMetaObject, Qt, QTimer, QObject
 from PySide2.QtGui import QFont
 from shiboken6 import isValid as is_qt_object_valid
 import subprocess
@@ -584,7 +584,7 @@ class ThreadHandler(logging.Handler):
             self.text_edit,
             method,
             Qt.QueuedConnection,
-            Q_ARG(str, msg)
+            msg
         )
 
 
