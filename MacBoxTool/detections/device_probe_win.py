@@ -8,7 +8,7 @@ import re
 import hashlib
 import winreg
 from dataclasses import dataclass, field
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 import wmi
 
 from ..datasets import cpu_data, pci_data, usb_data
@@ -143,6 +143,15 @@ _cached_cpu_gen: int | None = None
 _cached_cpu_vendor_id: str | None = None
 _cached_cpu_device_id: int | None = None
 _cached_cpu_architecture: str | None = None
+
+
+# Map CPU vendor strings from sysctl / WMI to standard PCI vendor hex IDs.
+# This gives consistent output regardless of platform.
+_CPU_VENDOR_TEXT_TO_HEX: dict[str, str] = {
+    "GenuineIntel": "0x8086",
+    "AuthenticAMD": "0x1022",
+    "Apple":         "0x106B",
+}
 
 
 def _cpuid_display_model(processor_id: str | None) -> int | None:
@@ -731,6 +740,8 @@ class Computer:
     mbt_sys_signed:      bool           = False
     firmware_vendor:      Optional[str]  = None
     rosetta_active:       bool           = False
+    t2_chip:              bool           = False
+    security_chip_details: list[dict[str, Any]] = field(default_factory=list)
     _wmi:                 object         = field(default=None, repr=False)
     _pci_cache:           list           = field(default_factory=list, repr=False)
     _usb_raw:             list           = field(default_factory=list, repr=False)
@@ -755,6 +766,7 @@ class Computer:
         computer.bluetooth_probe()
         computer.topcase_probe()
         computer.t1_probe()
+        computer.t2_probe()
         computer.ambient_light_sensor_probe()
         computer.pcie_webcam_probe()
         computer.sata_disk_probe()
@@ -869,6 +881,8 @@ class Computer:
                 vendor_id = "GenuineIntel"
             elif vendor_id and vendor_id.lower() == "authenticamd":
                 vendor_id = "AuthenticAMD"
+            # Map vendor text to PCI vendor hex ID for cross-platform consistency.
+            vendor_id = _CPU_VENDOR_TEXT_TO_HEX.get(vendor_id, vendor_id)
             device_id = _cpuid_display_model(getattr(proc, "ProcessorId", None))
         except Exception:
             pass
@@ -961,11 +975,48 @@ class Computer:
             if dev.vendor_id != 0x5ac:
                 continue
             if dev.device_id == 0x8600:
-                self.t1_chip = True; return
+                self.t1_chip = True
+                self.security_chip_details.append({
+                    "type": "Apple T1", "vendor_id": dev.vendor_id,
+                    "device_id": dev.device_id, "name": dev.product_name,
+                    "source": "USB",
+                })
+                return
             if dev.device_id == 0x1281 and dev.serial_number:
                 parts = dev.serial_number.split(" ")
                 if "CPID:8002" in parts and ("BDID:12" in parts or "BDID:13" in parts):
-                    self.t1_chip = True; return
+                    self.t1_chip = True
+                    self.security_chip_details.append({
+                        "type": "Apple T1", "vendor_id": dev.vendor_id,
+                        "device_id": dev.device_id, "name": dev.product_name,
+                        "source": "USB DFU",
+                    })
+                    return
+
+    def t2_probe(self):
+        """Detect currently-present Apple T2 controllers by PCI hardware ID."""
+        try:
+            devices = self._wmi.Win32_PnPEntity()
+        except Exception:
+            return
+
+        for device in devices:
+            pnp_device_id = getattr(device, "PNPDeviceID", "") or ""
+            match = _RE_PCI.search(pnp_device_id)
+            if not match:
+                continue
+            if int(match.group(1), 16) != 0x106B:
+                continue
+            if int(match.group(2), 16) not in (0x1801, 0x1802):
+                continue
+            if getattr(device, "Present", True) is not False:
+                self.t2_chip = True
+                self.security_chip_details.append({
+                    "type": "Apple T2", "vendor_id": int(match.group(1), 16),
+                    "device_id": int(match.group(2), 16),
+                    "name": getattr(device, "Name", None), "source": "PCI/WMI",
+                })
+                return
 
     def ambient_light_sensor_probe(self):
         pass  # Not available on Windows

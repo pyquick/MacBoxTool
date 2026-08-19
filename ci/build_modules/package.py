@@ -131,25 +131,25 @@ class GeneratePackage:
         ).build() is True
 
         # AutoPkg-Assets.pkg
-        # print("Generating AutoPkg-Assets.pkg")
+        print(f"Generating AutoPkg-Assets{self._pkg_suffix}.pkg")
 
-        # _tmp_auto_pkg_preinstall = tempfile.NamedTemporaryFile(delete=False)
-        # _tmp_auto_pkg_postinstall = tempfile.NamedTemporaryFile(delete=False)
-        # with open(_tmp_auto_pkg_preinstall.name, "w") as f:
-        #     f.write(GenerateScripts().preinstall_autopkg())
-        # with open(_tmp_auto_pkg_postinstall.name, "w") as f:
-        #     f.write(GenerateScripts().postinstall_autopkg())
+        _tmp_auto_pkg_preinstall = tempfile.NamedTemporaryFile(delete=False)
+        _tmp_auto_pkg_postinstall = tempfile.NamedTemporaryFile(delete=False)
+        with open(_tmp_auto_pkg_preinstall.name, "w") as f:
+            f.write(GenerateScripts().preinstall_autopkg())
+        with open(_tmp_auto_pkg_postinstall.name, "w") as f:
+            f.write(GenerateScripts().postinstall_autopkg())
 
-        # assert macos_pkg_builder.Packages(
-        #     pkg_output="./dist/AutoPkg-Assets.pkg",
-        #     pkg_bundle_id="com.pyquick.pkg.AutoPkg-Assets",
-        #     pkg_version=self._constants.macboxtool_version,
-        #     pkg_allow_relocation=False,
-        #     pkg_as_distribution=True,
-        #     pkg_background="./ci/pkg_assets/PkgBackground-AutoPkg.png",
-        #     pkg_preinstall_script=_tmp_auto_pkg_preinstall.name,
-        #     pkg_postinstall_script=_tmp_auto_pkg_postinstall.name,
-        #     pkg_file_structure=self._autopkg_files,
-        #     pkg_title="AutoPkg Assets",
-        #     pkg_welcome=self._generate_autopkg_welcome(),
-        # ).build() is True
+        assert macos_pkg_builder.Packages(
+            pkg_output=f"./dist/AutoPkg-Assets{self._pkg_suffix}.pkg",
+            pkg_bundle_id="com.pyquick.pkg.AutoPkg-Assets",
+            pkg_version=self._constants.macboxtool_version,
+            pkg_allow_relocation=False,
+            pkg_as_distribution=True,
+            pkg_background="./ci/pkg_assets/PkgBackground-AutoPkg.png",
+            pkg_preinstall_script=_tmp_auto_pkg_preinstall.name,
+            pkg_postinstall_script=_tmp_auto_pkg_postinstall.name,
+            pkg_file_structure=self._autopkg_files,
+            pkg_title="AutoPkg Assets",
+            pkg_welcome=self._generate_autopkg_welcome(),
+        ).build() is True

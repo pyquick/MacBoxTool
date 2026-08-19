@@ -47,7 +47,7 @@ class Ui_MessageBox:
         self.yesButton.setFocus()
         self.buttonGroup.setFixedHeight(81)
 
-        self.contentLabel.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.contentLabel.setContextMenuPolicy(Qt.CustomContextMenu)
         self._adjustText()
 
         self.yesButton.clicked.connect(self.__onYesButtonClicked)

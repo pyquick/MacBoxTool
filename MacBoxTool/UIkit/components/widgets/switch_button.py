@@ -253,8 +253,8 @@ class SwitchButton(QWidget):
 
         setCustomStyleSheet(
             self.label,
-            f"SwitchButton>QLabel{{color:{self.lightTextColor.name(QColor.NameFormat.HexArgb)}}}",
-            f"SwitchButton>QLabel{{color:{self.darkTextColor.name(QColor.NameFormat.HexArgb)}}}"
+            f"SwitchButton>QLabel{{color:{self.lightTextColor.name(QColor.HexArgb)}}}",
+            f"SwitchButton>QLabel{{color:{self.darkTextColor.name(QColor.HexArgb)}}}"
         )
 
     def setCheckedIndicatorColor(self, light, dark):

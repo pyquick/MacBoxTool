@@ -151,8 +151,8 @@ class TableItemDelegate(QStyledItemDelegate):
             else:
                 alpha = 17
 
-        if index.data(Qt.ItemDataRole.BackgroundRole):
-            painter.setBrush(index.data(Qt.ItemDataRole.BackgroundRole))
+        if index.data(Qt.BackgroundRole):
+            painter.setBrush(index.data(Qt.BackgroundRole))
         else:
             painter.setBrush(QColor(c, c, c, alpha))
 
@@ -170,7 +170,7 @@ class TableItemDelegate(QStyledItemDelegate):
 
     def _drawCheckBox(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
         painter.save()
-        checkState = Qt.CheckState(index.data(Qt.ItemDataRole.CheckStateRole))
+        checkState = Qt.CheckState(index.data(Qt.CheckStateRole))
 
         isDark = isDarkTheme()
 
@@ -179,7 +179,7 @@ class TableItemDelegate(QStyledItemDelegate):
         y = option.rect.center().y() - 9.5
         rect = QRectF(x, y, 19, 19)
 
-        if checkState == Qt.CheckState.Unchecked:
+        if checkState == Qt.Unchecked:
             painter.setBrush(QColor(0, 0, 0, 26) if isDark else QColor(0, 0, 0, 6))
             painter.setPen(QColor(255, 255, 255, 142) if isDark else QColor(0, 0, 0, 122))
             painter.drawRoundedRect(rect, r, r)
@@ -189,7 +189,7 @@ class TableItemDelegate(QStyledItemDelegate):
             painter.setBrush(color)
             painter.drawRoundedRect(rect, r, r)
 
-            if checkState == Qt.CheckState.Checked:
+            if checkState == Qt.Checked:
                 CheckBoxIcon.ACCEPT.render(painter, rect)
             else:
                 CheckBoxIcon.PARTIAL_ACCEPT.render(painter, rect)
@@ -253,14 +253,14 @@ class TableBase:
 
     def _setPressedRow(self, row: int):
         """ set pressed row """
-        if self.selectionMode() == QTableView.SelectionMode.NoSelection:
+        if self.selectionMode() == QAbstractItemView.NoSelection:
             return
 
         self.delegate.setPressedRow(row)
         self.viewport().update()
 
     def _setSelectedRows(self, indexes: List[QModelIndex]):
-        if self.selectionMode() == QTableView.SelectionMode.NoSelection:
+        if self.selectionMode() == QAbstractItemView.NoSelection:
             return
 
         self.delegate.setSelectedRows(indexes)

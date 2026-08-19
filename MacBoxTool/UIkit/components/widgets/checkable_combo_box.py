@@ -78,7 +78,7 @@ class CheckableComboBox(QWidget):
 
         index = self._list_widget.row(item)
         if 0 <= index < len(self._items):
-            self._items[index] = (self._items[index][0], self._items[index][1], item.checkState() == Qt.CheckState.Checked)
+            self._items[index] = (self._items[index][0], self._items[index][1], item.checkState() == Qt.Checked)
             self._update_button_text()
             self.checkedItemsChanged.emit(self.checkedItems())
 
@@ -88,9 +88,9 @@ class CheckableComboBox(QWidget):
 
         # Create list widget item with checkbox
         item = QListWidgetItem(text)
-        item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable)
-        item.setCheckState(Qt.CheckState.Unchecked)
-        item.setData(Qt.ItemDataRole.UserRole, userData)
+        item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)
+        item.setCheckState(Qt.Unchecked)
+        item.setData(Qt.UserRole, userData)
         self._list_widget.addItem(item)
 
     def addItems(self, items: Iterable[tuple]):
@@ -104,11 +104,11 @@ class CheckableComboBox(QWidget):
         try:
             for i in range(self._list_widget.count()):
                 item = self._list_widget.item(i)
-                data = item.data(Qt.ItemDataRole.UserRole)
+                data = item.data(Qt.UserRole)
                 if data in userDataList:
-                    item.setCheckState(Qt.CheckState.Checked)
+                    item.setCheckState(Qt.Checked)
                 else:
-                    item.setCheckState(Qt.CheckState.Unchecked)
+                    item.setCheckState(Qt.Unchecked)
 
             # Update internal state
             for i, (text, data, _) in enumerate(self._items):

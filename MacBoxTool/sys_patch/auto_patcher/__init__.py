@@ -14,10 +14,4 @@ Usage:
 """
 
 from .install import InstallAutomaticPatchingServices
-
-
-def __getattr__(name):
-    if name == "StartAutomaticPatching":
-        from .start import StartAutomaticPatching
-        return StartAutomaticPatching
-    raise AttributeError(name)
+from .start   import StartAutomaticPatching

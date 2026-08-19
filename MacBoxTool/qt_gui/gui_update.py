@@ -163,10 +163,11 @@ class Updater(ScrollArea):
         self.check_bar = IndeterminateProgressBar(self)
         self.check_bar.setVisible(False)
 
-        # Download uses a determinate bar with live percentage updates.
+        # Download uses a determinate ring with live percentage updates.
         self.progress_bar = ProgressBar(self)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
+        #self.progress_bar.setTextVisible(True)
         self.progress_bar.setVisible(False)
 
         self.progress_label = StrongBodyLabel("")
@@ -305,7 +306,7 @@ class Updater(ScrollArea):
                     "Failed to check update",
                     duration=3000,
                     position=InfoBarPosition.BOTTOM_RIGHT,
-                    parent=self.scrollWidget,
+                    parent=self,
                 )
                 return
 
@@ -326,7 +327,7 @@ class Updater(ScrollArea):
                     "Update available",
                     duration=3000,
                     position=InfoBarPosition.BOTTOM_RIGHT,
-                    parent=self.scrollWidget,
+                    parent=self,
                 )
                 if self.auto_download_install:
                     QTimer.singleShot(0, self.download_update)

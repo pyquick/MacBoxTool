@@ -2,7 +2,14 @@
 gui_build.py: Build OpenCore EFI for unsupported Macs
 """
 from ..include import *
-from .gui_support import DefGUI, ProgressStatusHelper
+from .gui_support import DefGUI, ProgressStatusHelper, AutoUpdateStages
+
+try:
+    from ..support.crash_report import send_error_report_async
+except Exception:
+    # crash_report.py is a dev-only module; skip silently when unavailable
+    def send_error_report_async(*args, **kwargs) -> None:
+        pass
 from PySide2.QtGui import QDesktopServices
 from PySide2.QtCore import QUrl
 
@@ -97,8 +104,15 @@ class BuildWorker(QThread):
             self.finished_signal.emit(True, str(self.constants.opencore_release_folder))
         except Exception as e:
             import traceback
+            stack_trace = traceback.format_exc()
+            send_error_report_async(
+                exception_type=type(e).__name__,
+                exception_message=str(e),
+                stack_trace=stack_trace,
+                operation="build_efi",
+            )
             self.log_signal.emit(f"[ERROR] {e}")
-            self.log_signal.emit(traceback.format_exc())
+            self.log_signal.emit(stack_trace)
             self.finished_signal.emit(False, str(e))
         finally:
             root_logger.removeHandler(handler)
@@ -461,7 +475,6 @@ class BuildOCPage(ScrollArea):
         self.target_model = self.settings.find_key("MODEL") or "MacPro7,1"
 
         self._init_ui()
-        qconfig.themeChanged.connect(self._update_theme)
 
     def _init_ui(self):
         self.expandLayout.setContentsMargins(
@@ -504,11 +517,7 @@ class BuildOCPage(ScrollArea):
         # Build button - always enabled regardless of physical model
         self.build_btn = PushButton(FluentIcon.DEVELOPER_TOOLS, "Build OpenCore EFI")
         self.build_btn.setFixedHeight(40)
-        setCustomStyleSheet(
-            self.build_btn,
-            "PushButton { border-radius: 20px; }",
-            "PushButton { border-radius: 20px; }",
-        )
+        setCustomStyleSheet(self.build_btn,"PushButton { border-radius: 20px; }","PushButton { border-radius: 20px; }")
         self.build_btn.clicked.connect(self._on_build)
         layout.addWidget(self.build_btn)
 
@@ -612,6 +621,10 @@ class BuildOCPage(ScrollArea):
             self.install_btn.setVisible(
                 sys.platform == "darwin" and check_helper_installed and check_helper_installed()
             )
+            # Auto-update flow: auto-trigger install after build
+            if getattr(self.constants, "update_stage", AutoUpdateStages.INACTIVE) != AutoUpdateStages.INACTIVE:
+                self.constants.update_stage = AutoUpdateStages.INSTALLING
+                QTimer.singleShot(200, self._on_install_clicked)
         else:
             self.progress_helper.update("error", f"Build failed: {info}")
             self.open_folder_btn.setVisible(False)
@@ -650,6 +663,14 @@ class BuildOCPage(ScrollArea):
                 duration=4000,
                 parent=self
             )
+            # Auto-update flow: navigate to sys_patch after install
+            if getattr(self.constants, "update_stage", AutoUpdateStages.INACTIVE) != AutoUpdateStages.INACTIVE:
+                self.constants.update_stage = AutoUpdateStages.ROOT_PATCHING
+                self.constants.start_sys_patch = True
+                self.constants.start_sys_patch_now = True
+                win = self.window()
+                if hasattr(win, "navigate_to_sys_patch"):
+                    QTimer.singleShot(500, win.navigate_to_sys_patch)
         else:
             InfoBar.error(
                 title="Install Failed",
@@ -661,9 +682,6 @@ class BuildOCPage(ScrollArea):
                 parent=self
             )
         self.install_worker = None
-
-    def _update_theme(self):
-        pass
 
     def _stop_worker(self, worker, timeout: int = 5000):
         if not worker:

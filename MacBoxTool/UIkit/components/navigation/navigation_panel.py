@@ -60,6 +60,14 @@ class NavigationItem:
 class NavigationPanel(QFrame):
     """ Navigation panel """
 
+    MAX_VISIBLE_SCROLL_ITEMS = 6
+    SCROLL_ITEM_HEIGHT = 40
+    SCROLL_ITEM_SPACING = 4
+    MAX_SCROLL_AREA_HEIGHT = (
+        MAX_VISIBLE_SCROLL_ITEMS * SCROLL_ITEM_HEIGHT
+        + (MAX_VISIBLE_SCROLL_ITEMS - 1) * SCROLL_ITEM_SPACING
+    )
+
     displayModeChanged = Signal(NavigationDisplayMode)
 
     def __init__(self, parent=None, isMinimalEnabled=False):
@@ -79,6 +87,7 @@ class NavigationPanel(QFrame):
         self.acrylicBrush = AcrylicBrush(self, 30)
 
         self.scrollArea = ScrollArea(self)
+        self.scrollRegion = QWidget(self)
         self.scrollWidget = QWidget()
 
         self.menuButton = NavigationToolButton(FIF.MENU, self)
@@ -91,6 +100,7 @@ class NavigationPanel(QFrame):
         self.topLayout = NavigationItemLayout()
         self.bottomLayout = NavigationItemLayout()
         self.scrollLayout = NavigationItemLayout(self.scrollWidget)
+        self.scrollRegionLayout = QVBoxLayout(self.scrollRegion)
 
         self.items = {}   # type: Dict[str, NavigationItem]
         self.history = qrouter
@@ -123,6 +133,7 @@ class NavigationPanel(QFrame):
         self.scrollArea.horizontalScrollBar().setEnabled(False)
         self.scrollArea.setWidget(self.scrollWidget)
         self.scrollArea.setWidgetResizable(True)
+        self.scrollArea.setMaximumHeight(self.MAX_SCROLL_AREA_HEIGHT)
         self.scrollArea.scrollDelagate.vScrollBar.setHandleDisplayMode(ScrollBarHandleDisplayMode.ON_HOVER)
 
         self.expandAni.setEasingCurve(QEasingCurve.OutQuad)
@@ -164,14 +175,20 @@ class NavigationPanel(QFrame):
         self.menuButtonLayout.setSpacing(4)
         self.topLayout.setSpacing(4)
         self.bottomLayout.setSpacing(4)
-        self.scrollLayout.setSpacing(4)
+        self.scrollLayout.setSpacing(self.SCROLL_ITEM_SPACING)
+        self.scrollRegionLayout.setContentsMargins(0, 0, 0, 0)
+        self.scrollRegionLayout.setSpacing(0)
 
         self.vBoxLayout.addLayout(self.menuButtonLayout, 0)
         self.vBoxLayout.addSpacing(16)
         self.vBoxLayout.addLayout(self.arrowLayout, 0)
         self.vBoxLayout.addLayout(self.topLayout, 0)
-        self.vBoxLayout.addWidget(self.scrollArea, 1)
+        self.vBoxLayout.addWidget(self.scrollRegion, 1)
         self.vBoxLayout.addLayout(self.bottomLayout, 0)
+
+        self.scrollRegionLayout.addStretch(1)
+        self.scrollRegionLayout.addWidget(self.scrollArea)
+        self.scrollRegionLayout.addStretch(1)
 
         self.vBoxLayout.setAlignment(Qt.AlignTop)
         self.topLayout.setAlignment(Qt.AlignTop)
@@ -845,11 +862,24 @@ class NavigationPanel(QFrame):
         if rect.isNull() or rect.height() <= 0:
             return
 
-        fill = QColor(38, 38, 38, 96) if isDarkTheme() else QColor(255, 255, 255, 104)
-        outline = QColor(255, 255, 255, 24 if isDarkTheme() else 178)
-        if self.displayMode == NavigationDisplayMode.MENU:
-            fill = QColor(38, 38, 38, 132) if isDarkTheme() else QColor(255, 255, 255, 132)
-            outline = QColor(255, 255, 255, 32 if isDarkTheme() else 190)
+        if isDarkTheme():
+            fill = QColor(38, 38, 38, 96)
+            outline = QColor(255, 255, 255, 24)
+            if self.displayMode == NavigationDisplayMode.EXPAND:
+                fill = QColor(34, 34, 34, 108)
+                outline = QColor(255, 255, 255, 28)
+            elif self.displayMode == NavigationDisplayMode.MENU:
+                fill = QColor(32, 32, 32, 132)
+                outline = QColor(255, 255, 255, 32)
+        else:
+            fill = QColor(255, 255, 255, 104)
+            outline = QColor(255, 255, 255, 178)
+            if self.displayMode == NavigationDisplayMode.EXPAND:
+                fill = QColor(248, 248, 248, 112)
+                outline = QColor(255, 255, 255, 184)
+            elif self.displayMode == NavigationDisplayMode.MENU:
+                fill = QColor(246, 246, 246, 132)
+                outline = QColor(255, 255, 255, 190)
 
         painter.setBrush(fill)
         pen = QPen(outline)
@@ -895,7 +925,11 @@ class NavigationPanel(QFrame):
         if rect.isNull():
             return QRectF()
 
-        return rect.intersected(QRectF(self.scrollArea.geometry()))
+        viewportRect = QRectF(QRect(
+            self.scrollArea.mapTo(self, QPoint(0, 0)),
+            self.scrollArea.size()
+        ))
+        return rect.intersected(viewportRect)
 
     def paintEvent(self, e):
         painter = QPainter(self)

@@ -7,10 +7,8 @@ import platform
 
 import requests
 from packaging import version
-from packaging.version import InvalidVersion
 
 from ... import constants as constants
-from ..network_handler import TLS_CERTIFICATE_BUNDLE
 from ..on_nightly import CheckNightly
 
 
@@ -29,11 +27,14 @@ class VisitGithubAPI:
         self.constants: constants.Constants = constants
         self.token: str = token or getattr(self.constants, "github_token", "") or ""
         self.url = f"https://api.github.com/repos/{user}/{repo_name}/releases/latest"
+        self.system_darwin_version = int(platform.release().split(".")[0])
         self.check_url = "https://pyquick.github.io/MacBoxTool/manifest.json"
-        # Older macOS releases are served by this branch's PySide2 packages.
-        self.branch = "PySide2"
-        if fetch_latest:
-            self.find_latest_release_stable()
+        self.branch = self.constants.commit_info[0]
+        if self.system_darwin_version>=22: 
+            self.branch="main"
+        else:
+            self.branch="PySide2"
+        self.find_latest_release_stable()
 
     def _github_headers(self) -> dict:
         """Build authenticated GitHub API headers when a token is configured."""
@@ -95,7 +96,7 @@ class VisitGithubAPI:
         """Fetch and validate the latest stable GitHub release payload."""
         
         logging.info(f"[Update] Requesting latest release: {self.url}")
-        response = requests.get(self.url, headers=self._github_headers(), verify=TLS_CERTIFICATE_BUNDLE, timeout=20)
+        response = requests.get(self.url, headers=self._github_headers(), verify=False, timeout=20)
         response.raise_for_status()
         
         self.information: dict = self._decode_json_response(response)
@@ -114,28 +115,17 @@ class VisitGithubAPI:
     def arch_check(self) -> list:
         """Return the workflow and artifact names for the current architecture."""
         if platform.machine() == "x86_64":
-            return ["build-app-qt-intel", "MacBoxTool-PySide2-x86_64.pkg"]
-        raise RuntimeError(f"Unsupported PySide2 update architecture: {platform.machine()}")
-
-    def _stable_manifest_versions(self, manifest: dict):
-        stable = manifest.get("stable_latest", {}).get(self.branch, {})
-        remote_version = str(stable.get("version", "")).strip()
-        remote_build = str(stable.get("build", "")).strip()
-        if not remote_version or not remote_build:
-            logging.info("[Update] No stable PySide2 release is published")
-            return None
-        try:
-            return version.parse(remote_version), version.parse(remote_build)
-        except InvalidVersion:
-            logging.warning("[Update] Ignoring invalid stable PySide2 manifest values")
-            return None
+            return ["build-app-qt-intel", "MacBoxTool-x86_64.pkg"]
+        if platform.machine() == "arm64":
+            return ["build-app-qt-arm", "MacBoxTool-arm64.pkg"]
+        raise RuntimeError(f"Unsupported architecture: {platform.machine()}")
 
     def find_and_compare_latest_release_nightly(self) -> list[bool, str, str, str]:
         """Check the nightly manifest and return the nightly download URL."""
         workflow, artifact = self.arch_check()
-        self.nightly_url = f"https://nightly.link/pyquick/MacBoxTool/workflows/{workflow}/PySide2/{artifact}.zip"
+        self.nightly_url = f"https://nightly.link/pyquick/MacBoxTool/workflows/{workflow}/main/{artifact}.zip"
 
-        response = requests.get(self.check_url, verify=TLS_CERTIFICATE_BUNDLE, timeout=20)
+        response = requests.get(self.check_url, verify=False, timeout=20)
         response.raise_for_status()
         manifest: dict = self._decode_json_response(response)
 
@@ -153,33 +143,29 @@ class VisitGithubAPI:
         Check stable is higher than nightly.
         Manifest.json is always higher than stable (or same as stable)
         """
-        response = requests.get(self.check_url, verify=TLS_CERTIFICATE_BUNDLE, timeout=20)
+        response = requests.get(self.check_url, verify=False, timeout=20)
         response.raise_for_status()
         manifest: dict = self._decode_json_response(response)
 
         local_version = version.parse(str(self.constants.macboxtool_version))
         local_build = version.parse(str(self.constants.nightly_build))
 
-        stable_versions = self._stable_manifest_versions(manifest)
-        if stable_versions is None:
-            return False
-        manifest_version_stable, manifest_build_stable = stable_versions
+        manifest_version_stable = version.parse(str(manifest["stable_latest"][self.branch]["version"]))
+        manifest_build_stable = version.parse(str(manifest["stable_latest"][self.branch]["build"]))
 
         return manifest_version_stable >= local_version or manifest_build_stable >= local_build
 
 
     def compare_tags(self) -> bool:
         """Return True when the remote stable release is newer than local."""
-        response = requests.get(self.check_url, verify=TLS_CERTIFICATE_BUNDLE, timeout=20)
+        response = requests.get(self.check_url, verify=False, timeout=20)
         # Only stable can use it, nightly us is_higher_stable_is_coming()
         if CheckNightly(self.constants).check(): return False
         response.raise_for_status()
         manifest: dict = self._decode_json_response(response)
 
-        stable_versions = self._stable_manifest_versions(manifest)
-        if stable_versions is None:
-            return False
-        manifest_version_stable, manifest_build_stable = stable_versions
+        manifest_version_stable = version.parse(str(manifest["stable_latest"][self.branch]["version"]))
+        manifest_build_stable = version.parse(str(manifest["stable_latest"][self.branch]["build"])) # manifest
 
         local_version = version.parse(str(self.constants.macboxtool_version))
         local_build = version.parse(str(self.constants.nightly_build))
@@ -202,8 +188,6 @@ class VisitGithubAPI:
         for asset in self.assets:
             name = asset["name"]
             if "Uninstaller" in name or "uninstaller" in name:
-                continue
-            if "PySide2" not in name:
                 continue
 
             if "x86_64" in name and "x86_64" in platform.machine():

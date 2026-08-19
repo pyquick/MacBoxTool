@@ -187,7 +187,7 @@ class SettingsInterface(QWidget):
 
         self._add_tab("build", "Build", self.tab_build)
         self._add_tab("security", "Security", self.tab_security)
-        if sys.platform == "darwin":
+        if sys.platform=="darwin":
             self._add_tab("sip", "SIP", self.tab_sip)
         self._add_tab("smbios", "SMBIOS", self.tab_smbios)
         self._add_tab("misc", "Misc", self.tab_misc)
@@ -815,18 +815,8 @@ class SettingsInterface(QWidget):
 
     def _on_github_token_changed(self):
         token = self.github_token_edit.text().strip()
-        if self.settings.set_secure_key("github_token", token):
-            self.constants.github_token = token
-            return
-
-        InfoBar.error(
-            "GitHub Token",
-            "Failed to save the token securely.",
-            duration=3000,
-            position=InfoBarPosition.BOTTOM_RIGHT,
-            parent=self,
-        )
-        self.github_token_edit.setText(self.constants.github_token)
+        self.constants.github_token = token
+        self._save("github_token", token)
 
     def _on_trigger_exception_clicked(self):
         try:

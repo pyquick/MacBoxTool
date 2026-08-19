@@ -16,9 +16,12 @@ Universal-Binaries
 Universal-Binaries_overlay
 downloads/
 eggs/
+*Hackintosh*
+*Hack*.md
 MacBoxTool.plist
 .claude
 *.zip
+*test*
 .eggs/
 test.py
 EFI_Build/
@@ -132,9 +135,10 @@ KDKInfo.plist
 InstallESD.dmg
 .pybuilder/
 target/
+*plan*
+*Plan*
 *BaseSystem*
-*AppleD*
-
+*AppleDia*
 # Jupyter Notebook
 .ipynb_checkpoints
 
@@ -296,3 +300,5 @@ requirements_test.txt
 
 # Testing - Test suite (local development only)
 tests/
+MacBoxTool/support/crash_report.py
+MacBoxTool/support/__pycache__/crash_report.*

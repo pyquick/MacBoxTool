@@ -56,7 +56,7 @@ def fromqpixmap(im: Union[QImage, QPixmap]):
     :param im: QImage or PIL ImageQt object
     """
     buffer = QBuffer()
-    buffer.open(QIODevice.OpenModeFlag.ReadWrite)
+    buffer.open(QIODevice.ReadWrite)
 
     # preserve alpha channel with png
     # otherwise ppm is more friendly with Image.open

@@ -60,13 +60,13 @@ class SliderHandle(QWidget):
 
     def paintEvent(self, e):
         painter = QPainter(self)
-        painter.setRenderHints(QPainter.RenderHint.Antialiasing)
-        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setRenderHints(QPainter.Antialiasing)
+        painter.setPen(Qt.NoPen)
 
         # draw outer circle
         isDark = isDarkTheme()
         painter.setPen(QColor(0, 0, 0, 90 if isDark else 25))
-        painter.setBrush(QColor(69, 69, 69) if isDark else Qt.GlobalColor.white)
+        painter.setBrush(QColor(69, 69, 69) if isDark else Qt.white)
         painter.drawEllipse(self.rect().adjusted(1, 1, -1, -1))
 
         # draw innert circle
@@ -152,8 +152,8 @@ class Slider(QSlider):
 
     def paintEvent(self, e):
         painter = QPainter(self)
-        painter.setRenderHints(QPainter.RenderHint.Antialiasing)
-        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setRenderHints(QPainter.Antialiasing)
+        painter.setPen(Qt.NoPen)
         painter.setBrush(QColor(255, 255, 255, 115) if isDarkTheme() else QColor(0, 0, 0, 100))
 
         if self.orientation() == Qt.Horizontal:

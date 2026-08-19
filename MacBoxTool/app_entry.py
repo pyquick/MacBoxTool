@@ -1,5 +1,3 @@
-import argparse
-import logging
 import sys
 import multiprocessing
 import signal
@@ -15,18 +13,31 @@ _qt_window: Optional['QWidget'] = None
 
 
 def _signal_handler(_signum, _frame):
-    """Handle Ctrl+C (SIGINT) through the normal Qt shutdown path."""
+    """Handle Ctrl+C (SIGINT) for graceful shutdown"""
     global _shutdown_requested, _qt_app, _qt_window
     if _shutdown_requested:
-        return
-
+        # Force exit if already requested
+        sys.exit(1)
     _shutdown_requested = True
-    logging.info("GUI shutdown requested by user.")
 
+    # Immediately destroy GUI window first
     if _qt_window:
-        QTimer.singleShot(0, _qt_window.close)
-    elif _qt_app:
-        QTimer.singleShot(0, _qt_app.quit)
+        try:
+            _qt_window.close()
+            _qt_window.destroy()
+        except:
+            pass
+
+    # Then quit the application
+    if _qt_app:
+        try:
+            _qt_app.quit()
+            _qt_app.processEvents()
+        except:
+            pass
+    
+    logging.info("GUI is destroyed by user.")
+    sys.exit(0)
 
 
 # Register signal handler
@@ -52,31 +63,24 @@ else:
         analytics_handler
     )
 import threading
+import logging
 import time
 import os
 from pathlib import Path
-def _parse_cli_args():
-    """
-    Parse CLI arguments.
-    This function is called explicitly to avoid parsing at module import time,
-    which would interfere with other scripts that import MacBoxTool (e.g., Build-Project.command).
-    """
-    parser = argparse.ArgumentParser(description='MacBoxTool - macOS Utility Tool')
-    parser.add_argument('--build-efi', metavar='MODEL', help='Build EFI for specified model (e.g., MacPro7,1)')
-    parser.add_argument('--install-disk', metavar='DISK', help='Install EFI to disk (use with --build-efi)')
-    parser.add_argument('--download-installer', action='store_true', help='Download macOS installer')
-    parser.add_argument('--probe-hardware', action='store_true', help='Probe and display hardware information')
-    parser.add_argument('--version', action='store_true', help='Show version information')
-    return parser.parse_args()
+# CLI parsing moved to support/utilities.check_cli_args()
 
 
-from .qt_gui.gui_go_in import OpenGUI
+from .qt_gui.gui_entry import OpenGUI
 from .constants import Constants
 from PySide2.QtWidgets import *
 from PySide2.QtCore import *
 from PySide2.QtGui import *
 from .support.logging_handler import LoggingHandler
 from .support.global_settings import GlobalSettings
+try:
+    from .support import crash_report
+except ImportError:
+    crash_report = None
 if sys.platform=="darwin":
     from .detections import device_probe
 else:
@@ -89,9 +93,12 @@ from .detections import os_probe
 
 
 class MacBoxTool:
-    def __init__(self)-> None:
+    def __init__(self, cli_mode: bool = False, gui_patch: bool = False, gui_unpatch: bool = False, update_installed: bool = False) -> None:
         super().__init__()
         self.constants: Constants = Constants()
+        self.constants.cli_mode = cli_mode
+        if crash_report is not None:
+            crash_report.install()
         LoggingHandler(self.constants)
         self._generate_base_data()
         self.install_requirements()
@@ -99,7 +106,17 @@ class MacBoxTool:
         self.settings=GlobalSettings(self.constants)
         self.target_model = self.settings.find_key("MODEL") or "MacPro7,1"
         self.constants.custom_model=self.target_model if self.target_model not in ("", "N/A", None) else None
-        self.opengui()
+
+        if cli_mode:
+            from .support.arguments import arguments
+            arguments(self.constants)
+        else:
+            if gui_patch or gui_unpatch:
+                self.constants.start_sys_patch = True
+                self.constants.start_sys_patch_now = gui_patch
+            if update_installed:
+                self.constants.start_update_installed = True
+            self.opengui()
         
     def install_requirements(self):
         # Frozen builds already contain their runtime dependencies.  Never invoke
@@ -209,27 +226,42 @@ class MacBoxTool:
 
 
 def main():
-    # Handle CLI commands using parsed args
-    args = _parse_cli_args()
-    
-    if args.version:
-        constants = Constants()
-        print(f"MacBoxTool v{constants.macboxtool_version}")
+    import platform
+    if int(platform.release().split(".")[0]) < 22 and sys.platform=="darwin":
+        sys.exit(1)
+
+    # Quick-exit flags: no heavy init required
+    if "--version" in sys.argv:
+        from .constants import Constants
+        print(f"MacBoxTool v{Constants().macboxtool_version}")
         return
 
-    if args.probe_hardware:
-        # Run hardware probe and exit
-        computer = device_probe.Computer().probe()
-        print(f"Hardware: {computer}")
+    if "--probe-hardware" in sys.argv:
+        if sys.platform=="darwin":
+            from .detections import device_probe
+        else:
+            from .detections import device_probe_win as device_probe
+        print(f"Hardware: {device_probe.Computer().probe()}")
         return
 
+    if "--gui_os_update" in sys.argv:
+        idx = sys.argv.index("--gui_os_update")
+        os_version = sys.argv[idx + 1] if len(sys.argv) > idx + 1 else None
+        os_build = sys.argv[idx + 2] if len(sys.argv) > idx + 2 else None
+        from .qt_gui.gui_os_update import show_os_update_popup
+        show_os_update_popup(os_version, os_build)
+        return
 
-    if args.download_installer:
-        print("Download installer mode - launching GUI...")
-        # Falls through to GUI launch
+    # Parse CLI args; returns None if no action flag present
+    args = utilities.check_cli_args()
 
+    if args is None:
+        # No CLI action -> launch GUI, optionally with direct-entry flags
+        gui_patch = "--gui_patch" in sys.argv
+        gui_unpatch = "--gui_unpatch" in sys.argv
+        update_installed = "--update_installed" in sys.argv
+        MacBoxTool(gui_patch=gui_patch, gui_unpatch=gui_unpatch, update_installed=update_installed)
+        return
 
-
-
-    # Default: Launch GUI
-    MacBoxTool()
+    # CLI action flags detected
+    MacBoxTool(cli_mode=True)

@@ -11,9 +11,9 @@ import sys
 
 
 def _installer_download_size(installer_data: dict) -> int:
-    """Return the aggregate size of an installer and its legacy components."""
     install_assistant = installer_data.get("InstallAssistant") or {}
     components = install_assistant.get("LegacyComponents") or []
+
     if components:
         total_size = 0
         for component in components:
@@ -23,6 +23,7 @@ def _installer_download_size(installer_data: dict) -> int:
                 continue
         if total_size:
             return total_size
+
     try:
         return max(0, int(install_assistant.get("Size", 0) or 0))
     except (TypeError, ValueError):
@@ -32,13 +33,17 @@ def _installer_download_size(installer_data: dict) -> int:
 def _format_file_size(size: int) -> str:
     if size <= 0:
         return "Unknown"
+
     units = ("B", "KB", "MB", "GB", "TB")
     value = float(size)
     unit_index = 0
     while value >= 1024 and unit_index < len(units) - 1:
         value /= 1024
         unit_index += 1
-    return f"{int(value)} {units[unit_index]}" if unit_index == 0 else f"{value:.2f} {units[unit_index]}"
+
+    if unit_index == 0:
+        return f"{int(value)} {units[unit_index]}"
+    return f"{value:.2f} {units[unit_index]}"
 
 
 def _installer_icon_path(installer_data: dict, constants: Constants) -> str:
@@ -126,7 +131,9 @@ class InstallerCard(CardWidget):
         version_str = self.installer_data.get("Version", "0.0.0")
         build = self.installer_data.get("Build", "N/A")
         self.version_label = CaptionLabel(f"Version: {version_str} | Build: {build}")
-        self.size_label = CaptionLabel(f"Size: {_format_file_size(_installer_download_size(self.installer_data))}")
+
+        size = _installer_download_size(self.installer_data)
+        self.size_label = CaptionLabel(f"Size: {_format_file_size(size)}")
 
     def _init_download_button(self):
         """Initialize download button"""
@@ -182,7 +189,7 @@ class InstallerCard(CardWidget):
                 "Download link copied to clipboard",
                 duration=2000,
                 position=InfoBarPosition.BOTTOM_RIGHT,
-                parent=self
+                parent=self.window(),
             )
 
     
@@ -461,8 +468,14 @@ class MacOSInstallerList(ScrollArea):
         self.header_container.setVisible(True)
 
         installers = self.available_installers_latest if self.show_latest_only else self.available_installers
+
+        # On Windows, filter out macOS 10.15 (Catalina) and earlier —
+        # only macOS 11 (Big Sur) and above are supported
         if sys.platform == "win32":
-            installers = [installer for installer in installers if self._installer_is_supported_on_windows(installer)]
+            installers = [
+                i for i in installers
+                if self._installer_is_supported_on_windows(i)
+            ]
 
         if not installers:
             logging.warning("[MacOSInstallerList] No installers available to display")
@@ -489,16 +502,22 @@ class MacOSInstallerList(ScrollArea):
 
     @staticmethod
     def _installer_is_supported_on_windows(installer: dict) -> bool:
-        """Windows supports downloads for Big Sur (11) and newer only."""
+        """
+        Return False for macOS 10.15 (Catalina) and earlier on Windows.
+        Only macOS 11 (Big Sur) and above are supported.
+        """
         version = installer.get("Version", "0.0.0")
         try:
             parts = version.split(".")
             major = int(parts[0])
+            # 10.x → only 10.16+ (i.e. 11+; 10.15 is Catalina, unsupported)
             if major == 10:
-                return len(parts) >= 2 and int(parts[1]) >= 16
+                if len(parts) >= 2:
+                    return int(parts[1]) >= 16
+                return False
             return major >= 11
-        except (AttributeError, ValueError, IndexError):
-            return True
+        except (ValueError, IndexError):
+            return True  # let unfamiliar versions through
 
     # ── Actions ──
 

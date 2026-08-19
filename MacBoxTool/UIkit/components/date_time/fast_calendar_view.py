@@ -38,14 +38,14 @@ class FastScrollItemDelegate(ScrollItemDelegate):
 
         # outer ring
         if date != self.selectedDate:
-            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setPen(Qt.NoPen)
         else:
             painter.setPen(themeColor())
 
         if date == self.currentDate:
             if index == self.pressedIndex:
                 painter.setBrush(ThemeColor.LIGHT_2.color())
-            elif option.state & QStyle.StateFlag.State_MouseOver:
+            elif option.state & QStyle.State_MouseOver:
                 painter.setBrush(ThemeColor.LIGHT_1.color())
             else:
                 painter.setBrush(themeColor())
@@ -53,10 +53,10 @@ class FastScrollItemDelegate(ScrollItemDelegate):
             c = 255 if isDarkTheme() else 0
             if index == self.pressedIndex:
                 painter.setBrush(QColor(c, c, c, 7))
-            elif option.state & QStyle.StateFlag.State_MouseOver:
+            elif option.state & QStyle.State_MouseOver:
                 painter.setBrush(QColor(c, c, c, 9))
             else:
-                painter.setBrush(Qt.GlobalColor.transparent)
+                painter.setBrush(Qt.transparent)
 
         m = self._itemMargin()
         painter.drawEllipse(option.rect.adjusted(m, m, -m, -m))
@@ -151,7 +151,7 @@ class FastYearScrollView(FastScrollViewBase):
 
         for i, year in enumerate(years):
             item = self.item(i)
-            item.setData(Qt.ItemDataRole.UserRole, QDate(year, 1, 1))
+            item.setData(Qt.UserRole, QDate(year, 1, 1))
             item.setSizeHint(self.sizeHint())
 
     def scrollToDate(self, date: QDate):
@@ -177,7 +177,7 @@ class FastYearScrollView(FastScrollViewBase):
         for i, year in enumerate(range(left, right)):
             item = self.item(i)
             item.setText(str(year))
-            item.setData(Qt.ItemDataRole.UserRole, QDate(year, 1, 1))
+            item.setData(Qt.UserRole, QDate(year, 1, 1))
 
 
 
@@ -202,7 +202,7 @@ class FastMonthScrollView(FastScrollViewBase):
             year = i // 12 + self.minYear
             m = i % 12 + 1
             item = self.item(i)
-            item.setData(Qt.ItemDataRole.UserRole, QDate(year, m, 1))
+            item.setData(Qt.UserRole, QDate(year, m, 1))
             item.setSizeHint(self.gridSize())
 
             if year == self.currentDate.year() and m == self.currentDate.month():
@@ -225,7 +225,7 @@ class FastMonthScrollView(FastScrollViewBase):
         for i in range(16):
             m = i % 12 + 1
             y = year + (i > 11)
-            self.item(i).setData(Qt.ItemDataRole.UserRole, QDate(y, m, 1))
+            self.item(i).setData(Qt.UserRole, QDate(y, m, 1))
 
 
 class FastDayScrollView(FastScrollViewBase):
@@ -269,7 +269,7 @@ class FastDayScrollView(FastScrollViewBase):
         bias = currentDate.dayOfWeek() - 1
         for i in range(bias):
             item = QListWidgetItem(self)
-            item.setFlags(Qt.ItemFlag.NoItemFlags)
+            item.setFlags(Qt.NoItemFlags)
             self.addItem(item)
 
         # add day items
@@ -283,7 +283,7 @@ class FastDayScrollView(FastScrollViewBase):
         self.addItems(items)
         for i in range(bias, self.count()):
             item = self.item(i)
-            item.setData(Qt.ItemDataRole.UserRole, dates[i-bias])
+            item.setData(Qt.UserRole, dates[i-bias])
             item.setSizeHint(self.gridSize())
 
         self.delegate.setCurrentIndex(
@@ -322,21 +322,21 @@ class FastDayScrollView(FastScrollViewBase):
         if self.currentPage == 0:
             for i in range(bias):
                 self.item(i).setText("")
-                self.item(i).setFlags(Qt.ItemFlag.NoItemFlags)
+                self.item(i).setFlags(Qt.NoItemFlags)
 
         currentDate = left
         for i in range(left.daysTo(right)):
             item = self.item(i + bias if self.currentPage == 0 else i)
             if item:
                 item.setText(str(currentDate.day()))
-                item.setData(Qt.ItemDataRole.UserRole, currentDate)
+                item.setData(Qt.UserRole, currentDate)
                 currentDate = currentDate.addDays(1)
 
     def mouseReleaseEvent(self, e):
         super().mouseReleaseEvent(e)
         item = self.currentItem()
         if item:
-            self._setSelectedDate(item.data(Qt.ItemDataRole.UserRole))
+            self._setSelectedDate(item.data(Qt.UserRole))
 
     def pageCount(self):
         return (self.maxYear - self.minYear + 1) * 12
@@ -476,7 +476,7 @@ class FastCalendarView(FlyoutViewBase):
 
     def paintEvent(self, e):
         painter = QPainter(self)
-        painter.setRenderHints(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHints(QPainter.Antialiasing)
 
         painter.setBrush(
             QColor(40, 40, 40) if isDarkTheme() else QColor(248, 248, 248))

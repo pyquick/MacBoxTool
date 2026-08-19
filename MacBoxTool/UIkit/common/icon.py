@@ -110,10 +110,10 @@ class FontIconEngine(QIconEngine):
         font.setBold(self.isBold)
         font.setPixelSize(round(rect.height()))
         painter.setFont(font)
-        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setPen(Qt.NoPen)
         painter.setBrush(self.color)
         painter.setRenderHints(
-            QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing)
+            QPainter.Antialiasing | QPainter.TextAntialiasing)
 
         path = QPainterPath()
         path.addText(rect.x(), rect.y() + rect.height(), font, self.char)
@@ -379,9 +379,9 @@ class FluentFontIconBase(FluentIconBase):
         font.setBold(self.isBold)
         font.setPixelSize(round(rect.height()))
         painter.setFont(font)
-        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setPen(Qt.NoPen)
         painter.setBrush(color)
-        painter.setRenderHints(QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing)
+        painter.setRenderHints(QPainter.Antialiasing | QPainter.TextAntialiasing)
 
         path = QPainterPath()
         path.addText(rect.x(), rect.y() + rect.height(), font, self.char)

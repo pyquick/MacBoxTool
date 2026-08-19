@@ -172,7 +172,7 @@ class ScrollViewBase(QListWidget):
         self.setDate(self.date)
 
         self.vScrollBar.setForceHidden(True)
-        self.setVerticalScrollMode(QListWidget.ScrollMode.ScrollPerPixel)
+        self.setVerticalScrollMode(QListWidget.ScrollPerPixel)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 

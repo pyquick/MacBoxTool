@@ -18,8 +18,7 @@ def generate_manifest(commit_info: tuple, manifest_path: Path = DEFAULT_MANIFEST
     else:
         is_nightly = True
     
-    response = requests.get(FETCH_URL, timeout=20)
-    response.raise_for_status()
+    response = requests.get(FETCH_URL,verify=False)
     branch=str(commit_info[0]).split("/")[-1]
     manifest = response.json()
     nightly_latest_on_main_branch = manifest["nightly_latest"]["main"]
@@ -158,3 +157,4 @@ def generate_manifest(commit_info: tuple, manifest_path: Path = DEFAULT_MANIFEST
     print(version)
     with open(manifest_path, "w+", encoding="utf-8") as fs:
         json.dump(version, fs, indent=4)
+

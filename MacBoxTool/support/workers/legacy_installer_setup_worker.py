@@ -7,7 +7,6 @@ import tempfile
 import uuid
 from io import BytesIO
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import requests
@@ -207,7 +206,7 @@ class LegacyInstallerSetupWorker(QThread):
                 f"{result.stdout.decode(errors='replace').strip()}"
             )
 
-    def _build_application(self, component_paths: Dict[str, Path]) -> None:
+    def _build_application(self, component_paths: dict[str, Path]) -> None:
         self._raise_if_cancelled()
         assistant_path = component_paths["InstallAssistantAuto.pkg"]
         with tempfile.TemporaryDirectory(dir=self.download.save_path) as temp_dir:
@@ -330,7 +329,7 @@ class LegacyInstallerSetupWorker(QThread):
     def _path_exists(path: Path) -> bool:
         return os.path.lexists(path)
 
-    def _run_as_root(self, command: List[str]) -> None:
+    def _run_as_root(self, command: list[str]) -> None:
         subprocess_wrapper.run_as_root_and_verify(
             command,
             stdout=subprocess.PIPE,
@@ -346,7 +345,7 @@ class LegacyInstallerSetupWorker(QThread):
         self,
         staged_app: Path,
         app_name: str,
-        expected_app_name: Optional[str],
+        expected_app_name: str | None,
     ) -> None:
         self._validate_app_name(app_name)
         if expected_app_name:
@@ -376,7 +375,7 @@ class LegacyInstallerSetupWorker(QThread):
             / f".MacBoxTool-legacy-installer-{uuid.uuid4().hex}"
         )
         incoming = transaction_directory / app_name
-        backups: List[Tuple[Path, Path]] = []
+        backups: list[tuple[Path, Path]] = []
         activated = False
 
         try:
@@ -492,7 +491,7 @@ class LegacyInstallerSetupWorker(QThread):
             )
 
     @staticmethod
-    def _run(command: List[str]) -> None:
+    def _run(command: list[str]) -> None:
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         if result.returncode != 0:
             raise RuntimeError(

@@ -302,7 +302,7 @@ class TransitionStackedWidget(QStackedWidget):
 
     def _stopAnimation(self):
         """ stop running animation """
-        if self._aniGroup.state() != QAbstractAnimation.State.Running:
+        if self._aniGroup.state() != QAbstractAnimation.Running:
             return
 
         self._aniGroup.stop()
@@ -331,14 +331,11 @@ class TransitionStackedWidget(QStackedWidget):
         # ensure widget has correct size
         widget.resize(self.size())
 
-        # use grab() which works even when widget is hidden
-        pixmap = widget.grab()
-
-        # if grab failed, fallback to render with transparent fill
-        if pixmap.isNull() or pixmap.size().isEmpty():
-            pixmap = QPixmap(widget.size())
-            pixmap.fill(Qt.GlobalColor.transparent)
-            widget.render(pixmap)
+        dpr = widget.devicePixelRatio()
+        pixmap = QPixmap(widget.size() * dpr)
+        pixmap.setDevicePixelRatio(dpr)
+        pixmap.fill(Qt.transparent)
+        widget.render(pixmap)
 
         label.setPixmap(pixmap)
         label.setGeometry(self.rect())
@@ -412,6 +409,74 @@ class EntranceTransitionStackedWidget(TransitionStackedWidget):
         else:
             # directly show next widget
             nextWidget.setGeometry(self.rect())
+
+
+class DualSnapshotSlideStackedWidget(TransitionStackedWidget):
+    """
+    Windows-optimised slide transition: both the outgoing and incoming
+    pages are rendered to pixmap snapshots before the animation starts.
+    Only the lightweight snapshot labels are moved — no real widget
+    relayout, no live compositing of complex widget trees per frame.
+    The real widget swap happens instantly after the animation.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.outDuration = 150
+        self.offset = 76
+
+        self.curFadeOutAni = QPropertyAnimation(self._currentSnapshot.graphicsEffect(), b'opacity', self)
+        self.curSlideOutAni = QPropertyAnimation(self._currentSnapshot, b'pos', self)
+        self.nextFadeInAni = QPropertyAnimation(self._nextSnapshot.graphicsEffect(), b'opacity', self)
+        self.nextSlideInAni = QPropertyAnimation(self._nextSnapshot, b'pos', self)
+
+    def _setUpTransitionAnimation(self, nextIndex, duration, isBack):
+        inDuration = duration or 300
+        inCurve = FluentAnimation.createBezierCurve(0.1, 0.9, 0.2, 1.0)
+        outCurve = FluentAnimation.createBezierCurve(0.7, 0.0, 1.0, 0.5)
+
+        currentWidget = self.currentWidget()
+        nextWidget = self.widget(nextIndex)
+
+        if currentWidget:
+            self._renderSnapshot(currentWidget, self._currentSnapshot)
+            currentWidget.hide()
+
+            # fade out current snapshot
+            self.curFadeOutAni.setDuration(self.outDuration)
+            self.curFadeOutAni.setStartValue(1.0)
+            self.curFadeOutAni.setEndValue(0.0)
+            self.curFadeOutAni.setEasingCurve(outCurve)
+            self._aniGroup.addAnimation(self.curFadeOutAni)
+
+            if isBack:
+                # slide out current snapshot
+                self.curSlideOutAni.setDuration(self.outDuration)
+                self.curSlideOutAni.setStartValue(QPoint(0, 0))
+                self.curSlideOutAni.setEndValue(QPoint(0, self.offset))
+                self.curSlideOutAni.setEasingCurve(outCurve)
+                self._aniGroup.addAnimation(self.curSlideOutAni)
+
+        # Render next widget to snapshot as well — animate the snapshot,
+        # NOT the real widget tree
+        self._renderSnapshot(nextWidget, self._nextSnapshot)
+        nextWidget.hide()
+
+        if not isBack:
+            # slide in next snapshot
+            targetOffset = self.offset
+            self.nextSlideInAni.setDuration(inDuration)
+            self.nextSlideInAni.setStartValue(QPoint(0, targetOffset))
+            self.nextSlideInAni.setEndValue(QPoint(0, 0))
+            self.nextSlideInAni.setEasingCurve(inCurve)
+            self._aniGroup.addAnimation(self.nextSlideInAni)
+
+        # fade in next snapshot
+        self.nextFadeInAni.setDuration(inDuration)
+        self.nextFadeInAni.setStartValue(0.0)
+        self.nextFadeInAni.setEndValue(1.0)
+        self.nextFadeInAni.setEasingCurve(inCurve)
+        self._aniGroup.addAnimation(self.nextFadeInAni)
 
 
 class DrillInTransitionStackedWidget(TransitionStackedWidget):

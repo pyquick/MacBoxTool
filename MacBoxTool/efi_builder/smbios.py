@@ -15,10 +15,12 @@ from . import support
 
 from .. import constants
 import sys
-if sys.platform == "darwin":
+if sys.platform=="darwin":
     from ..support import utilities
+   
 else:
     from ..support import utilities_win as utilities
+    
 from ..support import (
     generate_smbios,
 )

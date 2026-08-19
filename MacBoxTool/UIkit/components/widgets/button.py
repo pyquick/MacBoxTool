@@ -6,6 +6,7 @@ from PySide2.QtGui import QDesktopServices, QIcon, QPainter, QColor, QPainterPat
 from PySide2.QtWidgets import QHBoxLayout, QPushButton, QRadioButton, QToolButton, QApplication, QWidget, QSizePolicy
 
 from ...common.animation import TranslateYAnimation
+from ...common.border_radius import installDynamicBorderRadius
 from ...common.icon import FluentIconBase, drawIcon, isDarkTheme, Theme, toQIcon, Icon
 from ...common.icon import FluentIcon as FIF
 from ...common.font import setFont, getFont
@@ -29,6 +30,17 @@ class PushButton(QPushButton):
     def __init__(self, parent: QWidget = None):
         super().__init__(parent)
         FluentStyleSheet.BUTTON.apply(self)
+        installDynamicBorderRadius(
+            self,
+            "PushButton", "PrimaryPushButton", "TransparentPushButton",
+            "ToggleButton", "TransparentTogglePushButton",
+            "DropDownPushButton", "PrimaryDropDownPushButton",
+            "TransparentDropDownPushButton", "HyperlinkButton",
+            "ToolButton", "PrimaryToolButton", "TransparentToolButton",
+            "ToggleToolButton", "TransparentToggleToolButton",
+            "DropDownToolButton", "PrimaryDropDownToolButton",
+            "TransparentDropDownToolButton",
+        )
         self.isPressed = False
         self.isHover = False
         self.setIconSize(QSize(16, 16))
@@ -339,7 +351,7 @@ class RadioButton(QRadioButton):
 
     def _drawCircle(self, painter: QPainter, center: QPoint, radius, thickness, borderColor, filledColor):
         path = QPainterPath()
-        path.setFillRule(Qt.FillRule.WindingFill)
+        path.setFillRule(Qt.WindingFill)
 
         # outer circle (border)
         outerRect = QRectF(center.x() - radius, center.y() - radius, 2 * radius, 2 * radius)
@@ -405,6 +417,17 @@ class ToolButton(QToolButton):
     def __init__(self, parent: QWidget = None):
         super().__init__(parent)
         FluentStyleSheet.BUTTON.apply(self)
+        installDynamicBorderRadius(
+            self,
+            "PushButton", "PrimaryPushButton", "TransparentPushButton",
+            "ToggleButton", "TransparentTogglePushButton",
+            "DropDownPushButton", "PrimaryDropDownPushButton",
+            "TransparentDropDownPushButton", "HyperlinkButton",
+            "ToolButton", "PrimaryToolButton", "TransparentToolButton",
+            "ToggleToolButton", "TransparentToggleToolButton",
+            "DropDownToolButton", "PrimaryDropDownToolButton",
+            "TransparentDropDownToolButton",
+        )
         self.isPressed = False
         self.isHover = False
         self.setIconSize(QSize(16, 16))

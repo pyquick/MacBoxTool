@@ -5,7 +5,12 @@ multiprocess_data_handler.py: Multi-process data processing for KDK and MetalLib
 import logging
 import multiprocessing
 import requests
+import urllib3
+from urllib3.exceptions import InsecureRequestWarning
 from PySide2.QtCore import QThread, QTimer, Signal
+
+
+urllib3.disable_warnings(InsecureRequestWarning)
 
 
 def _process_data(api_url: str, data_type: str, queue: multiprocessing.Queue) -> None:
@@ -22,7 +27,9 @@ def _process_data(api_url: str, data_type: str, queue: multiprocessing.Queue) ->
     """
     try:
         # 1. Fetch API data
-        response = requests.get(api_url, timeout=10)
+        # Certificate verification is intentionally disabled to support systems
+        # with an unavailable or outdated local CA store.
+        response = requests.get(api_url, timeout=10, verify=False)
         if response.status_code != 200:
             queue.put(("error", f"API request failed: {response.status_code}"))
             return

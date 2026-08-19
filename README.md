@@ -32,8 +32,8 @@ python3 Build-Project.command
 
 ## Requirements
 
-- Python 3.10+
-- PySide6
+- Python 3.13+
+- PySide2
 - [See requirements_macOS.txt](requirements_macOS.txt)
 - Windows [See requirements_Windows.txt](requirements_Windows.txt)
 

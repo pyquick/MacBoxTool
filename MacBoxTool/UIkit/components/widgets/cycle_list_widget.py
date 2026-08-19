@@ -177,9 +177,9 @@ class CycleListWidget(QListWidget):
         else:
             self.setCurrentIndex(self.row(items[0]))
 
-        super().scrollToItem(self.currentItem(), QListWidget.ScrollHint.PositionAtCenter)
+        super().scrollToItem(self.currentItem(), QListWidget.PositionAtCenter)
 
-    def scrollToItem(self, item: QListWidgetItem, hint=QListWidget.ScrollHint.PositionAtCenter):
+    def scrollToItem(self, item: QListWidgetItem, hint=QListWidget.PositionAtCenter):
         """ scroll to item """
         # scroll to center position
         index = self.row(item)

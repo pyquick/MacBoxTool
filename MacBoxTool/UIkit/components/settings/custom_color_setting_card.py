@@ -7,6 +7,7 @@ from PySide2.QtWidgets import QWidget, QLabel, QButtonGroup, QVBoxLayout, QPushB
 from ..dialog_box import ColorDialog
 from .expand_setting_card import ExpandGroupSettingCard
 from ..widgets.button import RadioButton
+from ...common.border_radius import installDynamicBorderRadius
 from ...common.config import qconfig, ColorConfigItem
 from ...common.icon import FluentIconBase
 
@@ -61,6 +62,7 @@ class CustomColorSettingCard(ExpandGroupSettingCard):
             self.tr('Custom color'), self.customColorWidget)
         self.chooseColorButton = QPushButton(
             self.tr('Choose color'), self.customColorWidget)
+        installDynamicBorderRadius(self.chooseColorButton, "QPushButton")
 
         self.__initWidget()
 

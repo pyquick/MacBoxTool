@@ -30,6 +30,15 @@ def class_code_to_bytes(class_code: int) -> bytes:
     return class_code.to_bytes(4, byteorder="little")
 
 
+# Map CPU vendor strings from sysctl / WMI to standard PCI vendor hex IDs.
+# This gives consistent output regardless of platform.
+_CPU_VENDOR_TEXT_TO_HEX: dict[str, str] = {
+    "GenuineIntel": "0x8086",
+    "AuthenticAMD": "0x1022",
+    "Apple":         "0x106B",
+}
+
+
 @dataclass
 class CPU:
     name: str
@@ -709,7 +718,9 @@ class Computer:
     mbt_sys_signed: Optional[bool] = False
     firmware_vendor: Optional[str] = None
     rosetta_active: Optional[bool] = False
-    
+    t2_chip: Optional[bool] = False
+    security_chip_details: list[dict[str, Any]] = field(default_factory=list)
+
     @staticmethod
     def probe():
         if sys.platform == "win32":
@@ -730,6 +741,7 @@ class Computer:
         computer.bluetooth_probe()
         computer.topcase_probe()
         computer.t1_probe()
+        computer.t2_probe()
         computer.ambient_light_sensor_probe()
         computer.pcie_webcam_probe()
         computer.sata_disk_probe()
@@ -1001,7 +1013,7 @@ class Computer:
 
         features = self._sysctl_value("machdep.cpu.features")
         flags = features.split() if features else []
-        vendor_id = self._sysctl_value("machdep.cpu.vendor")
+        vendor_text = self._sysctl_value("machdep.cpu.vendor")
         device_id = None
         model = self._sysctl_value("machdep.cpu.model")
         if model:
@@ -1012,10 +1024,13 @@ class Computer:
 
         machine = (self._sysctl_value("hw.machine") or platform.machine()).lower()
         if machine in ("arm64", "arm64e"):
-            vendor_id = vendor_id or "Apple"
+            vendor_text = vendor_text or "Apple"
             name = name or "Apple Silicon"
+        # Map CPU vendor text string to PCI vendor ID hex string for consistency
+        # across platforms.
+        vendor_id = _CPU_VENDOR_TEXT_TO_HEX.get(vendor_text, vendor_text)
 
-        cpuid_arch = cpu_data.architecture_from_device_id(device_id, vendor_id)
+        cpuid_arch = "apple_silicon" if machine in ("arm64", "arm64e") else cpu_data.architecture_from_device_id(device_id, vendor_id)
 
         igpu_arch = None
         if self.igpu is not None and self.igpu.device_id:
@@ -1093,6 +1108,11 @@ class Computer:
             # Standard T1
             if usb_device.device_id == 0x8600:
                 self.t1_chip = True
+                self.security_chip_details.append({
+                    "type": "Apple T1", "vendor_id": usb_device.vendor_id,
+                    "device_id": usb_device.device_id, "name": usb_device.product_name,
+                    "source": "USB",
+                })
                 break
             # T1 in DFU mode
             # Note all Apple devices report the same device ID in DFU mode
@@ -1115,7 +1135,43 @@ class Computer:
                 if "BDID:13" not in serial_number and "BDID:12" not in serial_number:
                     continue
                 self.t1_chip = True
+                self.security_chip_details.append({
+                    "type": "Apple T1", "vendor_id": usb_device.vendor_id,
+                    "device_id": usb_device.device_id, "name": usb_device.product_name,
+                    "source": "USB DFU",
+                })
                 break
+
+    def t2_probe(self):
+        """Detect Apple T2 controllers by their physical PCI identifiers."""
+        if sys.platform != "darwin":
+            return
+
+        matching = {
+            "IOProviderClass": "IOPCIDevice",
+            "IOPropertyMatch": [
+                {
+                    "vendor-id": (0x106B).to_bytes(4, byteorder="little"),
+                    "device-id": device_id.to_bytes(4, byteorder="little"),
+                }
+                for device_id in (0x1801, 0x1802)
+            ],
+        }
+        devices = ioiterator_to_list(
+            IOServiceGetMatchingServices(kIOMasterPortDefault, matching, None)[1]
+        )
+        device = next(devices, None)
+        if device:
+            controller = PCIDevice.from_ioregistry(device, anti_spoof=True)
+            self.t2_chip = True
+            self.security_chip_details.append({
+                "type": "Apple T2", "vendor_id": controller.vendor_id,
+                "device_id": controller.device_id, "name": controller.model or controller.name,
+                "source": "PCI",
+            })
+            IOObjectRelease(device)
+        for device in devices:
+            IOObjectRelease(device)
 
     def sata_disk_probe(self):
         if sys.platform != "darwin":

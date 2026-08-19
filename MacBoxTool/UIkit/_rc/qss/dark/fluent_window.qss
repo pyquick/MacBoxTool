@@ -50,8 +50,7 @@ CloseButton {
 StackedWidget {
     border: none;
     border-radius: 0;
-    margin-left: 8px;
-    margin-bottom: 0;
+    margin: 0;
     background-color: transparent;
 }
 

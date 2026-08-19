@@ -54,8 +54,8 @@ class SmoothScroll:
 
         # adjust the acceration ratio based on unprocessed events
         accerationRatio = min(len(self.scrollStamps) / 15, 1)
-        self.lastWheelPos = e.position()
-        self.lastWheelGlobalPos = e.globalPosition()
+        self.lastWheelPos = e.pos()
+        self.lastWheelGlobalPos = e.globalPos()
 
         # get the number of steps
         self.stepsTotal = self.fps * self.duration / 1000
@@ -98,9 +98,9 @@ class SmoothScroll:
             self.lastWheelGlobalPos,
             pixelDelta,
             QPoint(round(totalDelta), 0),
-            Qt.MouseButton.LeftButton,
-            Qt.KeyboardModifier.NoModifier,
-            Qt.ScrollPhase.ScrollBegin,
+            Qt.LeftButton,
+            Qt.NoModifier,
+            Qt.ScrollBegin,
             False,
         )
 

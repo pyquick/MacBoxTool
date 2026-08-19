@@ -6,13 +6,14 @@ constants.py: Defines versioning, file paths and other settings for the patcher
 from pathlib import Path
 import sys
 import getpass
+import platform
 if sys.platform=="darwin":
     from .detections import device_probe
 else:
     from .detections import device_probe_win as device_probe
 
 from .datasets import os_data
-from typing import Optional
+from typing import Optional, Any
 from packaging import version
 
 
@@ -24,10 +25,11 @@ class Constants:
         self.copyright:                        str = "Copyright © 2020-2026 Pyquick"
         self.launcher_binary:           str = None
         self.launcher_script:           str = None
+        self.voodoo_patch_already:            bool = False
         # OpenCore Version
         self.opencore_version:           str = "1.0.6"
-        self.nightly_build:              str = "4573.1"
-        self.support_version:            str = "1.0.245834538prefix" # prefix: unstable core. canary: very unstable
+        self.nightly_build:              str = "4638.2"
+        self.support_version:            str = "1.1.000039489prefix" # prefix: unstable core. canary: very unstable
 
         # Kext Versioning
         ## Acidanthera
@@ -61,8 +63,13 @@ class Constants:
         self.discord_link:                    str = ""
         self.guide_link:                      str = "https://dortania.github.io/OpenCore-Legacy-Patcher/"
         self.repo_link:                       str = "https://github.com/pyquick/MacBoxTool/releases/"
-        self.installer_pkg_url:               str = f"{self.repo_link}/releases/download/{self.macboxtool_version}/AutoPkg-Assets.pkg"
-        self.installer_pkg_url_nightly:       str = "http://nightly.link/pyquick/MacBoxTool/workflows/build-app-wxpython/main/AutoPkg-Assets.pkg.zip"
+
+        # Architecture suffix for AutoPkg-Assets package
+        _arch = platform.machine()
+        _pkg_suffix = f"-{_arch}" if _arch in ("x86_64", "arm64") else ""
+        self.autopkg_assets_name:             str = f"AutoPkg-Assets{_pkg_suffix}.pkg"
+        self.installer_pkg_url:               str = f"{self.repo_link}download/{self.macboxtool_version}/{self.autopkg_assets_name}"
+        self.installer_pkg_url_nightly:       str = f"http://nightly.link/pyquick/MacBoxTool/workflows/build-app-wxpython/main/{self.autopkg_assets_name}.zip"
         self.user_download_file:              str = str(Path.home() / "Downloads")
         self.github_token:                    str = ""
 
@@ -207,6 +214,7 @@ class Constants:
         self.log_filepath:              Path = None  #  Path to log file
         self.thread_sleep_interval:    float = 0.01  #  Sleep interval between UI updates (seconds) - balance between UI responsiveness and CPU usage
         self.commit_info: tuple = (None, None, None)  # Commit info (Branch, Commit Date, Commit URL)
+        self.sys_patch_cache: Optional[dict[str, Any]] = None
         self.manually_download_kdk: bool = False
         ## Hardware
         self.computer: device_probe.Computer = None  # type: ignore
@@ -308,6 +316,44 @@ class Constants:
         ]
         self.kdk_api_link="https://dortania.github.io/KdkSupportPkg/manifest.json"
         self.metallib_api_link="https://dortania.github.io/MetallibSupportPkg/manifest.json"
+
+    def sys_patch_cache_fingerprint(self) -> tuple:
+        """Return state that affects system patch detection."""
+        computer = self.computer
+        commit_url = self.commit_info[2] if len(self.commit_info) > 2 else None
+        return (
+            self.detected_os,
+            self.detected_os_minor,
+            self.detected_os_build,
+            self.detected_os_version,
+            commit_url,
+            getattr(computer, "real_model", None),
+            getattr(computer, "mbt_sys_version", None),
+            getattr(computer, "mbt_sys_url", None),
+        )
+
+    def get_sys_patch_cache(self) -> Optional[dict[str, Any]]:
+        """Return a defensive copy when the cached detection is current."""
+        cache = self.sys_patch_cache
+        if not cache or cache.get("fingerprint") != self.sys_patch_cache_fingerprint():
+            return None
+        return {
+            "fingerprint": cache["fingerprint"],
+            "properties": dict(cache.get("properties", {})),
+            "no_new_patches": cache.get("no_new_patches"),
+        }
+
+    def set_sys_patch_cache(self, properties: dict, no_new_patches: Optional[bool]) -> None:
+        """Cache an immutable snapshot of system patch detection."""
+        self.sys_patch_cache = {
+            "fingerprint": self.sys_patch_cache_fingerprint(),
+            "properties": dict(properties or {}),
+            "no_new_patches": no_new_patches,
+        }
+
+    def invalidate_sys_patch_cache(self) -> None:
+        """Discard cached system patch detection."""
+        self.sys_patch_cache = None
 
     @property
     def special_build(self):
@@ -1130,11 +1176,11 @@ class Constants:
 
     @property
     def installer_pkg_path(self):
-        return self.payload_path / Path("AutoPkg-Assets.pkg")
+        return self.payload_path / Path(self.autopkg_assets_name)
 
     @property
     def installer_pkg_zip_path(self):
-        return self.payload_path / Path("AutoPkg-Assets.pkg.zip")
+        return self.payload_path / Path(f"{self.autopkg_assets_name}.zip")
 
     # Apple Payloads Paths
     @property

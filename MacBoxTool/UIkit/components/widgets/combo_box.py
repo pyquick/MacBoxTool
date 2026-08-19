@@ -9,6 +9,7 @@ from PySide2.QtWidgets import QAction, QPushButton, QApplication
 from .menu import RoundMenu, MenuAnimationType, IndicatorMenuItemDelegate, CheckableMenu
 from .line_edit import LineEdit, LineEditButton
 from ...common.animation import TranslateYAnimation
+from ...common.border_radius import installDynamicBorderRadius
 from ...common.icon import FluentIconBase, isDarkTheme
 from ...common.icon import FluentIcon as FIF
 from ...common.font import setFont
@@ -73,6 +74,7 @@ class ComboBoxBase:
         self._placeholderText = ""
 
         FluentStyleSheet.COMBO_BOX.apply(self)
+        installDynamicBorderRadius(self, "ComboBox", "CheckableComboBox")
         self.installEventFilter(self)
 
     def addItem(self, text, icon: Union[str, QIcon, FluentIconBase] = None, userData=None):
@@ -573,6 +575,7 @@ class CheckableComboBox(QPushButton):
         self._updateDisplayText()
 
         FluentStyleSheet.COMBO_BOX.apply(self)
+        installDynamicBorderRadius(self, "CheckableComboBox")
 
         self._menu = CheckableMenu(title="", parent=self)
         self._menu.setItemHeight(33)

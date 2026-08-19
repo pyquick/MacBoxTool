@@ -48,9 +48,12 @@ class VoodooAudio(BaseHardware):
         Patches for Modern Audio
         """
         if self._xnu_major >= os_data.tahoe and self._os_build != "25A5279m":
+            # On macOS 26+ /Library is a firmlink to the Data volume, so
+            # /Library/Extensions and /Library/PreferencePanes no longer exist
+            # on the System volume. Install to the Data volume instead.
             return {
                 "Voodoo Audio": {
-                    PatchType.OVERWRITE_SYSTEM_VOLUME: {
+                    PatchType.OVERWRITE_DATA_VOLUME: {
                         "/Library/Extensions": {
                             "VoodooHDA.kext":"11.3",
                         },

@@ -5,6 +5,13 @@ gui_sys_patch.py: Root patching interface
 from ..include import *
 from .gui_support import AutoUpdateStages, DefGUI, PayloadMount, ProgressStatusHelper, RestartHost
 
+try:
+    from ..support.crash_report import send_error_report_async
+except Exception:
+    # crash_report.py is a dev-only module; skip silently when unavailable
+    def send_error_report_async(*args, **kwargs) -> None:
+        pass
+
 from ..datasets import os_data
 from ..support import kdk_handler, metallib_handler
 from ..support.network_handler import DownloadStatus, DownloadWorker
@@ -42,8 +49,15 @@ class PatchDetectionWorker(QThread):
         try:
             patches = HardwarePatchsetDetection(constants=self.constants).device_properties
             self.finished_signal.emit(patches)
-        except Exception:
-            self.error_signal.emit(traceback.format_exc())
+        except Exception as error:
+            stack_trace = traceback.format_exc()
+            send_error_report_async(
+                exception_type=type(error).__name__,
+                exception_message=str(error),
+                stack_trace=stack_trace,
+                operation="sys_patch_detection",
+            )
+            self.error_signal.emit(stack_trace)
 
 
 class PatchRunWorker(QThread):
@@ -71,10 +85,24 @@ class PatchRunWorker(QThread):
                 patcher.start_unpatch()
             else:
                 patcher.start_patch()
-            self.finished_signal.emit(self.constants.root_patcher_succeeded is True)
-        except Exception:
+            succeeded = self.constants.root_patcher_succeeded is True
+            if succeeded is False:
+                send_error_report_async(
+                    exception_type="RootPatchFailed",
+                    exception_message="Root patching did not complete successfully",
+                    operation="sys_patch_revert" if self.revert else "sys_patch",
+                )
+            self.finished_signal.emit(succeeded)
+        except Exception as error:
+            stack_trace = traceback.format_exc()
+            send_error_report_async(
+                exception_type=type(error).__name__,
+                exception_message=str(error),
+                stack_trace=stack_trace,
+                operation="sys_patch_revert" if self.revert else "sys_patch",
+            )
             logging.error("An internal error occurred while running the Root Patcher:\n")
-            logging.error(traceback.format_exc())
+            logging.error(stack_trace)
             self.finished_signal.emit(False)
         finally:
             logger.removeHandler(handler)
@@ -98,6 +126,10 @@ class SysPatch(ScrollArea):
         self.is_busy = False
         self.page_state = "initial"
         self.pending_auto_patch = bool(getattr(self.constants, "start_sys_patch_now", False))
+        self.gui_patch_mode = bool(
+            getattr(self.constants, "start_sys_patch", False) or
+            getattr(self.constants, "update_stage", AutoUpdateStages.INACTIVE) != AutoUpdateStages.INACTIVE
+        )
         self.patch_checkboxes = {}
         self.detection_worker = None
         self.patch_worker = None
@@ -175,7 +207,11 @@ class SysPatch(ScrollArea):
         self.refresh_button.clicked.connect(lambda: self.refresh(force=True))
         button_layout.addWidget(self.refresh_button)
         button_layout.addStretch()
-        self.expandLayout.addWidget(button_row)
+        self.button_row = button_row
+        self.expandLayout.addWidget(self.button_row)
+
+        if self.gui_patch_mode:
+            self.button_row.hide()
 
         self.progress_ring = IndeterminateProgressRing(self)
         self.progress_ring.setFixedSize(36, 36)
@@ -413,6 +449,14 @@ class SysPatch(ScrollArea):
             return
 
         self._reset_to_initial_state()
+        if force:
+            self.constants.invalidate_sys_patch_cache()
+        else:
+            cache = self.constants.get_sys_patch_cache()
+            if cache:
+                self.no_new_patches = bool(cache.get("no_new_patches"))
+                self._on_patches_detected(cache.get("properties", {}), cache_result=False)
+                return
         self.page_state = "detecting"
         self._set_status("Root Patching", "Fetching patches for host...")
         self._set_busy(True, show_progress_ring=True)
@@ -430,7 +474,7 @@ class SysPatch(ScrollArea):
         self._set_status("Detection Failed", error, "error")
         self._set_busy(False)
 
-    def _on_patches_detected(self, patches: dict):
+    def _on_patches_detected(self, patches: dict, cache_result: bool = True):
         self.page_state = "ready"
         self.patches = patches or {}
         self.can_unpatch = bool(self.patches) and not self.patches[HardwarePatchsetValidation.UNPATCHING_NOT_POSSIBLE]
@@ -443,7 +487,9 @@ class SysPatch(ScrollArea):
             self.patches = {}
             self.can_unpatch = False
 
-        self.no_new_patches = not self._check_if_new_patches_needed(self.patches) if self.patches else False
+        if cache_result:
+            self.no_new_patches = not self._check_if_new_patches_needed(self.patches) if self.patches else False
+            self.constants.set_sys_patch_cache(self.patches, self.no_new_patches)
         self._render_patch_list()
         self._set_busy(False)
 
@@ -627,6 +673,7 @@ class SysPatch(ScrollArea):
             return False
 
         self._remove_download_card()
+        self.constants.invalidate_sys_patch_cache()
         logging.info("KDK download complete")
         return True
 
@@ -660,6 +707,7 @@ class SysPatch(ScrollArea):
             return False
 
         self._remove_download_card()
+        self.constants.invalidate_sys_patch_cache()
         logging.info("Metallib installation complete")
         return True
 
@@ -689,6 +737,7 @@ class SysPatch(ScrollArea):
 
     def _finish_patch_run(self, success: bool):
         self._set_busy(False)
+        self.constants.invalidate_sys_patch_cache()
 
         if self.constants.root_patcher_succeeded is False:
             if success is False:
@@ -776,10 +825,10 @@ class SysPatch(ScrollArea):
             self.window(),
             "Open System Preferences?",
             "We just finished installing the patches to your Root Volume!\n\nHowever, Apple requires users to manually approve the kernel extensions installed before they can be used next reboot.\n\nWould you like to open System Preferences?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.Yes,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
         )
-        if answer == QMessageBox.StandardButton.Yes:
+        if answer == QMessageBox.Yes:
             output = subprocess.run(
                 [
                     "/usr/bin/osascript", "-e",

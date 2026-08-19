@@ -149,7 +149,7 @@ class ValidationWorker(QThread):
                 self.chunklist_url,
                 timeout=30,
                 stream=True,
-                verify=TLS_CERTIFICATE_BUNDLE
+                verify=TLS_CERTIFICATE_BUNDLE,
             )
 
             if response.status_code != 200:

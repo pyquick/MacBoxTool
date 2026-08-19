@@ -10,7 +10,6 @@ import xml.etree.ElementTree as ET
 
 from pathlib   import Path
 from urllib.parse import urlparse
-from urllib.parse import urlparse
 from functools import cached_property
 from concurrent.futures import ThreadPoolExecutor, as_completed
 

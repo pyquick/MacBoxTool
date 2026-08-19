@@ -252,7 +252,13 @@ class MetallibCard(NoAnimCardWidget):
         url = self.metallib_data.get("url")
         if url:
             QApplication.clipboard().setText(url)
-            InfoBar.success("Link Copied", "Download link copied to clipboard", duration=2000, position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
+            InfoBar.success(
+                "Link Copied",
+                "Download link copied to clipboard",
+                duration=2000,
+                position=InfoBarPosition.BOTTOM_RIGHT,
+                parent=self.window(),
+            )
 
 
 class MetallibList(ScrollArea):

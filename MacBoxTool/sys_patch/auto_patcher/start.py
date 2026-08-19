@@ -126,10 +126,10 @@ class StartAutomaticPatching:
                 self._main_window(),
                 title,
                 message,
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.Yes,
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes,
             )
-            return result == QMessageBox.StandardButton.Yes
+            return result == QMessageBox.Yes
 
         escaped_title = self._escape_applescript_text(title)
         escaped_message = self._escape_applescript_text(message)
@@ -191,7 +191,7 @@ class StartAutomaticPatching:
     def _open_gui_if_needed(self):
         if QApplication.instance() is not None:
             return
-        from ...qt_gui.gui_go_in import OpenGUI
+        from ...qt_gui.gui_entry import OpenGUI
         settings = global_settings.GlobalSettings(self.constants)
         OpenGUI(self.constants, settings).gui_main_menu()
 

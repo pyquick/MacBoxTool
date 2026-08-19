@@ -1,17 +1,43 @@
 from ..include import *
-from .gui_support import DefGUI
+from .gui_support import DefGUI, AutoUpdateStages
 
 from .gui_introduction import Introduction
 from .gui_build import BuildOCPage
 
 from .gui_about import AboutInterface
 from .gui_settings import SettingsInterface
+from .gui_hardware_support import HardwareSupport
 from .gui_task import TaskInterface, TaskManager
+
 from .gui_all_download import DownloadInterface
-from ..support import on_nightly
 
 WINDOW_MIN_SIZE = (1000, 700)
 WINDOW_DEFAULT_SIZE = (1200, 800)
+
+
+def _xcode_version() -> int | None:
+    """Return the Xcode major version, or None if not found."""
+    import shutil
+    if not shutil.which("xcodebuild"):
+        return None
+    try:
+        import subprocess
+        r = subprocess.run(
+            ["xcodebuild", "-version"], capture_output=True, text=True, timeout=15
+        )
+        if r.returncode != 0:
+            return None
+        # "Xcode 26.6" -> 26
+        for part in r.stdout.split():
+            try:
+                return int(float(part))
+            except ValueError:
+                continue
+    except Exception:
+        return None
+    return None
+
+
 class Widget(QFrame):
 
     def __init__(self, text: str, parent=None):
@@ -31,14 +57,17 @@ class Window(FluentWindow):
     
     PLATFORM_FONTS = {
         "Windows": "Segoe UI",
-        "Darwin": "SF Pro Display",
+        "Darwin": ".AppleSystemUIFont",
         "Linux": "Ubuntu"
     }
     def __init__(self,global_constants:Constants,global_settings:GlobalSettings,parent=None):
         super().__init__(parent=parent)
         self.constants = global_constants
         self.settings=global_settings
-        
+        system = platform.system()
+        font_family = self.PLATFORM_FONTS.get(system, "Ubuntu")
+        qconfig.set(qconfig.fontFamilies, [font_family], save=False)
+
 
         logging.info("init gui")
 
@@ -49,27 +78,18 @@ class Window(FluentWindow):
         self.gui_support=DefGUI(self.constants)
         self._init_state()
         self._setup_window()
-        setTheme(Theme.AUTO)
+        setTheme(Theme.AUTO, lazy=True)
         self._init_ui()
-        
-        
-        qconfig.themeChanged.connect(self.update_theme)
-
-    def update_theme(self):
-        self.update()
 
    
 
     def _setup_window(self):
-        nightly_suffix = " (Nightly)" if on_nightly.CheckNightly(self.constants).check() else ""
-        self.setWindowTitle(f"MacBoxTool ({self.constants.macboxtool_version}){nightly_suffix}")
         self.setMinimumSize(*WINDOW_MIN_SIZE)
         
         #self._restore_window_geometry()
 
         font = QFont()
-        system = platform.system()
-        font_family = self.PLATFORM_FONTS.get(system, "Ubuntu")
+        font_family = qconfig.get(qconfig.fontFamilies)[0]
         logging.info(f"Using font: {font_family}")
         font.setFamily(font_family)
         font.setStyleHint(QFont.SansSerif)
@@ -114,13 +134,11 @@ class Window(FluentWindow):
             getattr(self, "sys_patch_page", None),
             getattr(self, "download_page", None),
             getattr(self, "updater", None),
+            getattr(self, "icon_converter", None),
         ):
             cleanup = getattr(page, "cleanup_workers", None)
             if callable(cleanup):
-                try:
-                    cleanup()
-                except Exception:
-                    logging.exception(f"Failed to clean up {page.__class__.__name__} workers")
+                cleanup()
 
         TaskManager.shutdown_all()
 
@@ -136,10 +154,9 @@ class Window(FluentWindow):
         utilities.enable_sleep_after_running()
         self.theme_manager.stop()
         self.themeListener.requestInterruption()
-        if not self.themeListener.wait(3000):
-            logging.warning("SystemThemeListener did not stop in 3000ms; terminating")
+        if not self.themeListener.wait(2500):
             self.themeListener.terminate()
-            self.themeListener.wait()
+            self.themeListener.wait(1000)
         self.themeListener.deleteLater()
 
         app = QApplication.instance()
@@ -155,7 +172,10 @@ class Window(FluentWindow):
         self._shutdown_in_progress = True
         self._save_window_geometry()
 
-        # Hide the window before potentially blocking while workers finish.
+        # Hide window immediately, then run cleanup synchronously.
+        # QTimer.singleShot(0) is unreliable when Command+Q triggers
+        # an application-level quit (threads get destroyed before the
+        # timer fires). Sync cleanup ensures threads are stopped first.
         event.accept()
         self.hide()
         QApplication.processEvents()
@@ -232,10 +252,9 @@ class Window(FluentWindow):
                 "Download Tasks",
                 NavigationItemPosition.SCROLL
             )
-
-            if sys.platform == "darwin":
+            if sys.platform=="darwin":
                 from .gui_sys_patch import SysPatch
-                self.sys_patch_page = SysPatch(self.constants, self.gui_support, self.settings, self)
+                self.sys_patch_page=SysPatch(self.constants,self.gui_support,self.settings,self)
                 self.addSubInterface(
                     self.sys_patch_page,
                     FluentIcon.PASTE,
@@ -251,6 +270,24 @@ class Window(FluentWindow):
                 NavigationItemPosition.SCROLL
             )
 
+            self.hardware_support = HardwareSupport(self.constants, self.gui_support, self)
+            self.addSubInterface(
+                self.hardware_support,
+                FluentIcon.CERTIFICATE,
+                "Hardware Support",
+                NavigationItemPosition.SCROLL
+            )
+
+            if _xcode_version() is not None and _xcode_version() >= 26:
+                from .gui_converter import IconConverterInterface
+                self.icon_converter=IconConverterInterface(self.constants,self.gui_support,self.settings,self)
+                self.addSubInterface(
+                    self.icon_converter,
+                    FluentIcon.PHOTO,
+                    "Icon Converter",
+                    NavigationItemPosition.SCROLL
+                )
+
             self.settings_page=SettingsInterface(self.constants,self.gui_support,self.settings,self)
             self.settings_nav_item = self.addSubInterface(
                 self.settings_page,
@@ -259,10 +296,9 @@ class Window(FluentWindow):
                 NavigationItemPosition.BOTTOM
             )
             self.settings_nav_item.clicked.connect(lambda *_: self._rotate_settings_icon())
-
-            if sys.platform == "darwin":
+            if sys.platform=="darwin":
                 from .gui_update import Updater
-                self.updater = Updater(self.constants, self.gui_support, self.settings, self)
+                self.updater=Updater(self.constants,self.gui_support,self.settings,self)
                 self.addSubInterface(
                     self.updater,
                     FluentIcon.DOWNLOAD,
@@ -271,12 +307,15 @@ class Window(FluentWindow):
                 )
 
             self.about=AboutInterface(self.constants,self.gui_support,self.settings,self)
-            self.addSubInterface(
+            channel_color = self.about.channel_color
+            self.about_nav_item = self.addSubInterface(
                 self.about,
-                FluentIcon.INFO,
+                FluentIcon.INFO.colored(channel_color, channel_color),
                 "About",
                 NavigationItemPosition.BOTTOM
             )
+            self.about_nav_item.setTextColor(channel_color, channel_color)
+            self.about_nav_item.setIndicatorColor(channel_color, channel_color)
         finally:
             self.endAddSubInterfaceBatch()
 
@@ -291,20 +330,29 @@ class Window(FluentWindow):
             rotate()
 
     def _apply_startup_navigation(self):
+        if getattr(self.constants, "start_update_installed", False):
+            self.constants.has_checked_updates = True
+            reply = QMessageBox.question(
+                self,
+                "Update successful!",
+                f"MacBoxTool has been updated to version {self.constants.macboxtool_version}.\n\nWould you like to update OpenCore and your root volume patches?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes,
+            )
+            if reply == QMessageBox.Yes:
+                self.constants.update_stage = AutoUpdateStages.CHECKING
+                self.stackedWidget.setCurrentWidget(self.build)
+                QTimer.singleShot(500, self.build._on_build)
+            return
         if getattr(self.constants, "start_build_install", False):
             self.stackedWidget.setCurrentWidget(self.build)
             return
         if getattr(self.constants, "start_updater", False):
-            updater = getattr(self, "updater", None)
-            if updater is not None:
-                self.stackedWidget.setCurrentWidget(updater)
+            self.stackedWidget.setCurrentWidget(self.updater)
             return
         if getattr(self.constants, "start_sys_patch", False):
-            sys_patch_page = getattr(self, "sys_patch_page", None)
-            if sys_patch_page is not None:
-                self.stackedWidget.setCurrentWidget(sys_patch_page)
-                if getattr(self.constants, "start_sys_patch_now", False):
-                    QTimer.singleShot(0, sys_patch_page.start_root_patching)
+            self.stackedWidget.setCurrentWidget(self.sys_patch_page)
+            # SysPatch handles auto-patch via its own pending_auto_patch mechanism
             return
 
     def _on_intro_navigate(self, target: str):
@@ -321,6 +369,12 @@ class Window(FluentWindow):
             sys_patch_page = getattr(self, "sys_patch_page", None)
             if sys_patch_page is not None:
                 self.stackedWidget.setCurrentWidget(sys_patch_page)
+
+    def navigate_to_sys_patch(self):
+        """Navigate to SysPatch page. Called by BuildOCPage after install in update flow."""
+        sys_patch_page = getattr(self, "sys_patch_page", None)
+        if sys_patch_page is not None:
+            self.stackedWidget.setCurrentWidget(sys_patch_page)
 
     def _on_page_changed(self, index):
         widget = self.stackedWidget.widget(index)

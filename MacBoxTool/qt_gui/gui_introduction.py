@@ -11,15 +11,13 @@ from ..support.on_nightly import CheckNightly
 import sys
 if sys.platform == "darwin":
     try:
-        from ..support.install_helper import check_helper_installed, install_privileged_helper, is_root
+        from ..support.install_helper import check_helper_installed, install_privileged_helper
     except ImportError:
         check_helper_installed = None
         install_privileged_helper = None
-        is_root = None
 else:
     check_helper_installed = None
     install_privileged_helper = None
-    is_root = None
 
 
 class HelperInstallWorker(QThread):
@@ -36,13 +34,24 @@ class HelperInstallWorker(QThread):
             self.finished_signal.emit(success, msg)
         else:
             self.finished_signal.emit(False, "Helper installation not available on this platform")
-        is_root = None
-
-    check_helper_installed = None
-    install_privileged_helper = None
-    is_root = None
 
 
+class OCLPVersionWorker(QThread):
+    """Fetch the latest OCLP-R version without blocking the GUI thread."""
+
+    version_found = Signal(object)
+
+    def __init__(self, global_constants: Constants):
+        super().__init__()
+        self.constants = global_constants
+
+    def run(self):
+        version_value = Introduction.find_oclp_version_for(self.constants)
+        if version_value is not None and not self.isInterruptionRequested():
+            self.version_found.emit(version_value)
+
+
+_active_oclp_version_workers = set()
 
 
 class Introduction(ScrollArea):
@@ -63,6 +72,8 @@ class Introduction(ScrollArea):
 
         self.constants = global_constants
         self.navigation_callback = None  # For page navigation
+        self._oclp_version_worker = None
+        self._is_closing = False
 
         self.scrollWidget = QWidget()
         self.expandLayout = QVBoxLayout(self.scrollWidget)
@@ -72,10 +83,6 @@ class Introduction(ScrollArea):
         self.enableTransparentBackground()
         self.scrollWidget.setStyleSheet("QWidget { background: transparent; }")
         self.ui_support=ui_support
-
-        setTheme(Theme.AUTO)
-
-        qconfig.themeChanged.connect(self.update_theme)
 
         self._init_ui()
 
@@ -98,10 +105,6 @@ class Introduction(ScrollArea):
         if self.navigation_callback:
             self.navigation_callback(target)
 
-    def update_theme(self):
-        self.update()
-
-
     def _init_ui(self):
         self.expandLayout.setContentsMargins(SPACING["xxlarge"], SPACING["xlarge"], SPACING["xxlarge"], SPACING["xlarge"])
         self.expandLayout.setSpacing(SPACING["large"])
@@ -111,6 +114,7 @@ class Introduction(ScrollArea):
         self.expandLayout.addWidget(self._create_hero_section())
 
         self.expandLayout.addWidget(self._create_note_card())
+        QTimer.singleShot(0, self._fetch_oclp_version)
 
         self.expandLayout.addWidget(self._create_warning_card())
 
@@ -170,7 +174,14 @@ class Introduction(ScrollArea):
             self.expandLayout.insertWidget(4, button)
 
     def cleanup_workers(self):
-        """Stop helper installation worker before this page is destroyed."""
+        """Stop workers owned by this page before it is destroyed."""
+        self._is_closing = True
+        version_worker = self._oclp_version_worker
+        if version_worker and version_worker.isRunning():
+            version_worker.requestInterruption()
+            if not version_worker.wait(2000):
+                logging.info("OCLPVersionWorker is still finishing during shutdown")
+
         worker = getattr(self, "_install_worker", None)
         if worker and worker.isRunning():
             worker.requestInterruption()
@@ -210,10 +221,12 @@ class Introduction(ScrollArea):
                 pass
 
     def _on_install_helper_clicked(self):
-        """Handle install helper button click - relaunch as root if needed."""
-        if not install_privileged_helper or (is_root and not is_root()):
-            # Need to get root privileges
-            self._relaunch_as_root()
+        """Handle install helper button click."""
+        if not install_privileged_helper:
+            self._on_install_helper_finished(
+                False,
+                "Helper installation not available on this platform",
+            )
             return
 
         # Show installing indicator
@@ -259,77 +272,6 @@ class Introduction(ScrollArea):
                 parent=self
             )
 
-    def _relaunch_as_root(self):
-        """Relaunch the application with sudo using AppleScript."""
-        import subprocess
-
-        # Get the current script path
-        script_path = sys.executable
-        app_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        main_script = os.path.join(app_path, "MacBoxTool", "app_entry.py")
-
-        # Build the AppleScript command
-        script = f'''
-        do shell script "echo 'Installing Privileged Helper...' && cd '{app_path}' && {script_path} -m MacBoxTool.support.install_helper" with administrator privileges
-        '''
-
-        try:
-            # Run AppleScript to get admin privileges and install
-            result = subprocess.run(
-                ["osascript", "-e", script],
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
-
-            if result.returncode == 0:
-                # Success - show message
-                InfoBar.success(
-                    title="Installed",
-                    content="Privileged Helper installed successfully!",
-                    orient=Qt.Horizontal,
-                    isClosable=True,
-                    position=InfoBarPosition.BOTTOM_RIGHT,
-                    duration=3000,
-                    parent=self
-                )
-
-                # Refresh UI
-                self.update()
-            else:
-                # User cancelled or error
-                error_msg = result.stderr or "Installation was cancelled or failed."
-                InfoBar.warning(
-                    title="Installation",
-                    content=error_msg,
-                    orient=Qt.Horizontal,
-                    isClosable=True,
-                    position=InfoBarPosition.BOTTOM_RIGHT,
-                    duration=5000,
-                    parent=self
-                )
-
-        except subprocess.TimeoutExpired:
-            InfoBar.error(
-                title="Timeout",
-                content="Installation timed out.",
-                orient=Qt.Horizontal,
-                isClosable=True,
-                position=InfoBarPosition.BOTTOM_RIGHT,
-                duration=5000,
-                parent=self
-            )
-        except Exception as e:
-            InfoBar.error(
-                title="Error",
-                content=f"Failed to install: {str(e)}",
-                orient=Qt.Horizontal,
-                isClosable=True,
-                position=InfoBarPosition.BOTTOM_RIGHT,
-                duration=5000,
-                parent=self
-            )
-
     def _create_hero_section(self):
         hero_card = CardWidget()
 
@@ -364,9 +306,10 @@ class Introduction(ScrollArea):
         title_label.setStyleSheet("font-size: 24px; font-weight: bold;")
         return title_label
 
-    def find_oclp_version(self):
+    @staticmethod
+    def find_oclp_version_for(global_constants: Constants):
         REPO_LATEST_RELEASE_URL: str = "https://api.github.com/repos/hackdoc/OCLP-R/releases/latest"
-        network_utilities = NetworkUtilities(self.constants)
+        network_utilities = NetworkUtilities(global_constants)
         if not network_utilities.verify_network_connection(REPO_LATEST_RELEASE_URL, 1):
             return None
 
@@ -388,18 +331,56 @@ class Introduction(ScrollArea):
             return latest_remote_version
         except version.InvalidVersion:
             return None
+
+    def find_oclp_version(self):
+        return self.find_oclp_version_for(self.constants)
+
+    @staticmethod
+    def _oclp_note_body(oclp_version):
+        return (
+            f"The long awaited version {oclp_version} of OCLP-R is here, bringing <b>initial support for macOS Tahoe 26</b> to the community!<br><br>"
+            "<b>Please Note:</b><br>"
+            f"- Only OCLP-R {oclp_version} from the <a href=\"https://github.com/hackdoc/OCLP-R/releases/download/{oclp_version}/OCLP-R.pkg\" style=\"color: #0078D4; text-decoration: none;\">pyquick/OCLP-R</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
+            "- Official Dortania releases or older patches <b>will NOT work</b> with macOS Tahoe 26."
+        )
+
     def _create_note_card(self):
-        self.oclp_version=self.find_oclp_version() or "3.1.6"
-        return self.ui_support.custom_card(
+        self.oclp_version = "3.1.6"
+        card = self.ui_support.custom_card(
             card_type="note",
             title="OCLP-R: - Now Supports macOS Tahoe 26!",
-            body=(
-                f"The long awaited version {self.oclp_version} of OCLP-R is here, bringing <b>initial support for macOS Tahoe 26</b> to the community!<br><br>"
-                "<b>Please Note:</b><br>"
-                f"- Only OCLP-R {self.oclp_version} from the <a href=\"https://github.com/hackdoc/OCLP-R/releases/download/{self.oclp_version}/OCLP-R.pkg\" style=\"color: #0078D4; text-decoration: none;\">hackdoc/OCLP-R</a> repository provides support for macOS Tahoe 26 with early patches.<br>"
-                "- Official Dortania releases or older patches <b>will NOT work</b> with macOS Tahoe 26."
-            )
+            body=self._oclp_note_body(self.oclp_version),
         )
+        body_labels = [
+            label for label in card.findChildren(BodyLabel)
+            if not isinstance(label, StrongBodyLabel)
+        ]
+        self._oclp_note_body_label = body_labels[0] if body_labels else None
+        return card
+
+    def _fetch_oclp_version(self):
+        if self._is_closing or self._oclp_version_worker is not None:
+            return
+
+        worker = OCLPVersionWorker(self.constants)
+        self._oclp_version_worker = worker
+        _active_oclp_version_workers.add(worker)
+        worker.version_found.connect(self._update_oclp_note_card)
+        worker.finished.connect(self._on_oclp_version_worker_finished)
+        worker.finished.connect(lambda: _active_oclp_version_workers.discard(worker))
+        worker.finished.connect(worker.deleteLater)
+        worker.start()
+
+    def _update_oclp_note_card(self, oclp_version):
+        if self._is_closing or self._oclp_note_body_label is None:
+            return
+        self.oclp_version = oclp_version
+        self._oclp_note_body_label.setText(self._oclp_note_body(oclp_version))
+
+    def _on_oclp_version_worker_finished(self):
+        if self.sender() is self._oclp_version_worker:
+            self._oclp_version_worker = None
+
     def _create_nightly_warning_card(self):
         
         return self.ui_support.custom_card(
@@ -419,16 +400,19 @@ class Introduction(ScrollArea):
         )
 
     def _create_guide_card(self):
-        """Create the onboarding guide with navigation buttons."""
+        """Create a guide card with navigation buttons to different pages."""
         card = CardWidget()
+
         layout = QVBoxLayout(card)
         layout.setContentsMargins(SPACING["large"], SPACING["large"], SPACING["large"], SPACING["large"])
         layout.setSpacing(SPACING["medium"])
 
+        # Title
         title = StrongBodyLabel("Quick Start Guide")
         title.setStyleSheet("font-size: 16px; font-weight: bold;")
         layout.addWidget(title)
 
+        # Description
         desc = BodyLabel(
             "Follow these steps to create and use an OpenCore EFI. "
             "Back up your data and current EFI before making changes."
@@ -442,21 +426,24 @@ class Introduction(ScrollArea):
             title="1. Configure your target model",
             description=(
                 "Open Settings and choose the Mac model you want to build for. "
-                "Review boot, graphics, security, and SMBIOS options before building."
+                "Review the available boot, graphics, security, and SMBIOS options "
+                "before building."
             ),
             button_text="Go to Settings",
-            navigate_target=self.NAV_SETTINGS,
+            navigate_target=self.NAV_SETTINGS
         ))
+
         layout.addWidget(self._create_guide_item(
             icon=FluentIcon.DOWNLOAD,
             title="2. Download required resources",
             description=(
                 "Use Downloads to get a macOS installer, Kernel Debug Kit (KDK), "
-                "or Metallib support packages when they are needed."
+                "or Metallib support packages when they are needed for your system."
             ),
             button_text="Go to Downloads",
-            navigate_target=self.NAV_DOWNLOADS,
+            navigate_target=self.NAV_DOWNLOADS
         ))
+
         layout.addWidget(self._create_guide_item(
             icon=FluentIcon.DEVELOPER_TOOLS,
             title="3. Build the OpenCore EFI",
@@ -465,29 +452,33 @@ class Introduction(ScrollArea):
                 "The build uses the target model and settings selected above."
             ),
             button_text="Go to Build",
-            navigate_target=self.NAV_BUILD,
+            navigate_target=self.NAV_BUILD
         ))
+
         layout.addWidget(self._create_guide_item(
             icon=FluentIcon.SAVE,
             title="4. Install and test the EFI",
             description=(
-                "Inspect or copy the completed EFI, or use Install to disk to install it directly. "
-                "Keep a working EFI backup and restart to test the new configuration."
+                "After the build succeeds, use Open folder in Finder to inspect or copy "
+                "the EFI, or use Install to disk to install it directly. Keep a backup "
+                "of the working EFI and restart to test the new configuration."
             ),
             button_text="Go to Build",
-            navigate_target=self.NAV_BUILD,
+            navigate_target=self.NAV_BUILD
         ))
-        if sys.platform == "darwin":
+        if sys.platform=="darwin":
             layout.addWidget(self._create_guide_item(
                 icon=FluentIcon.PASTE,
                 title="5. Apply Root Patches when needed",
                 description=(
                     "On supported older Macs, use Root Patching after OpenCore is working. "
-                    "Restart when prompted to apply the changes."
+                    "The patcher can prepare required KDK and Metallib packages; restart "
+                    "when prompted to apply the changes."
                 ),
                 button_text="Go to Root Patching",
-                navigate_target=self.NAV_PATCH,
+                navigate_target=self.NAV_PATCH
             ))
+
         return card
 
     def _create_guide_item(self, icon, title, description, button_text=None, navigate_target=None):
@@ -497,16 +488,21 @@ class Introduction(ScrollArea):
         item_layout.setContentsMargins(0, SPACING["small"], 0, SPACING["small"])
         item_layout.setSpacing(SPACING["medium"])
 
+        # Icon
         icon_label = self.ui_support.build_icon_label(icon, COLORS["primary"], size=32)
         item_layout.addWidget(icon_label, 0, Qt.AlignVCenter)
 
+        # Text content
         text_layout = QVBoxLayout()
         text_layout.setSpacing(4)
+
         title_label = BodyLabel(title)
         title_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+
         desc_label = BodyLabel(description)
         desc_label.setStyleSheet("font-size: 12px; color: #888;")
         desc_label.setWordWrap(True)
+
         text_layout.addWidget(title_label)
         text_layout.addWidget(desc_label)
         item_layout.addLayout(text_layout, 1)
@@ -516,6 +512,7 @@ class Introduction(ScrollArea):
             nav_btn.setFixedHeight(32)
             nav_btn.clicked.connect(lambda: self.navigate_to(navigate_target))
             item_layout.addWidget(nav_btn, 0, Qt.AlignVCenter)
+
         return item_widget
 
     def refresh(self):

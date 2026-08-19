@@ -1,8 +1,8 @@
 # coding: utf-8
 from typing import List, Union
 from PySide2.QtCore import QSize, Qt, QRectF, Signal, QPoint, QTimer, QEvent, QAbstractItemModel, Property, QModelIndex
-from PySide2.QtGui import QPainter, QPainterPath, QIcon, QColor, QPen
-from PySide2.QtWidgets import (QAction, QApplication, QHBoxLayout, QLineEdit, QToolButton, QTextEdit,
+from PySide2.QtGui import QPainter, QPainterPath, QIcon, QColor, QAction, QPen
+from PySide2.QtWidgets import (QApplication, QHBoxLayout, QLineEdit, QToolButton, QTextEdit,
                                QPlainTextEdit, QCompleter, QStyle, QWidget, QTextBrowser)
 
 
@@ -54,6 +54,7 @@ def _bottomRoundedBorderPath(rect: QRectF,
 
 
 def _drawBottomRoundedBorder(painter: QPainter, rect: QRectF, color: QColor,
+                             radius: int = _INPUT_BORDER_RADIUS,
                              thickness: float = _FOCUS_BORDER_THICKNESS):
     pen = QPen(color, thickness)
     pen.setCapStyle(Qt.RoundCap)
@@ -73,7 +74,7 @@ class LineEditButton(QToolButton):
         self.isPressed = False
         self.setFixedSize(31, 23)
         self.setIconSize(QSize(10, 10))
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setCursor(Qt.PointingHandCursor)
         self.setObjectName('lineEditButton')
         FluentStyleSheet.LINE_EDIT.apply(self)
 
@@ -207,14 +208,14 @@ class LineEdit(QLineEdit):
     def completer(self):
         return self._completer
 
-    def addAction(self, action: QAction, position=QLineEdit.ActionPosition.TrailingPosition):
+    def addAction(self, action: QAction, position=QLineEdit.TrailingPosition):
         QWidget.addAction(self, action)
 
         button = LineEditButton(action.icon())
         button.setAction(action)
         button.setFixedWidth(29)
 
-        if position == QLineEdit.ActionPosition.LeadingPosition:
+        if position == QLineEdit.LeadingPosition:
             self.hBoxLayout.insertWidget(len(self.leftButtons), button, 0, Qt.AlignLeading)
             if not self.leftButtons:
                 self.hBoxLayout.insertStretch(1, 1)
@@ -226,7 +227,7 @@ class LineEdit(QLineEdit):
 
         self._adjustTextMargins()
 
-    def addActions(self, actions, position=QLineEdit.ActionPosition.TrailingPosition):
+    def addActions(self, actions, position=QLineEdit.TrailingPosition):
         for action in actions:
             self.addAction(action, position)
 
@@ -576,7 +577,7 @@ class PasswordLineEdit(LineEdit):
 
     def inputMethodQuery(self, query: Qt.InputMethodQuery):
         # Disable IME for PasswordLineEdit
-        if query == Qt.InputMethodQuery.ImEnabled:
+        if query == Qt.ImEnabled:
             return False
         else:
             return super().inputMethodQuery(query)

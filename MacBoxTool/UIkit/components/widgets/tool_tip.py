@@ -44,7 +44,7 @@ class ToolTipContainer(QFrame):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.Antialiasing)
         radius = min(self._radius, self.height() / 2)
         path = QPainterPath()
         path.addRoundedRect(self.rect().adjusted(0.5, 0.5, -0.5, -0.5), radius, radius)
@@ -490,7 +490,7 @@ class ItemViewToolTipDelegate(ToolTipFilter):
             return False
 
         if event.type() == QEvent.ToolTip:
-            text = index.data(Qt.ItemDataRole.ToolTipRole)
+            text = index.data(Qt.ToolTipRole)
             if not text:
                 self.hideToolTip()
                 return False

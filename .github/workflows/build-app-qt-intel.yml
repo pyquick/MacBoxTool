@@ -83,6 +83,12 @@ jobs:
           name: MacBoxTool-PySide2-Uninstaller-x86_64.pkg
           path: ./dist/MacBoxTool-PySide2-Uninstaller-x86_64.pkg
 
+      - name: Upload AutoPkg-Assets Package to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoPkg-Assets-x86_64.pkg
+          path: ./dist/AutoPkg-Assets-x86_64.pkg
+
       - name: Upload manifest.json to Artifacts
         uses: actions/upload-artifact@v7
         with:

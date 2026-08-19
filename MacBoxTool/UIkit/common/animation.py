@@ -230,7 +230,7 @@ class DropShadowAnimation(QPropertyAnimation):
             if e.type() in [QEvent.Enter]:
                 self.isHover = True
 
-                if self.state() != QPropertyAnimation.State.Running:
+                if self.state() != QAbstractAnimation.Running:
                     self.parent().setGraphicsEffect(self._createShadowEffect())
 
                 self.setEndValue(self.hoverColor)

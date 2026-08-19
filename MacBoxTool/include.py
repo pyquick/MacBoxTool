@@ -11,6 +11,11 @@ from .support.toggle_theme import ThemeManager
 
 from .support import subprocess_wrapper
 from .support.network_handler import *
+try:
+    from .support.crash_report import *
+except Exception:
+    # crash_report.py is a dev-only module; skip silently when unavailable
+    pass
 #constants
 from .constants import *
 

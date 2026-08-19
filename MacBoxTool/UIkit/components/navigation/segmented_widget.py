@@ -62,7 +62,7 @@ class SegmentedToggleToolItem(TransparentToolButton):
         self.isSelected = isSelected
         self.setChecked(isSelected)
 
-    def _drawIcon(self, icon, painter: QPainter, rect: QRectF, state=QIcon.State.Off):
+    def _drawIcon(self, icon, painter: QPainter, rect: QRectF, state=QIcon.Off):
         if self.isSelected and isinstance(icon, FluentIconBase):
             theme = Theme.DARK if not isDarkTheme() else Theme.LIGHT
             icon = icon.icon(theme)
@@ -112,7 +112,7 @@ class SegmentedWidget(Pivot):
         painter.drawRoundedRect(rect, 16, 16)
 
         # draw indicator
-        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setPen(Qt.NoPen)
         painter.setBrush(autoFallbackThemeColor(self.lightIndicatorColor, self.darkIndicatorColor))
 
         x = int(self.currentItem().width() / 2 - 8 + self.slideAni.value())
@@ -170,9 +170,9 @@ class SegmentedToggleToolWidget(SegmentedToolWidget):
             return
 
         painter = QPainter(self)
-        painter.setRenderHints(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHints(QPainter.Antialiasing)
 
-        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setPen(Qt.NoPen)
         painter.setBrush(autoFallbackThemeColor(self.lightIndicatorColor, self.darkIndicatorColor))
 
         item = self.currentItem()

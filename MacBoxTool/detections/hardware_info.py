@@ -99,13 +99,13 @@ class HardwareInfo:
             if info.cpu.architecture:
                 info.cpu.generation = info.cpu.architecture
 
-            vendor_id_lower = info.cpu.vendor_id.lower()
+            vendor_id = info.cpu.vendor_id
             cpu_name_lower = computer.cpu.name.lower() if computer.cpu.name else ""
-            if "intel" in vendor_id_lower or "intel" in cpu_name_lower or "core" in cpu_name_lower:
+            if vendor_id == "0x8086" or "intel" in cpu_name_lower or "core" in cpu_name_lower:
                 info.cpu.vendor = "intel"
-            elif "amd" in vendor_id_lower or "amd" in cpu_name_lower or "ryzen" in cpu_name_lower or "athlon" in cpu_name_lower:
+            elif vendor_id == "0x1022" or "amd" in cpu_name_lower or "ryzen" in cpu_name_lower or "athlon" in cpu_name_lower:
                 info.cpu.vendor = "amd"
-            elif "apple" in vendor_id_lower or "apple" in cpu_name_lower:
+            elif vendor_id == "0x106B" or "apple" in cpu_name_lower:
                 info.cpu.vendor = "apple"
 
         # GPU info

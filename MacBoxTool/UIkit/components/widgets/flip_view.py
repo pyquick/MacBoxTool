@@ -102,9 +102,9 @@ class FlipImageDelegate(QStyledItemDelegate):
             return painter.restore()
 
         # lazy load image
-        if image.isNull() and index.data(Qt.ItemDataRole.DisplayRole):
-            image.load(index.data(Qt.ItemDataRole.DisplayRole))
-            index.model().setData(index, image, Qt.ItemDataRole.UserRole)
+        if image.isNull() and index.data(Qt.DisplayRole):
+            image.load(index.data(Qt.DisplayRole))
+            index.model().setData(index, image, Qt.UserRole)
 
         x = option.rect.x() + int((option.rect.width() - size.width()) / 2)
         y = option.rect.y() + int((option.rect.height() - size.height()) / 2)
@@ -121,7 +121,7 @@ class FlipImageDelegate(QStyledItemDelegate):
         painter.setClipPath(path)
 
         # center crop image
-        if p.aspectRatioMode == Qt.AspectRatioMode.KeepAspectRatioByExpanding:
+        if p.aspectRatioMode == Qt.KeepAspectRatioByExpanding:
             iw, ih = image.width(), image.height()
             size = QSizeF(size) * r
             x, y = (iw - size.width()) / 2, (ih - size.height()) / 2
@@ -157,7 +157,7 @@ class FlipView(QListWidget):
     def _postInit(self):
         self.isHover = False
         self._currentIndex = -1
-        self._aspectRatioMode = Qt.AspectRatioMode.IgnoreAspectRatio
+        self._aspectRatioMode = Qt.IgnoreAspectRatio
         self._itemSize = QSize(480, 270)  # 16:9
 
         self.delegate = FlipImageDelegate(self)
@@ -301,10 +301,10 @@ class FlipView(QListWidget):
 
         # lazy load
         if isinstance(image, QImage):
-            item.setData(Qt.ItemDataRole.UserRole, image)
+            item.setData(Qt.UserRole, image)
         else:
-            item.setData(Qt.ItemDataRole.UserRole, QImage())
-            item.setData(Qt.ItemDataRole.DisplayRole, image)
+            item.setData(Qt.UserRole, QImage())
+            item.setData(Qt.DisplayRole, image)
 
         self._adjustItemSize(item)
 
@@ -314,10 +314,10 @@ class FlipView(QListWidget):
         if not image.isNull():
             size = image.size()
         else:
-            imagePath = item.data(Qt.ItemDataRole.DisplayRole) or ""
+            imagePath = item.data(Qt.DisplayRole) or ""
             size = QImageReader(imagePath).size().expandedTo(QSize(1, 1))
 
-        if self.aspectRatioMode == Qt.AspectRatioMode.KeepAspectRatio:
+        if self.aspectRatioMode == Qt.KeepAspectRatio:
             if self.isHorizontal():
                 h = self.itemSize.height()
                 w = int(size.width() * h / size.height())
@@ -344,12 +344,12 @@ class FlipView(QListWidget):
             return
 
         item = self.item(index)
-        image = item.data(Qt.ItemDataRole.UserRole)  # type: QImage
+        image = item.data(Qt.UserRole)  # type: QImage
 
         if image is None:
             return QImage()
 
-        imagePath = item.data(Qt.ItemDataRole.DisplayRole)
+        imagePath = item.data(Qt.DisplayRole)
         if image.isNull() and imagePath and load:
             image.load(imagePath)
 

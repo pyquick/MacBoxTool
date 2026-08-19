@@ -12,6 +12,7 @@ from ..widgets.switch_button import SwitchButton, IndicatorPosition
 from ..widgets.slider import Slider
 from ..widgets.icon_widget import IconWidget
 from ..widgets.button import HyperlinkButton
+from ...common.border_radius import installDynamicBorderRadius
 from ...common.style_sheet import FluentStyleSheet
 from ...common.config import qconfig, isDarkTheme, ConfigItem, OptionsConfigItem
 from ...common.icon import FluentIconBase, drawIcon
@@ -258,6 +259,7 @@ class PushSettingCard(SettingCard):
         """
         super().__init__(icon, title, content, parent)
         self.button = QPushButton(text, self)
+        installDynamicBorderRadius(self.button, "QPushButton")
         self.hBoxLayout.addWidget(self.button, 0, Qt.AlignRight)
         self.hBoxLayout.addSpacing(16)
         self.button.clicked.connect(self.clicked)

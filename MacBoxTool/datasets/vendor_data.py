@@ -1,7 +1,7 @@
+import enum
 
 
-
-class vendor_id:
+class vendor_id(enum.Enum):
     samsung = 0x144D
     intel = 0x8086
     sandisk = 0x15B7

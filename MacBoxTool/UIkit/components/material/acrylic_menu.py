@@ -58,7 +58,7 @@ class AcrylicMenuActionListWidget(MenuActionListWidget):
     def createPlaceholderItem(self, height=2):
         item = QListWidgetItem()
         item.setSizeHint(QSize(1, height))
-        item.setFlags(Qt.ItemFlag.NoItemFlags)
+        item.setFlags(Qt.NoItemFlags)
         return item
 
     def clipPath(self):
@@ -116,7 +116,7 @@ class AcrylicCompleterMenuActionListWidget(AcrylicMenuActionListWidget):
 
     def clipPath(self):
         path = QPainterPath()
-        path.setFillRule(Qt.FillRule.WindingFill)
+        path.setFillRule(Qt.WindingFill)
         path.addRoundedRect(QRectF(self.rect()).adjusted(1, 1, -2.5, -2.5), 8, 8)
 
         if self.property("dropDown"):

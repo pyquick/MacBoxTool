@@ -10,6 +10,7 @@ from .menu import RoundMenu, MenuAnimationType, IndicatorMenuItemDelegate
 from .line_edit import LineEdit, LineEditButton
 from .combo_box import ComboBoxMenu
 from ...common.animation import TranslateYAnimation
+from ...common.border_radius import installDynamicBorderRadius
 from ...common.icon import FluentIconBase, isDarkTheme
 from ...common.icon import FluentIcon as FIF
 from ...common.font import setFont
@@ -39,6 +40,7 @@ class ModelComboBoxBase:
         self.setModel(QStandardItemModel(self))
 
         FluentStyleSheet.COMBO_BOX.apply(self)
+        installDynamicBorderRadius(self, "ModelComboBox")
         self.installEventFilter(self)
 
     def setModel(self, model: QAbstractItemModel):
@@ -67,10 +69,10 @@ class ModelComboBoxBase:
             self.clear()
 
     def _onModelDataChanged(self, topLeft: QModelIndex, bottomRight: QModelIndex, roles):
-        if Qt.ItemDataRole.EditRole in roles:
+        if Qt.EditRole in roles:
             for row in range(topLeft.row(), bottomRight.row() + 1):
                 self.setItemText(row, self.itemText(row))
-        if Qt.ItemDataRole.DecorationRole in roles:
+        if Qt.DecorationRole in roles:
             for row in range(topLeft.row(), bottomRight.row() + 1):
                 self.setItemIcon(row, self.itemIcon(row))
 
@@ -90,13 +92,13 @@ class ModelComboBoxBase:
     def insertItem(self, index: int, text: str, userData=None, icon: QIcon = None):
         """ Inserts item into the combobox at the given index. """
         values = {}
-        values[Qt.ItemDataRole.EditRole] = text
+        values[Qt.EditRole] = text
 
         if icon:
-            values[Qt.ItemDataRole.DecorationRole] = icon
+            values[Qt.DecorationRole] = icon
 
         if userData:
-            values[Qt.ItemDataRole.UserRole] = userData
+            values[Qt.UserRole] = userData
 
         modelIndex = self._insertItemFromValues(index, values)
 
@@ -112,7 +114,7 @@ class ModelComboBoxBase:
         row = index
         for text in texts:
             values = {}
-            values[Qt.ItemDataRole.EditRole] = text
+            values[Qt.EditRole] = text
             self._insertItemFromValues(index, values)
             row += 1
 
@@ -256,7 +258,7 @@ class ModelComboBoxBase:
             return
 
         oldText = self.text()
-        self.setItemData(index, text, Qt.ItemDataRole.EditRole)
+        self.setItemData(index, text, Qt.EditRole)
         if self.currentIndex() == index:
             self.setText(text)
             if oldText != text:
@@ -264,39 +266,39 @@ class ModelComboBoxBase:
 
     def itemData(self, index: int):
         """ Returns the data in the given index """
-        return self.model().data(self.model().index(index, 0), Qt.ItemDataRole.UserRole)
+        return self.model().data(self.model().index(index, 0), Qt.UserRole)
 
     def itemText(self, index: int):
         """ Returns the text in the given index """
-        return self.model().data(self.model().index(index, 0), Qt.ItemDataRole.EditRole) or ""
+        return self.model().data(self.model().index(index, 0), Qt.EditRole) or ""
 
     def itemIcon(self, index: int):
         """ Returns the icon in the given index """
-        return self.model().data(self.model().index(index, 0), Qt.ItemDataRole.DecorationRole) or QIcon()
+        return self.model().data(self.model().index(index, 0), Qt.DecorationRole) or QIcon()
 
-    def setItemData(self, index: int, value, role=Qt.ItemDataRole.UserRole):
+    def setItemData(self, index: int, value, role=Qt.UserRole):
         if self._isValidIndex(index):
             self.model().setData(self.model().index(index, 0), value, role)
 
     def setItemIcon(self, index: int, icon: Union[str, QIcon, FluentIconBase]):
         """ Sets the data role for the item on the given index """
-        self.setItemData(index, icon, Qt.ItemDataRole.DecorationRole)
+        self.setItemData(index, icon, Qt.DecorationRole)
 
     def _isValidIndex(self, index: int):
         return 0 <= index < self.count()
 
-    def findData(self, data, role=Qt.ItemDataRole.UserRole, flags=Qt.MatchFlag.MatchExactly) -> int:
+    def findData(self, data, role=Qt.UserRole, flags=Qt.MatchExactly) -> int:
         """ Returns the index of the item containing the given data for the given role; otherwise returns -1. """
         mi = self.model().index(0, 0)
-        result = self.model().match(mi, role, data, -1, flags | Qt.MatchFlag.MatchRecursive)
+        result = self.model().match(mi, role, data, -1, flags | Qt.MatchRecursive)
         for i in result:
             return i.row()
 
         return -1
 
-    def findText(self, text: str, flags=Qt.MatchFlag.MatchExactly):
+    def findText(self, text: str, flags=Qt.MatchExactly):
         """ Returns the index of the item containing the given text; otherwise returns -1. """
-        return self.findData(text, Qt.ItemDataRole.EditRole, flags)
+        return self.findData(text, Qt.EditRole, flags)
 
     def clear(self):
         """ Clears the combobox, removing all items. """

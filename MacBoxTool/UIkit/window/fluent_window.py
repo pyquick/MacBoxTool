@@ -1,8 +1,9 @@
 # coding:utf-8
-from typing import Union
 import sys
+import warnings
+from typing import Union
 
-from PySide2.QtCore import Qt, QSize, QRect
+from PySide2.QtCore import Qt, QSize, QRect, QEvent
 from PySide2.QtGui import QIcon, QPainter, QColor
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QApplication
 
@@ -18,6 +19,7 @@ from ..components.navigation import (NavigationInterface, NavigationBar, Navigat
 from .stacked_widget import StackedWidget
 
 from ...UIWindow import TitleBar, TitleBarBase, TitleBarButton
+from ...UIWindow.utils import startSystemMove, toggleMaxState
 
 
 class FluentWidget(BackgroundAnimationWidget, FramelessWindow):
@@ -32,14 +34,27 @@ class FluentWidget(BackgroundAnimationWidget, FramelessWindow):
         # enable mica effect on win11
         self.setMicaEffectEnabled(True)
 
-        # show system title bar buttons on macOS
+        # Keep the platform's internal frameless-window hook, but remove every
+        # title-bar control and give it no geometry.
+        self._removeTitleBar()
         if sys.platform == "darwin":
             self.setSystemTitleBarButtonVisible(True)
 
-        # set up title bar
-        self.setTitleBar(FluentWidgetTitleBar(self))
-
         qconfig.themeChangedFinished.connect(self._onThemeChangedFinished)
+
+    def _removeTitleBar(self):
+        self.titleBar.setFixedHeight(0)
+        self.titleBar.hide()
+
+    def setWindowTitle(self, title: str):
+        """Deprecated: window titles are no longer displayed by FluentWidget."""
+        warnings.warn(
+            "FluentWidget.setWindowTitle() is deprecated because the title bar "
+            "has been removed",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().setWindowTitle(title)
 
     def setCustomBackgroundColor(self, light, dark):
         """ set custom background color
@@ -101,7 +116,7 @@ class FluentWidget(BackgroundAnimationWidget, FramelessWindow):
         size: QSize
             original system title bar rect
         """
-        return QRect(0, 0 if self.isFullScreen() else 2, 75, size.height())
+        return QRect(12, 0 if self.isFullScreen() else 8, 54, size.height())
 
     def setTitleBar(self, titleBar):
         super().setTitleBar(titleBar)
@@ -132,6 +147,30 @@ class FluentWindowBase(FluentWidget):
         self.hBoxLayout.setContentsMargins(0, 0, 0, 0)
 
         FluentStyleSheet.FLUENT_WINDOW.apply(self.stackedWidget)
+
+    def eventFilter(self, obj, event):
+        navigationInterface = getattr(self, 'navigationInterface', None)
+        panel = getattr(navigationInterface, 'panel', None)
+        dragSource = obj in (self, navigationInterface, panel)
+        if not dragSource or self.isFullScreen():
+            return super().eventFilter(obj, event)
+
+        if event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
+            startSystemMove(self, event.globalPos())
+            return True
+
+        if event.type() == QEvent.MouseButtonDblClick and event.button() == Qt.LeftButton:
+            toggleMaxState(self)
+            return True
+
+        return super().eventFilter(obj, event)
+
+    def _enableWindowDragging(self):
+        self.installEventFilter(self)
+        self.navigationInterface.installEventFilter(self)
+        panel = getattr(self.navigationInterface, 'panel', None)
+        if panel:
+            panel.installEventFilter(self)
 
     def addSubInterface(self, interface: QWidget, icon: Union[FluentIconBase, QIcon, str], text: str,
                         position=NavigationItemPosition.TOP):
@@ -235,7 +274,7 @@ class FluentWindowBase(FluentWidget):
         size: QSize
             original system title bar rect
         """
-        return QRect(size.width() - 90, 8, 54, size.height())
+        return super().systemTitleBarRect(size)
 
 
 class FluentTitleBar(TitleBar):
@@ -294,9 +333,9 @@ class FluentWindow(FluentWindowBase):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setTitleBar(FluentTitleBar(self))
 
         self.navigationInterface = NavigationInterface(self, showReturnButton=True)
+        self._enableWindowDragging()
         self.widgetLayout = QHBoxLayout()
 
         # initialize layout
@@ -305,10 +344,7 @@ class FluentWindow(FluentWindowBase):
         self.hBoxLayout.setStretchFactor(self.widgetLayout, 1)
 
         self.widgetLayout.addWidget(self.stackedWidget)
-        self.widgetLayout.setContentsMargins(0, self.titleBar.height(), 0, 0)
-
-        self.navigationInterface.displayModeChanged.connect(self.titleBar.raise_)
-        self.titleBar.raise_()
+        self.widgetLayout.setContentsMargins(0, 0, 0, 0)
 
     def addSubInterface(self, interface: QWidget, icon: Union[FluentIconBase, QIcon, str], text: str,
                         position=NavigationItemPosition.TOP, parent=None, isTransparent=False) -> NavigationTreeWidget:
@@ -380,8 +416,7 @@ class FluentWindow(FluentWindowBase):
             interface.deleteLater()
 
     def resizeEvent(self, e):
-        self.titleBar.move(0, 0)
-        self.titleBar.resize(self.width(), self.titleBar.height())
+        super().resizeEvent(e)
 
 
 class MSFluentTitleBar(FluentTitleBar):
@@ -415,17 +450,14 @@ class MSFluentWindow(FluentWindowBase):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setTitleBar(MSFluentTitleBar(self))
 
         self.navigationInterface = NavigationBar(self)
+        self._enableWindowDragging()
 
         # initialize layout
-        self.hBoxLayout.setContentsMargins(0, 48, 0, 0)
+        self.hBoxLayout.setContentsMargins(0, 0, 0, 0)
         self.hBoxLayout.addWidget(self.navigationInterface)
         self.hBoxLayout.addWidget(self.stackedWidget, 1)
-
-        self.titleBar.raise_()
-        self.titleBar.setAttribute(Qt.WA_StyledBackground)
 
     def addSubInterface(self, interface: QWidget, icon: Union[FluentIconBase, QIcon, str], text: str,
                         selectedIcon=None, position=NavigationItemPosition.TOP, isTransparent=False) -> NavigationBarPushButton:
@@ -517,15 +549,6 @@ class SplitFluentWindow(FluentWindow):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setTitleBar(SplitTitleBar(self))
-
-        if sys.platform == "darwin":
-            self.titleBar.setFixedHeight(48)
-
-        self.widgetLayout.setContentsMargins(0, 0, 0, 0)
-
-        self.titleBar.raise_()
-        self.navigationInterface.displayModeChanged.connect(self.titleBar.raise_)
 
 
 class FluentBackgroundTheme:

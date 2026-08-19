@@ -2,6 +2,8 @@
 gui_task.py: Download Task page - displays download tasks from other services
 """
 
+import weakref
+
 from ..include import *
 from .gui_support import DefGUI
 from .. import constants
@@ -47,6 +49,7 @@ class TaskManager:
     _validation_workers: dict[int, ValidationWorker] = {}
     _extraction_workers: dict[int, QThread] = {}
     _icons: dict[int, object] = {}  # download id -> icon for DownloadCard
+    _task_pages = weakref.WeakSet()
     _shutting_down = False
     aconstants: Constants = None
 
@@ -61,6 +64,19 @@ class TaskManager:
     def set_constants(cls, global_constants: Constants):
         """Set the shared constants object used by download follow-up workers."""
         cls.aconstants = global_constants
+
+    @classmethod
+    def register_task_page(cls, page):
+        cls._task_pages.add(page)
+
+    @classmethod
+    def unregister_task_page(cls, page):
+        cls._task_pages.discard(page)
+
+    @classmethod
+    def _notify_task_pages(cls):
+        for page in list(cls._task_pages):
+            QTimer.singleShot(0, page, page._refresh_and_sync_timer)
 
     @classmethod
     def _destination_path(cls, download: DownloadObject) -> str:
@@ -140,6 +156,7 @@ class TaskManager:
             lambda w=worker: cls._release_download_worker(download, w)
         )
         worker.start()
+        cls._notify_task_pages()
         return worker
 
     @classmethod
@@ -456,6 +473,7 @@ class TaskManager:
         """Register a download task to be displayed"""
         if download not in cls._downloads:
             cls._downloads.append(download)
+            cls._notify_task_pages()
 
     @classmethod
     def unregister_download(cls, download: DownloadObject):
@@ -515,12 +533,14 @@ class TaskInterface(ScrollArea):
         self.setWidgetResizable(True)
         self.enableTransparentBackground()
 
-        # Timer for refreshing download list
+        # Timer for refreshing visible active downloads
         self.refresh_timer = QTimer(self)
+        self.refresh_timer.setInterval(10)
         self.refresh_timer.timeout.connect(self._refresh_downloads)
-        self.refresh_timer.start(10)  # Update every 10ms (0.01s) for smooth speed display
+        self.task_manager.register_task_page(self)
 
         self.init_ui()
+        self._sync_refresh_timer()
 
     def init_ui(self):
         self.expandLayout.setContentsMargins(
@@ -659,6 +679,41 @@ class TaskInterface(ScrollArea):
         except RuntimeError:
             self.network_worker = None
 
+    def _has_active_work(self) -> bool:
+        active_statuses = {
+            DownloadStatus.PENDING,
+            DownloadStatus.DOWNLOADING,
+            DownloadStatus.VALIDATING,
+            DownloadStatus.EXTRACTING,
+        }
+        return bool(
+            any(d.status in active_statuses for d in self.task_manager.get_downloads())
+            or self.task_manager._workers
+            or self.task_manager._validation_workers
+            or self.task_manager._extraction_workers
+        )
+
+    def _refresh_and_sync_timer(self):
+        self._refresh_downloads()
+        self._sync_refresh_timer()
+
+    def _sync_refresh_timer(self):
+        should_run = self.isVisible() and self._has_active_work()
+        if should_run and not self.refresh_timer.isActive():
+            self._refresh_downloads()
+            self.refresh_timer.start()
+        elif not should_run and self.refresh_timer.isActive():
+            self.refresh_timer.stop()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._refresh_downloads()
+        self._sync_refresh_timer()
+
+    def hideEvent(self, event):
+        self.refresh_timer.stop()
+        super().hideEvent(event)
+
     def _refresh_downloads(self):
         """Refresh the download list from task manager"""
         current_downloads = self.task_manager.get_downloads()
@@ -715,6 +770,11 @@ class TaskInterface(ScrollArea):
             self.empty_label.setTextColor("#808080", "#808080")
             self.empty_label.setAlignment(Qt.AlignCenter)
             self.active_downloads_layout.addWidget(self.empty_label)
+
+        if not self._has_active_work():
+            self.refresh_timer.stop()
+        elif self.isVisible() and not self.refresh_timer.isActive():
+            self.refresh_timer.start()
 
     def _on_open_file(self, download: DownloadObject):
         """Handle open file action"""
@@ -774,10 +834,12 @@ class TaskInterface(ScrollArea):
     def _on_pause_download(self, download: DownloadObject):
         """Handle pause download action"""
         self.task_manager.pause_download(download)
+        self._refresh_and_sync_timer()
 
     def _on_resume_download(self, download: DownloadObject):
         """Handle resume download action"""
         self.task_manager.resume_download(download)
+        self._refresh_and_sync_timer()
 
     def _on_retry_download(self, download: DownloadObject):
         """Handle retry download after validation failure"""
@@ -1004,9 +1066,11 @@ class TaskInterface(ScrollArea):
         """Refresh the page"""
         self._check_network_status()
         self._refresh_downloads()
+        self._sync_refresh_timer()
 
     def cleanup_workers(self):
         """Stop timers and workers owned by this task page."""
+        self.task_manager.unregister_task_page(self)
         if hasattr(self, 'refresh_timer'):
             self.refresh_timer.stop()
         if hasattr(self, 'network_timeout_timer'):

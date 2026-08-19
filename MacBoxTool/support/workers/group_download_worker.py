@@ -60,7 +60,8 @@ class GroupDownloadWorker(QThread):
 
             for index, component in enumerate(self.download.components):
                 url = component["URL"]
-                child = DownloadObject(url, self.download.save_path, Path(urlparse(url).path).name)
+                filename = Path(urlparse(url).path).name
+                child = DownloadObject(url, self.download.save_path, filename)
                 child.total_size = component.get("Size", 0)
                 child.thread_count = max(
                     1,
@@ -71,13 +72,13 @@ class GroupDownloadWorker(QThread):
                     lambda current, total, i=index: self._on_component_progress(
                         i, current, total
                     ),
-                    Qt.ConnectionType.DirectConnection,
+                    Qt.DirectConnection,
                 )
                 worker.finished_signal.connect(
                     lambda success, message, i=index: self._on_component_finished(
                         i, success, message
                     ),
-                    Qt.ConnectionType.DirectConnection,
+                    Qt.DirectConnection,
                 )
                 self._workers.append(worker)
 

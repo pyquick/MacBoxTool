@@ -144,11 +144,14 @@ class ThemeManager(QObject):
         self.accent_observer.accentColorChanged.connect(self.check_accent_color)
         observer_started = self.accent_observer.start()
 
-        # macOS does not reliably post the same notification on every release,
-        # so keep a light safety check to guarantee live accent-color updates.
+        # Native notifications update immediately. Keep polling only as a safety
+        # net because some macOS releases omit individual preference events.
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.check_accent_color)
-        self.timer.start(250 if sys.platform == "darwin" else 2000)
+        if sys.platform == "darwin":
+            self.timer.start(5000 if observer_started else 250)
+        else:
+            self.timer.start(2000)
 
         if not observer_started:
             logging.debug("Accent color notification observer unavailable; using timer fallback")

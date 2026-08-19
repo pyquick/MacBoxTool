@@ -197,7 +197,7 @@ class TabItem(PushButton):
         self._forwardMouseEvent(e)
 
     def mouseDoubleClickEvent(self, e: QMouseEvent):
-        if e.button() == Qt.MouseButton.LeftButton:
+        if e.button() == Qt.LeftButton:
             self.doubleClicked.emit()
 
         return super().mouseDoubleClickEvent(e)

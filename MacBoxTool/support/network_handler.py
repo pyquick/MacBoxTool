@@ -5,8 +5,10 @@ import logging
 import os
 import ssl
 import requests
+import urllib3
 from requests.adapters import HTTPAdapter
 from urllib.parse import urlparse
+from urllib3.exceptions import InsecureRequestWarning
 from urllib3.util.retry import Retry
 import threading
 import sys
@@ -14,13 +16,13 @@ if sys.platform=="darwin":
     import MacBoxTool.support.utilities as utilities
 else:
     import MacBoxTool.support.utilities_win as utilities
+import os
 from PySide2.QtWidgets import *
 from PySide2.QtGui import *
 from PySide2.QtCore import *
 from .. import constants
 import json,shutil
 from typing import Optional
-
 
 SESSION = requests.Session()
 
@@ -34,8 +36,7 @@ MAX_RANGE_RETRIES = 5
 RANGE_RETRY_BACKOFF = 1.0
 
 
-def _certificate_bundle():
-    """Return a usable CA bundle while retaining TLS certificate verification."""
+def _certificate_bundle() -> str | bool:
     verify_paths = ssl.get_default_verify_paths()
     for path in (verify_paths.cafile, "/etc/ssl/cert.pem"):
         if path and os.path.isfile(path):
@@ -52,9 +53,13 @@ TLS_REQUIRED_HOSTS = {
 }
 
 
-def _tls_verification(url):
-    """Select the local CA bundle for HTTPS requests without disabling TLS."""
-    return TLS_CERTIFICATE_BUNDLE
+def _tls_verification(url: str) -> str | bool:
+    if urlparse(url).hostname in TLS_REQUIRED_HOSTS:
+        return TLS_CERTIFICATE_BUNDLE
+    return False
+
+
+urllib3.disable_warnings(InsecureRequestWarning)
 
 class DownloadStatus:
     """Download task status enum"""
@@ -216,7 +221,11 @@ class NetworkUtilities:
         """Check network connectivity via HEAD request to GitHub.com"""
         try:
             session = self._get_session()
-            response = session.head("https://github.com", timeout=10, verify=_tls_verification("https://github.com"))
+            response = session.head(
+                "https://github.com",
+                timeout=10,
+                verify=_tls_verification("https://github.com"),
+            )
             return response.status_code == 200
         except Exception as e:
             logging.warning(f"Network check failed: {e}")
@@ -297,7 +306,7 @@ class NetworkUtilities:
         session = self._get_session()
         timeout = kwargs.pop('timeout', 30)
         kwargs = self._apply_github_headers(url, kwargs)
-        kwargs.setdefault('verify', _tls_verification(url))
+        kwargs.setdefault('verify', False)
         return session.get(url, timeout=timeout, **kwargs)
 
     def custom_post(self, url: str, **kwargs) -> requests.Response:
@@ -305,7 +314,7 @@ class NetworkUtilities:
         session = self._get_session()
         timeout = kwargs.pop('timeout', 30)
         kwargs = self._apply_github_headers(url, kwargs)
-        kwargs.setdefault('verify', _tls_verification(url))
+        kwargs.setdefault('verify', False)
         return session.post(url, timeout=timeout, **kwargs)
 
     def post(self, url: str, **kwargs) -> requests.Response:
@@ -315,7 +324,12 @@ class NetworkUtilities:
         """Get file size from URL without downloading"""
         try:
             session = self._get_session()
-            response = session.head(url, allow_redirects=True, timeout=10, verify=_tls_verification(url))
+            response = session.head(
+                url,
+                allow_redirects=True,
+                timeout=10,
+                verify=_tls_verification(url),
+            )
             return int(response.headers.get('content-length', 0))
         except Exception as e:
             logging.warning(f"[NetworkUtilities] Failed to get file size: {e}")
@@ -690,7 +704,7 @@ class DownloadHistory:
 
     def _get_history_path(self) -> str:
         """Get history file path"""
-        app_data = QStandardPaths.standardLocations(QStandardPaths.StandardLocation.AppDataLocation)[0]
+        app_data = QStandardPaths.standardLocations(QStandardPaths.AppDataLocation)[0]
         return os.path.join(app_data, "download_history.json")
 
     def _save_history(self):

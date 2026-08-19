@@ -105,8 +105,8 @@ class CheckBox(QCheckBox):
 
         setCustomStyleSheet(
             self,
-            f"CheckBox{{color:{self.lightTextColor.name(QColor.NameFormat.HexArgb)}}}",
-            f"CheckBox{{color:{self.darkTextColor.name(QColor.NameFormat.HexArgb)}}}"
+            f"CheckBox{{color:{self.lightTextColor.name(QColor.HexArgb)}}}",
+            f"CheckBox{{color:{self.darkTextColor.name(QColor.HexArgb)}}}"
         )
 
     def _borderColor(self):
@@ -183,7 +183,7 @@ class CheckBox(QCheckBox):
     def paintEvent(self, e):
         super().paintEvent(e)
         painter = QPainter(self)
-        painter.setRenderHints(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHints(QPainter.Antialiasing)
 
         # get the rect of indicator
         opt = QStyleOptionButton()
