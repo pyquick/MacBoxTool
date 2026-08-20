@@ -148,18 +148,39 @@ class FluentWindowBase(FluentWidget):
 
         FluentStyleSheet.FLUENT_WINDOW.apply(self.stackedWidget)
 
+    @staticmethod
+    def _scrollBarObjects(scrollArea):
+        """Return scroll controls that must not start a window drag."""
+        if scrollArea is None:
+            return ()
+
+        objects = [scrollArea, scrollArea.viewport()]
+        delegate = getattr(scrollArea, "scrollDelagate", None)
+        if delegate:
+            objects.extend((delegate.vScrollBar, delegate.hScrollBar))
+        return tuple(objects)
+
     def eventFilter(self, obj, event):
         navigationInterface = getattr(self, 'navigationInterface', None)
         panel = getattr(navigationInterface, 'panel', None)
+        scrollArea = getattr(panel, "scrollArea", None)
+        scrollObjects = self._scrollBarObjects(scrollArea)
+        if obj in scrollObjects:
+            return super().eventFilter(obj, event)
+
         dragSource = obj in (self, navigationInterface, panel)
         if not dragSource or self.isFullScreen():
             return super().eventFilter(obj, event)
 
         if event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
+            if obj is panel and scrollArea and scrollArea.geometry().contains(event.position().toPoint()):
+                return super().eventFilter(obj, event)
             startSystemMove(self, event.globalPosition().toPoint())
             return True
 
         if event.type() == QEvent.MouseButtonDblClick and event.button() == Qt.LeftButton:
+            if obj is panel and scrollArea and scrollArea.geometry().contains(event.position().toPoint()):
+                return super().eventFilter(obj, event)
             toggleMaxState(self)
             return True
 
@@ -171,6 +192,13 @@ class FluentWindowBase(FluentWidget):
         panel = getattr(self.navigationInterface, 'panel', None)
         if panel:
             panel.installEventFilter(self)
+            scrollArea = getattr(panel, "scrollArea", None)
+            if scrollArea:
+                scrollArea.installEventFilter(self)
+                delegate = getattr(scrollArea, "scrollDelagate", None)
+                if delegate:
+                    delegate.vScrollBar.installEventFilter(self)
+                    delegate.hScrollBar.installEventFilter(self)
 
     def addSubInterface(self, interface: QWidget, icon: Union[FluentIconBase, QIcon, str], text: str,
                         position=NavigationItemPosition.TOP):

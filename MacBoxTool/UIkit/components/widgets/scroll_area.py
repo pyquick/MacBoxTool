@@ -13,6 +13,10 @@ class ScrollArea(QScrollArea):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.scrollDelagate = SmoothScrollDelegate(self)
+        self.scrollDelagate.vScrollBar.setArrowButtonsVisible(False)
+        self.scrollDelagate.vScrollBar.setGrooveVisible(False)
+        self.scrollDelagate.hScrollBar.setArrowButtonsVisible(False)
+        self.scrollDelagate.hScrollBar.setGrooveVisible(False)
 
     def setSmoothMode(self, mode: SmoothMode, orientation: Qt.Orientation):
         """ set smooth mode
@@ -55,6 +59,10 @@ class SingleDirectionScrollArea(QScrollArea):
         self.smoothScroll = SmoothScroll(self, orient)
         self.vScrollBar = SmoothScrollBar(Qt.Vertical, self)
         self.hScrollBar = SmoothScrollBar(Qt.Horizontal, self)
+        self.vScrollBar.setArrowButtonsVisible(False)
+        self.vScrollBar.setGrooveVisible(False)
+        self.hScrollBar.setArrowButtonsVisible(False)
+        self.hScrollBar.setGrooveVisible(False)
 
     def setVerticalScrollBarPolicy(self, policy):
         super().setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)

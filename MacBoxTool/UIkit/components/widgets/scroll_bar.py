@@ -352,6 +352,15 @@ class ScrollBar(QWidget):
         self.groove.downButton.setLightColor(light)
         self.groove.downButton.setDarkColor(dark)
 
+    def setArrowButtonsVisible(self, visible: bool):
+        """Set whether the scrollbar's arrow buttons are visible."""
+        self.groove.upButton.setVisible(visible)
+        self.groove.downButton.setVisible(visible)
+
+    def setGrooveVisible(self, visible: bool):
+        """Set whether the scrollbar groove is visible."""
+        self.groove.setVisible(visible)
+
     def setGrooveColor(self, light, dark):
         """set the color of groove
 

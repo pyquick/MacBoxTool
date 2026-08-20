@@ -129,6 +129,7 @@ class NavigationPanel(QFrame):
         self.forwardButton.hide()
         self.forwardButton.setDisabled(True)
 
+        self.scrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.scrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scrollArea.horizontalScrollBar().setEnabled(False)
         self.scrollArea.setWidget(self.scrollWidget)
