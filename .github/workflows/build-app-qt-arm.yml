@@ -24,7 +24,7 @@ jobs:
       commitdate: ${{ github.event.head_commit.timestamp }}${{ github.event.release.published_at }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -33,7 +33,7 @@ jobs:
         run: |
           rm -rf Univ*
           rm -rf *pay*.dmg
-          /Library/Frameworks/Python.framework/Versions/3.12/bin/python3 -m pip install -r requirements_macOS.txt
+          python3 -m pip install -r requirements_macOS.txt
       
       - name: Free up space
         run: |
@@ -51,13 +51,13 @@ jobs:
       - name: Prepare Assets (--prepare-assets)
 
         run: >
-          /Library/Frameworks/Python.framework/Versions/3.12/bin/python3 Build-Project.command
+          python3 Build-Project.command
           --run-as-individual-steps
           --prepare-assets
 
       - name: Prepare Application (--prepare-application)
         run: >
-          /Library/Frameworks/Python.framework/Versions/3.12/bin/python3 Build-Project.command
+          python3 Build-Project.command
           --git-branch "${{ env.branch }}" --git-commit-url "${{ env.commiturl }}" --git-commit-date "${{ env.commitdate }}"
           --reset-pyinstaller-cache
           --run-as-individual-steps
@@ -65,7 +65,7 @@ jobs:
 
       - name: Prepare Package (--prepare-package)
         run: >
-          /Library/Frameworks/Python.framework/Versions/3.12/bin/python3 Build-Project.command
+          python3 Build-Project.command
           --run-as-individual-steps
           --prepare-package
      
