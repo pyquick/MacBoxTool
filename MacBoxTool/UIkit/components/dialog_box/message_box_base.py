@@ -3,6 +3,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QPushButton
 
+from ...common.border_radius import installDynamicBorderRadius
 from ...common.style_sheet import FluentStyleSheet
 from ..widgets.button import PrimaryPushButton
 
@@ -17,6 +18,7 @@ class MessageBoxBase(MaskDialogBase):
         self.buttonGroup = QFrame(self.widget)
         self.yesButton = PrimaryPushButton(self.tr('OK'), self.buttonGroup)
         self.cancelButton = QPushButton(self.tr('Cancel'), self.buttonGroup)
+        installDynamicBorderRadius(self.cancelButton, "#cancelButton")
 
         self.vBoxLayout = QVBoxLayout(self.widget)
         self.viewLayout = QVBoxLayout()

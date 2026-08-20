@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QLabel, QFrame, QVBoxLayout, QHBoxLayout, QPushBut
 from ....UIWindow import FramelessDialog
 
 from ...common.auto_wrap import TextWrap
+from ...common.border_radius import installDynamicBorderRadius
 from ...common.style_sheet import FluentStyleSheet
 from ..widgets.button import PrimaryPushButton
 from ..widgets.label import BodyLabel
@@ -29,6 +30,7 @@ class Ui_MessageBox:
         self.buttonGroup = QFrame(parent)
         self.yesButton = PrimaryPushButton(self.tr('OK'), self.buttonGroup)
         self.cancelButton = QPushButton(self.tr('Cancel'), self.buttonGroup)
+        installDynamicBorderRadius(self.cancelButton, "#cancelButton")
 
         self.vBoxLayout = QVBoxLayout(parent)
         self.textLayout = QVBoxLayout()
