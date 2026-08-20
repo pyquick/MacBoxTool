@@ -29,7 +29,7 @@ class VisitGithubAPI:
         self.url = f"https://api.github.com/repos/{user}/{repo_name}/releases/latest"
         self.system_darwin_version = int(platform.release().split(".")[0])
         self.check_url = "https://pyquick.github.io/MacBoxTool/manifest.json"
-        self.branch = "main" if self.system_darwin_version >= 22 else "PySide2"
+        self.branch = "main" if self.system_darwin_version >= 20 else "PySide2"
         self.qt_flavor = "PySide6" if self.branch == "main" else "PySide2"
         self.find_latest_release_stable()
 
