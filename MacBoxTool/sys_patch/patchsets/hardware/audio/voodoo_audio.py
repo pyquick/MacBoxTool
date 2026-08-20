@@ -57,9 +57,7 @@ class VoodooAudio(BaseHardware):
                         "/Library/Extensions": {
                             "VoodooHDA.kext":"11.3",
                         },
-                        "/Library/PreferencePanes":{
-                            "VoodooHDA.prefPane":"11.3",
-                        },
+                        
                     },
                 },
             }
@@ -71,9 +69,7 @@ class VoodooAudio(BaseHardware):
                             "VoodooHDA.kext":"11.3",
                             "AppleHDADisabler.kext": "11.3" ,
                         },
-                        "/Library/PreferencePanes":{
-                            "VoodooHDA.prefPane":"11.3",
-                        },
+                        
                     },
                 },
             }

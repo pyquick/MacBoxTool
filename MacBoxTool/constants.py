@@ -21,7 +21,7 @@ class Constants:
     def __init__(self):
         #MacBoxTool Version
         self.macboxtool_version:        str = "0.0.4"
-        self.patcher_support_pkg_version:     str = "1.11.5"  # PatcherSupportPkg
+        self.patcher_support_pkg_version:     str = "1.11.6"  # PatcherSupportPkg
         self.copyright:                        str = "Copyright © 2020-2026 Pyquick"
         self.launcher_binary:           str = None
         self.launcher_script:           str = None
@@ -29,7 +29,7 @@ class Constants:
         self.hdau_patch_already:              bool = False
         # OpenCore Version
         self.opencore_version:           str = "1.0.7"
-        self.nightly_build:              str = "4639.2"
+        self.nightly_build:              str = "4639.21"
         self.support_version:            str = "1.1.000039489prefix" # prefix: unstable core. canary: very unstable
 
         # Kext Versioning
