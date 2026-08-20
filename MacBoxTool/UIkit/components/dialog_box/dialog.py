@@ -8,6 +8,7 @@ from ...common.auto_wrap import TextWrap
 from ...common.style_sheet import FluentStyleSheet
 from ..widgets.button import PrimaryPushButton
 from ..widgets.label import BodyLabel
+from ...common.border_radius import installDynamicBorderRadius
 
 from .mask_dialog_base import MaskDialogBase
 
@@ -29,6 +30,7 @@ class Ui_MessageBox:
         self.buttonGroup = QFrame(parent)
         self.yesButton = PrimaryPushButton(self.tr('OK'), self.buttonGroup)
         self.cancelButton = QPushButton(self.tr('Cancel'), self.buttonGroup)
+        installDynamicBorderRadius(self.cancelButton, "#cancelButton")
 
         self.vBoxLayout = QVBoxLayout(parent)
         self.textLayout = QVBoxLayout()
