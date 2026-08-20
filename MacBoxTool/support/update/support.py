@@ -29,11 +29,8 @@ class VisitGithubAPI:
         self.url = f"https://api.github.com/repos/{user}/{repo_name}/releases/latest"
         self.system_darwin_version = int(platform.release().split(".")[0])
         self.check_url = "https://pyquick.github.io/MacBoxTool/manifest.json"
-        self.branch = self.constants.commit_info[0]
-        if self.system_darwin_version>=22: 
-            self.branch="main"
-        else:
-            self.branch="PySide2"
+        self.branch = "main" if self.system_darwin_version >= 22 else "PySide2"
+        self.qt_flavor = "PySide6" if self.branch == "main" else "PySide2"
         self.find_latest_release_stable()
 
     def _github_headers(self) -> dict:
@@ -115,9 +112,15 @@ class VisitGithubAPI:
     def arch_check(self) -> list:
         """Return the workflow and artifact names for the current architecture."""
         if platform.machine() == "x86_64":
-            return ["build-app-qt-intel", "MacBoxTool-x86_64.pkg"]
+            artifact = "MacBoxTool-PySide2-x86_64.pkg"
+            if self.qt_flavor == "PySide6":
+                artifact = "MacBoxTool-x86_64.pkg"
+            return ["build-app-qt-intel", artifact]
         if platform.machine() == "arm64":
-            return ["build-app-qt-arm", "MacBoxTool-arm64.pkg"]
+            artifact = "MacBoxTool-PySide2-arm64.pkg"
+            if self.qt_flavor == "PySide6":
+                artifact = "MacBoxTool-arm64.pkg"
+            return ["build-app-qt-arm", artifact]
         raise RuntimeError(f"Unsupported architecture: {platform.machine()}")
 
     def find_and_compare_latest_release_nightly(self) -> list[bool, str, str, str]:
@@ -182,28 +185,40 @@ class VisitGithubAPI:
         return self.latest_tag_name
 
     def assets_decode(self) -> dict:
-        """Select the installer asset that matches the current architecture."""
-        datas: list = []
-        #datas: list = [{"name":"MacBoxTool_xxx.pkg"}]
+        """Select the installer asset for the current architecture and Qt flavor."""
+        architecture = platform.machine()
+        candidates = []
         for asset in self.assets:
             name = asset["name"]
-            if "Uninstaller" in name or "uninstaller" in name:
+            lower_name = name.lower()
+            if "uninstaller" in lower_name or "autopkg" in lower_name:
+                continue
+            if architecture not in name:
                 continue
 
-            if "x86_64" in name and "x86_64" in platform.machine():
-                arch = "x86_64"
-            elif "arm64" in name and "arm64" in platform.machine():
-                arch = "arm64"
-            else:
-                continue
-
-            datas.append({
+            candidates.append({
                 "name": name,
-                "arch": arch,
+                "arch": architecture,
                 "download_url": asset["browser_download_url"],
             })
 
-        logging.info(f"[Update] Matched release assets: {datas}")
-        if not datas:
-            raise RuntimeError("No matching installer asset found for current architecture")
-        return datas[0]
+        flavor_candidates = [
+            asset for asset in candidates
+            if ("pyside2" in asset["name"].lower()) == (self.qt_flavor == "PySide2")
+        ]
+        if flavor_candidates:
+            candidates = flavor_candidates
+        elif candidates:
+            logging.warning(
+                "[Update] No %s asset found for %s; falling back to same-architecture asset",
+                self.qt_flavor,
+                architecture,
+            )
+
+        candidates.sort(key=lambda asset: asset["name"])
+        logging.info(f"[Update] Matched release assets: {candidates}")
+        if not candidates:
+            raise RuntimeError(
+                f"No {self.qt_flavor} installer asset found for {architecture}"
+            )
+        return candidates[0]

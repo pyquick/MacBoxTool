@@ -117,7 +117,7 @@ def main() -> None:
 
         # Sign MacBoxTool.pkg
         sign_notarize.SignAndNotarize(
-            path=Path(f"dist/MacBoxTool{_pkg_suffix}.pkg"),
+            path=Path(f"dist/MacBoxTool-PySide2{_pkg_suffix}.pkg"),
             signing_identity=args.installer_signing_identity,
             notarization_apple_id=args.notarization_apple_id,
             notarization_password=args.notarization_password,
