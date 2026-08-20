@@ -64,10 +64,10 @@ class Constants:
         self.guide_link:                      str = "https://dortania.github.io/OpenCore-Legacy-Patcher/"
         self.repo_link:                       str = "https://github.com/pyquick/MacBoxTool/releases/"
 
-        # Architecture suffix for AutoPkg-Assets package
+        # Architecture suffix for AutoPkg-Assets-PySide2 package
         _arch = platform.machine()
         _pkg_suffix = f"-{_arch}" if _arch in ("x86_64", "arm64") else ""
-        self.autopkg_assets_name:             str = f"AutoPkg-Assets{_pkg_suffix}.pkg"
+        self.autopkg_assets_name:             str = f"AutoPkg-Assets-PySide2{_pkg_suffix}.pkg"
         self.installer_pkg_url:               str = f"{self.repo_link}download/{self.macboxtool_version}/{self.autopkg_assets_name}"
         self.installer_pkg_url_nightly:       str = f"http://nightly.link/pyquick/MacBoxTool/workflows/build-app-wxpython/main/{self.autopkg_assets_name}.zip"
         self.user_download_file:              str = str(Path.home() / "Downloads")

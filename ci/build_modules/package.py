@@ -1,5 +1,5 @@
 """
-package.py: Generate packages (Installer, Uninstaller, AutoPkg-Assets)
+package.py: Generate packages (Installer, Uninstaller, AutoPkg-Assets-PySide2)
 """
 
 import tempfile
@@ -75,11 +75,11 @@ class GeneratePackage:
 
     def _generate_autopkg_welcome(self) -> str:
         """
-        Generate Welcome message for AutoPkg-Assets PKG
+        Generate Welcome message for AutoPkg-Assets-PySide2 PKG
         """
         _welcome = ""
 
-        _welcome += "# DO NOT RUN AUTOPKG-ASSETS MANUALLY!\n\n"
+        _welcome += "# DO NOT RUN AutoPkg-Assets-PySide2 MANUALLY!\n\n"
         _welcome += "## THIS CAN BREAK YOUR SYSTEM'S INSTALL!\n\n"
         _welcome += "This package should only ever be invoked by the Patcher itself, never downloaded or run by the user. Download the MacBoxTool.pkg on the Github Repository.\n\n"
         _welcome += f"[MacBoxTool GitHub Release]({self._constants.repo_link})"
@@ -130,8 +130,8 @@ class GeneratePackage:
             pkg_welcome=self._generate_installer_welcome(),
         ).build() is True
 
-        # AutoPkg-Assets.pkg
-        print(f"Generating AutoPkg-Assets{self._pkg_suffix}.pkg")
+        # AutoPkg-Assets-PySide2.pkg
+        print(f"Generating AutoPkg-Assets-PySide2{self._pkg_suffix}.pkg")
 
         _tmp_auto_pkg_preinstall = tempfile.NamedTemporaryFile(delete=False)
         _tmp_auto_pkg_postinstall = tempfile.NamedTemporaryFile(delete=False)
@@ -141,8 +141,8 @@ class GeneratePackage:
             f.write(GenerateScripts().postinstall_autopkg())
 
         assert macos_pkg_builder.Packages(
-            pkg_output=f"./dist/AutoPkg-Assets{self._pkg_suffix}.pkg",
-            pkg_bundle_id="com.pyquick.pkg.AutoPkg-Assets",
+            pkg_output=f"./dist/AutoPkg-Assets-PySide2{self._pkg_suffix}.pkg",
+            pkg_bundle_id="com.pyquick.pkg.AutoPkg-Assets-PySide2",
             pkg_version=self._constants.macboxtool_version,
             pkg_allow_relocation=False,
             pkg_as_distribution=True,
