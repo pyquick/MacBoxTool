@@ -102,6 +102,7 @@ class MacBoxTool:
         LoggingHandler(self.constants)
         self._generate_base_data()
         self.install_requirements()
+        self.check_voodoo_patch()
 
         self.settings=GlobalSettings(self.constants)
         self.target_model = self.settings.find_key("MODEL") or "MacPro7,1"
@@ -126,6 +127,10 @@ class MacBoxTool:
         ):
             Install()
         return
+    
+    def check_voodoo_patch(self) -> None:
+        self.constants.voodoo_patch_already=os.path.exists(self.constants.voodoo_kext_path)
+        self.constants.hdau_patch_already = os.path.exists(self.constants.hdau_kext_path)
 
     def hook_model(self):
         import threading

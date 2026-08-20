@@ -21,14 +21,15 @@ class Constants:
     def __init__(self):
         #MacBoxTool Version
         self.macboxtool_version:        str = "0.0.4"
-        self.patcher_support_pkg_version:     str = "1.11.3"  # PatcherSupportPkg
+        self.patcher_support_pkg_version:     str = "1.11.4"  # PatcherSupportPkg
         self.copyright:                        str = "Copyright © 2020-2026 Pyquick"
         self.launcher_binary:           str = None
         self.launcher_script:           str = None
         self.voodoo_patch_already:            bool = False
+        self.hdau_patch_already:              bool = False
         # OpenCore Version
         self.opencore_version:           str = "1.0.7"
-        self.nightly_build:              str = "4638.3"
+        self.nightly_build:              str = "4639.1"
         self.support_version:            str = "1.1.000039489prefix" # prefix: unstable core. canary: very unstable
 
         # Kext Versioning
@@ -184,7 +185,8 @@ class Constants:
             resource_path = self.current_path
         self.user_path:     Path = Path.home() / ".macboxtool"
         self.payload_path:  Path = resource_path / Path("payloads")
-
+        self.voodoo_kext_path = Path('/Library/Extensions/VoodooHDA.kext')
+        self.hdau_kext_path = Path('/Library/Extensions/HDAUniversal.kext')
         # Patcher Settings
         ## Internal settings
         self.audio_type :  str ="AppleHDA"

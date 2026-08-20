@@ -52,6 +52,7 @@ from .hardware.audio import(
     legacy_audio,
     modern_audio,
     voodoo_audio,
+    hda_universal_audio
 )
 from ... import constants
 
@@ -131,6 +132,7 @@ class HardwarePatchsetDetection:
             legacy_audio.LegacyAudio,
             modern_audio.ModernAudio,
             voodoo_audio.VoodooAudio,
+            hda_universal_audio.HDAU,
             modern_usb.LegacyUSBHost,
             display_backlight.DisplayBacklight,
             gmux.GraphicsMultiplexer,

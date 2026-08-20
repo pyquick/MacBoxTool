@@ -668,7 +668,7 @@ class SettingsInterface(QWidget):
 
         self.audio_type_card = SettingCard(FIF.SYNC, "Audio Patch choice", "AppleHDA for Tahoe, or VoodooHDA for Monterey and newer.", parent=group1)
         self.audio_type_combo = ComboBox(self.audio_type_card)
-        self.audio_type_combo.addItems(["AppleHDA", "VoodooHDA"])
+        self.audio_type_combo.addItems(["AppleHDA", "VoodooHDA","HDAUniversal"])
         self.audio_type_card.hBoxLayout.addWidget(self.audio_type_combo, 0, Qt.AlignmentFlag.AlignRight)
         self.audio_type_card.hBoxLayout.addSpacing(16)
 
