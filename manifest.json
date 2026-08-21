@@ -15,9 +15,9 @@
     },
     "stable_latest": {
         "main": {
-            "version": "0.0.3.2",
-            "build": "4444.1001",
-            "core": "1.0.23780094prefix",
+            "version": "0.0.4",
+            "build": "4640.1111",
+            "core": "1.1.000039489",
             "minver": "22"
         },
         "PySide2": {
