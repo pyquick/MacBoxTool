@@ -2,6 +2,12 @@
 crash_report.py: Real-time Crash Reporting Handler
 
 Posts unhandled exceptions to the Crash Report Server (http://192.168.1.157:8080).
+
+Works in both source and packaged (PyInstaller) builds:
+- sys.excepthook catches main-thread crashes, threading.excepthook worker threads
+- After a crash, in-flight reports are flushed briefly before the process exits
+- Packaged builds attach build identity (version, commit, Info.plist) instead of
+  the source snapshot, because source files are not on disk when frozen
 """
 
 import io
@@ -11,17 +17,17 @@ import socket
 import sys
 import tarfile
 import threading
+import time
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional, Tuple
-
+from ..constants import Constants
 import requests
-
+cons=Constants()
 # ── Configuration ──────────────────────────────────────────────
 CRASH_SERVER_URL: str = "http://192.168.1.157:8080/api/v1/crash-report"
 CRASH_API_KEY:  str = "crs_iq8Ka_xEbbRhpaJDStgH7p1dQfPt5OAopl2s8CkzZUA"
-ALLOWED_HOSTNAME: str = "Ghltbms-Mac-Pro.local"
 PROJECT_NAME:    str = "MacBoxTool"
 
 # Dedicated endpoint for immutable source snapshots (Crash Analysis)
@@ -45,10 +51,17 @@ SOURCE_BUNDLE_TIMEOUT:      int = 30  # seconds
 # ── Constants ──────────────────────────────────────────────────
 REQUEST_TIMEOUT: int = 10  # seconds
 
+# How long the exception hooks wait for in-flight reports after a crash
+# before handing control back (the process usually exits right after).
+CRASH_REPORT_FLUSH_TIMEOUT: float = 3.0  # seconds
+
 # ── Internal state ─────────────────────────────────────────────
-_original_excepthook: Any = None
-_installed:          bool = False
-_logger:             Optional[logging.Logger] = None
+_original_excepthook:          Any = None
+_original_thread_excepthook:   Any = None
+_installed:                    bool = False
+_logger:                       Optional[logging.Logger] = None
+_pending_sends:                set = set()
+_pending_sends_lock:           threading.Lock = threading.Lock()
 
 
 def _get_logger() -> logging.Logger:
@@ -64,16 +77,82 @@ def _get_hostname() -> str:
     return socket.gethostname()
 
 
-def is_reporting_enabled() -> bool:
-    """
-    Check whether crash reporting should be active.
+def _is_frozen() -> bool:
+    """True when running from a packaged (PyInstaller) build."""
+    return bool(getattr(sys, "frozen", False))
 
-    Returns True only when the hostname matches ALLOWED_HOSTNAME (case-insensitive).
+
+def _get_environment() -> str:
+    """'production' for packaged builds, 'development' when running from source."""
+    return "production" if _is_frozen() else "development"
+
+
+def _get_frozen_metadata() -> dict:
     """
+    Build-identity fields available in packaged builds.
+
+    Source files are not on disk when frozen (the source snapshot upload is
+    skipped instead), so attach what identifies the build: git branch/commit
+    from the bundle's commit info, plus Info.plist fields on macOS.
+    """
+    metadata: dict = {}
+
     try:
-        return _get_hostname().upper() == ALLOWED_HOSTNAME.upper()
+        from ..support.commit_info import ParseCommitInfo
+        branch, commit_date, commit_url = ParseCommitInfo(sys.executable).generate_commit_info()
+        if branch != "Running from source":
+            metadata["git_branch"] = branch
+            metadata["git_commit_date"] = commit_date
+            metadata["git_commit_url"] = commit_url
     except Exception:
-        return False
+        pass
+
+    if sys.platform == "darwin":
+        try:
+            import plistlib
+            plist_path = Path(sys.executable).resolve().parents[1] / "Info.plist"
+            if plist_path.is_file():
+                plist_info = plistlib.load(plist_path.open("rb"))
+                for key in ("CFBundleVersion", "Build Date"):
+                    if key in plist_info:
+                        metadata[key.replace(" ", "_").lower()] = str(plist_info[key])
+        except Exception:
+            pass
+
+    return metadata
+
+
+def _track_pending_send(thread: threading.Thread) -> None:
+    with _pending_sends_lock:
+        _pending_sends.add(thread)
+
+
+def _untrack_pending_send(thread: threading.Thread) -> None:
+    with _pending_sends_lock:
+        _pending_sends.discard(thread)
+
+
+def _wait_for_pending_sends(timeout: float) -> None:
+    """
+    Join in-flight report threads for up to `timeout` seconds.
+
+    Used before the process exits (e.g. from the exception hooks) so a
+    fire-and-forget report gets a chance to reach the server.
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        with _pending_sends_lock:
+            threads = list(_pending_sends)
+        if not threads:
+            return
+        for thread in threads:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return
+            thread.join(timeout=min(remaining, 0.5))
+        with _pending_sends_lock:
+            if not _pending_sends:
+                return
 
 
 def _format_traceback(exc_type: type, exc_value: BaseException, exc_tb: Any) -> str:
@@ -98,11 +177,16 @@ def _build_payload(
         "runtime_version": sys.version,
         "platform": sys.platform,
         "server_name": _get_hostname(),
-        "release":"0.0.4",
-        "environment":"development",
+        "release":cons.macboxtool_version,
+        "environment": _get_environment(),
         "client_timestamp": datetime.now(timezone.utc).isoformat(),
         "error_severity": "crash",
     }
+
+    # Packaged builds have no source tree on disk; attach build identity
+    # instead so the server can still tell which build crashed.
+    if _is_frozen():
+        payload.update(_get_frozen_metadata())
 
     if stack_trace:
         payload["stack_trace"] = stack_trace
@@ -134,6 +218,10 @@ def _build_source_bundle() -> Optional[Tuple[bytes, int, int]]:
     Optional[Tuple[bytes, int, int]]
         (tar.gz bytes, file count, uncompressed size in bytes) or None.
     """
+    if _is_frozen():
+        # Source files are archived inside the executable, not on disk.
+        return None
+
     root = _get_source_root()
     if root is None:
         return None
@@ -259,8 +347,7 @@ def send_crash_report(
     bool
         True if the report was sent successfully.
     """
-    if not is_reporting_enabled():
-        return False
+
 
     payload = _build_payload(
         exception_type=exception_type,
@@ -318,6 +405,27 @@ def send_crash_report(
     return report_sent
 
 
+def _send_in_background(
+    target: Any,
+    args: Tuple[Any, ...],
+    kwargs: dict,
+) -> threading.Thread:
+    """
+    Run a report sender in a daemon thread and track it as in-flight so the
+    exception hooks can flush it before the process exits.
+    """
+    def _wrapped() -> None:
+        try:
+            target(*args, **kwargs)
+        finally:
+            _untrack_pending_send(thread)
+
+    thread = threading.Thread(target=_wrapped, daemon=True)
+    _track_pending_send(thread)
+    thread.start()
+    return thread
+
+
 def send_crash_report_async(
     exception_type: str,
     exception_message: str,
@@ -330,13 +438,11 @@ def send_crash_report_async(
 
     Use this inside exception handlers to avoid blocking the main thread.
     """
-    thread = threading.Thread(
-        target=send_crash_report,
-        args=(exception_type, exception_message, stack_trace, log_text),
-        kwargs=extra,
-        daemon=True,
+    _send_in_background(
+        send_crash_report,
+        (exception_type, exception_message, stack_trace, log_text),
+        extra,
     )
-    thread.start()
 
 
 def send_error_report(
@@ -365,30 +471,31 @@ def send_error_report_async(
     **extra: Any,
 ) -> None:
     """Send a handled error report in a background thread."""
-    thread = threading.Thread(
-        target=send_error_report,
-        args=(exception_type, exception_message, stack_trace, log_text),
-        kwargs=extra,
-        daemon=True,
+    _send_in_background(
+        send_error_report,
+        (exception_type, exception_message, stack_trace, log_text),
+        extra,
     )
-    thread.start()
 
 
 def _global_excepthook(exc_type: type, exc_value: BaseException, exc_tb: Any) -> None:
     """
-    Global sys.excepthook replacement.
+    Global sys.excepthook replacement (main-thread crashes).
 
     Catches unhandled exceptions, sends them to the crash server, then
     delegates to the original excepthook so the normal behaviour
     (traceback print / crash dialog) still happens.
+
+    The process usually exits right after the original hook runs, so the
+    in-flight report is flushed first (bounded by CRASH_REPORT_FLUSH_TIMEOUT).
     """
-    if is_reporting_enabled():
-        tb_str = _format_traceback(exc_type, exc_value, exc_tb)
-        send_crash_report_async(
-            exception_type=exc_type.__name__,
-            exception_message=str(exc_value),
-            stack_trace=tb_str,
-        )
+    tb_str = _format_traceback(exc_type, exc_value, exc_tb)
+    send_crash_report_async(
+        exception_type=exc_type.__name__,
+        exception_message=str(exc_value),
+        stack_trace=tb_str,
+    )
+    _wait_for_pending_sends(CRASH_REPORT_FLUSH_TIMEOUT)
 
     # Delegate to original hook
     if _original_excepthook is not None:
@@ -397,45 +504,72 @@ def _global_excepthook(exc_type: type, exc_value: BaseException, exc_tb: Any) ->
         sys.__excepthook__(exc_type, exc_value, exc_tb)
 
 
+def _global_thread_excepthook(args: threading.ExceptHookArgs) -> None:
+    """
+    Global threading.excepthook replacement (worker-thread crashes).
+
+    sys.excepthook is never called for unhandled exceptions in worker
+    threads; without this hook they would only print to stderr and be lost.
+    """
+    tb_str = "".join(
+        traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback)
+    )
+    extra: dict = {}
+    if args.thread is not None:
+        extra["thread_name"] = args.thread.name
+        extra["thread_ident"] = args.thread.ident
+    send_crash_report_async(
+        exception_type=args.exc_type.__name__,
+        exception_message=str(args.exc_value),
+        stack_trace=tb_str,
+        **extra,
+    )
+
+    # Delegate to original hook
+    if _original_thread_excepthook is not None:
+        _original_thread_excepthook(args)
+    else:
+        threading.__excepthook__(args)
+
+
 def install() -> None:
     """
-    Install the global exception hook for real-time crash reporting.
+    Install the global exception hooks for real-time crash reporting.
 
-    Only activates when the hostname matches ALLOWED_HOSTNAME.
-    Safe to call multiple times — subsequent calls are no-ops.
+    Covers unhandled exceptions in the main thread (sys.excepthook) and in
+    worker threads (threading.excepthook). Active in source and packaged
+    builds alike. Safe to call multiple times — subsequent calls are no-ops.
     """
-    global _installed, _original_excepthook
+    global _installed, _original_excepthook, _original_thread_excepthook
 
     if _installed:
         return
-#
-#    if not is_reporting_enabled():
-#        _get_logger().debug(
-#            "Crash reporting disabled (hostname %r != %r)",
-#            _get_hostname(),
-#            ALLOWED_HOSTNAME,
-#        )
-#        return
 
     _original_excepthook = sys.excepthook
     sys.excepthook = _global_excepthook
+
+    _original_thread_excepthook = threading.excepthook
+    threading.excepthook = _global_thread_excepthook
+
     _installed = True
     _get_logger().info(
-        "Crash reporting installed (server=%s, hostname=%s)",
+        "Crash reporting installed (server=%s, hostname=%s, frozen=%s)",
         CRASH_SERVER_URL,
         _get_hostname(),
+        _is_frozen(),
     )
 
 
 def uninstall() -> None:
     """
-    Remove the global exception hook and restore the original behaviour.
+    Remove the global exception hooks and restore the original behaviour.
     """
-    global _installed
+    global _installed, _original_thread_excepthook
 
     if not _installed:
         return
 
     sys.excepthook = _original_excepthook
+    threading.excepthook = _original_thread_excepthook
     _installed = False
     _get_logger().info("Crash reporting uninstalled")
