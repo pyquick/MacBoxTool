@@ -7,8 +7,8 @@
             "minver": "22"
         },
         "PySide2": {
-            "version": "0.0.4",
-            "build": "4640.1000",
+            "version": "0.0.5",
+            "build": "4644.1000",
             "core": "1.1.000039489prefix2",
             "minver": "17"
         }
