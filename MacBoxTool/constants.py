@@ -20,7 +20,7 @@ from packaging import version
 class Constants:
     def __init__(self):
         #MacBoxTool Version
-        self.macboxtool_version:        str = "0.0.4"
+        self.macboxtool_version:        str = "0.0.5"
         self.patcher_support_pkg_version:     str = "1.11.3"  # PatcherSupportPkg
         self.copyright:                        str = "Copyright © 2020-2026 Pyquick"
         self.launcher_binary:           str = None
@@ -28,7 +28,7 @@ class Constants:
         self.voodoo_patch_already:            bool = False
         # OpenCore Version
         self.opencore_version:           str = "1.0.6"
-        self.nightly_build:              str = "4640.1000"
+        self.nightly_build:              str = "4644.1000"
         self.support_version:            str = "1.1.000039489prefix2" # prefix: unstable core. canary: very unstable
 
         # Kext Versioning

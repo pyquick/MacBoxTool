@@ -8,7 +8,7 @@ import platform
 import requests
 from packaging import version
 
-from ... import constants as constants
+from ... import constants as constant
 from ..on_nightly import CheckNightly
 
 
@@ -17,16 +17,20 @@ class VisitGithubAPI:
 
     def __init__(
         self,
-        constants: constants.Constants,
+        constants: constant.Constants,
         repo_name: str = "MacBoxTool",
         token: str = "",
         user: str = "pyquick",
         fetch_latest: bool = True,
     ):
         """Store API options and optionally fetch the latest release."""
-        self.constants: constants.Constants = constants
+        self.constants: constant.Constants = constants
         self.token: str = token or getattr(self.constants, "github_token", "") or ""
-        self.url = f"https://api.github.com/repos/{user}/{repo_name}/releases/latest"
+        # PySide6 (main) and PySide2 installers are published under separate
+        # tags (e.g. 0.0.4 for main vs 0.0.4p2 for PySide2), so the global
+        # "latest" release can belong to the wrong flavor. List all releases
+        # and pick the newest one that targets this app's branch.
+        self.url = f"https://api.github.com/repos/{user}/{repo_name}/releases?per_page=100"
         self.system_darwin_version = int(platform.release().split(".")[0])
         self.check_url = "https://pyquick.github.io/MacBoxTool/manifest.json"
         self.branch = "main" if self.system_darwin_version >= 20 else "PySide2"
@@ -90,13 +94,30 @@ class VisitGithubAPI:
                 raise RuntimeError(f"Invalid JSON response: {cleaned_error}") from cleaned_error
 
     def find_latest_release_stable(self) -> None:
-        """Fetch and validate the latest stable GitHub release payload."""
-        
-        logging.info(f"[Update] Requesting latest release: {self.url}")
+        """Fetch and validate the latest stable release for this app's branch.
+
+        PySide2 releases carry a "p2" tag suffix (e.g. ``0.0.4p2``) while
+        PySide6 releases use plain tags (e.g. ``0.0.4``). Prefer the tag
+        marker, then fall back to the release's target branch.
+        """
+        logging.info(f"[Update] Requesting releases: {self.url}")
         response = requests.get(self.url, headers=self._github_headers(), verify=False, timeout=20)
         response.raise_for_status()
-        
-        self.information: dict = self._decode_json_response(response)
+
+        releases: list = self._decode_json_response(response)
+        branch_releases = [
+            release for release in releases
+            if ("p2" in str(release.get("tag_name", ""))) == (self.branch == "PySide2")
+        ]
+        if not branch_releases:
+            branch_releases = [
+                release for release in releases
+                if release.get("target_commitish") == self.branch
+            ]
+        if not branch_releases:
+            raise RuntimeError(f"No GitHub release found for branch {self.branch}")
+
+        self.information: dict = branch_releases[0]
         for key in ("tag_name", "assets", "target_commitish", "name", "published_at", "body"):
             if key not in self.information:
                 raise KeyError(f"GitHub latest release response missing '{key}'")
@@ -202,18 +223,10 @@ class VisitGithubAPI:
                 "download_url": asset["browser_download_url"],
             })
 
-        flavor_candidates = [
+        candidates = [
             asset for asset in candidates
             if ("pyside2" in asset["name"].lower()) == (self.qt_flavor == "PySide2")
         ]
-        if flavor_candidates:
-            candidates = flavor_candidates
-        elif candidates:
-            logging.warning(
-                "[Update] No %s asset found for %s; falling back to same-architecture asset",
-                self.qt_flavor,
-                architecture,
-            )
 
         candidates.sort(key=lambda asset: asset["name"])
         logging.info(f"[Update] Matched release assets: {candidates}")
