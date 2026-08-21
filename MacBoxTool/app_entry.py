@@ -232,7 +232,7 @@ class MacBoxTool:
 
 def main():
     import platform
-    if int(platform.release().split(".")[0]) < 22 and sys.platform=="darwin":
+    if int(platform.release().split(".")[0]) < 20 and sys.platform=="darwin":
         sys.exit(1)
 
     # Quick-exit flags: no heavy init required
