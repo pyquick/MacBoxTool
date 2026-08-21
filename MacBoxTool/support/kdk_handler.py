@@ -23,6 +23,7 @@ from . import (
     subprocess_wrapper
 )
 from ..constants import Constants
+from .kdk_sort import sort_kdks
 
 KDK_INSTALL_PATH: str  = "/Library/Developer/KDKs"
 KDK_INFO_PLIST:   str  = "KDKInfo.plist"
@@ -193,6 +194,9 @@ class KernelDebugKitObject:
 
             return
 
+        # Evaluate candidates in the same canonical order used by the KDK list.
+        remote_kdk_version = sort_kdks(remote_kdk_version)
+
         # First check exact match
         for kdk in remote_kdk_version:
             if (kdk["build"] != host_build):
@@ -207,39 +211,36 @@ class KernelDebugKitObject:
 
         # If no exact match, check for closest match
         if self.kdk_url == "":
-                count_kdks=[]
-                for kdk in remote_kdk_version:
-                    kdk_version = cast(packaging.version.Version, packaging.version.parse(kdk["version"]))
-                    if kdk_version > parsed_version:
-                        continue
-                    if kdk_version.major != parsed_version.major:
-                        continue
-                    if kdk_version.minor not in range(parsed_version.minor - 1, parsed_version.minor + 1):
-                        continue
-                    count_kdks.append(kdk)
-                if count_kdks:
-                    count_kdks.sort(key=lambda x: x["build"], reverse=True)
-                    closest = None
-                    for kdk in count_kdks:
-                        # Need same version (example: 26.3==26.3 -> 26D==26D)
-                        if kdk["build"][0:3] == host_build[0:3]:
-                            # We need to check beta versions
-                            if kdk["build"][-1]>="a" and kdk["build"][-1]<="z":
-                                # example: 25D5087f -> macOS 26.3 Beta
-                                # earlier than 25D125
-                                logging.info("This is macOS beta's KDK")
-                                closest=kdk
-                                break
-                        elif kdk["build"][0:2] == host_build[0:2] and ord(kdk["build"][2])-1==ord(host_build[2]):
-                            closest=kdk
-                            break
-                    if closest is None:
-                        closest = count_kdks[-1]
-                    self.kdk_closest_match_url = closest["url"]
-                    self.kdk_closest_match_url_build = closest["build"]
-                    self.kdk_closest_match_url_version = closest["version"]
-                    self.kdk_closest_match_url_expected_size = closest["fileSize"]
-                    self.kdk_url_is_exactly_match = False
+            count_kdks = []
+            for kdk in remote_kdk_version:
+                kdk_version = cast(packaging.version.Version, packaging.version.parse(kdk["version"]))
+                if kdk_version > parsed_version:
+                    continue
+                if kdk_version.major != parsed_version.major:
+                    continue
+                if kdk_version.minor not in range(parsed_version.minor - 1, parsed_version.minor + 1):
+                    continue
+                count_kdks.append(kdk)
+
+            if count_kdks:
+                closest = None
+                for kdk in count_kdks:
+                    # Prefer the same build family, then the immediately older family.
+                    if kdk["build"][0:3] == host_build[0:3]:
+                        closest = kdk
+                        break
+                    if (kdk["build"][0:2] == host_build[0:2]
+                            and ord(kdk["build"][2]) - 1 == ord(host_build[2])):
+                        closest = kdk
+                        break
+                if closest is None:
+                    closest = count_kdks[0]
+
+                self.kdk_closest_match_url = closest["url"]
+                self.kdk_closest_match_url_build = closest["build"]
+                self.kdk_closest_match_url_version = closest["version"]
+                self.kdk_closest_match_url_expected_size = closest["fileSize"]
+                self.kdk_url_is_exactly_match = False
 
                 
 

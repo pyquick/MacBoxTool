@@ -5,20 +5,13 @@ gui_kdk.py: Kernel Debug Kit download interface
 from ..include import *
 from .gui_support import DefGUI
 from .gui_task import TaskManager
-
-
-def parse_build_version(build_string):
-    build_string = str(build_string or "")
-    match = re.match(r'^(\d+)([A-Za-z])?(\d*)([A-Za-z]*)', build_string)
-    if not match:
-        return (0, -1, 0, ())
-
-    kernel_major = int(match.group(1)) if match.group(1) else 0
-    letter = match.group(2) or ""
-    letter_index = build_letter_to_minor(letter) if letter else -1
-    build_number = int(match.group(3)) if match.group(3) else 0
-    suffix = tuple(ord(char.lower()) for char in (match.group(4) or ""))
-    return (kernel_major, letter_index, build_number, suffix)
+from ..support.kdk_sort import (
+    build_letter_to_minor,
+    effective_kdk_version,
+    latest_kdks,
+    parse_build_version,
+    sort_kdks,
+)
 
 
 def build_to_kernel(build_string):
@@ -43,26 +36,10 @@ def version_major_minor(version):
 
 
 def build_to_display_version(item):
-    build = item.get("build", "")
-    kernel_major = build_to_kernel(build)
-    match = re.match(r'^\d+([A-Za-z])', str(build or ""))
-    if kernel_major is None or not match:
-        return item.get("version", "Unknown")
-
-    major_version = os_data.os_conversion.kernel_to_os(kernel_major)
-    minor_version = build_letter_to_minor(match.group(1))
-    expected_version = f"{major_version}.{minor_version}"
-    upstream_version = item.get("version", "Unknown")
-    upstream_major_minor = version_major_minor(upstream_version)
-
-    if kernel_major == 24 and match.group(1).upper() == "G" and upstream_major_minor:
-        upstream_major, upstream_minor = upstream_major_minor
-        if upstream_major == 15 and 6 <= upstream_minor <= 99:
-            return upstream_version
-
-    if upstream_major_minor == (int(major_version), minor_version):
-        return upstream_version
-    return expected_version
+    effective_version = effective_kdk_version(item)
+    if effective_version != (-1,):
+        return ".".join(str(part) for part in effective_version)
+    return item.get("version", "Unknown")
 
 
 def build_to_marketing_name(item):
@@ -83,25 +60,11 @@ def display_version_major(item):
 
 
 def sort_by_build(items):
-    return sorted(
-        items,
-        key=lambda item: (parse_build_version(item.get("build", "")), str(item.get("version", ""))),
-        reverse=True
-    )
+    return sort_kdks(items)
 
 
 def latest_by_build_major(items, limit=4):
-    latest = []
-    seen = set()
-    for item in items:
-        group = build_to_kernel(item.get("build", "")) or str(item.get("version", "")).split(".")[0]
-        if group in seen:
-            continue
-        seen.add(group)
-        latest.append(item)
-        if len(latest) >= limit:
-            break
-    return latest
+    return latest_kdks(items, limit)
 
 class NoAnimCardWidget(QFrame):
     """Simple card widget without hover animation"""

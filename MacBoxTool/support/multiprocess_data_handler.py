@@ -9,6 +9,8 @@ import urllib3
 from urllib3.exceptions import InsecureRequestWarning
 from PySide6.QtCore import QThread, QTimer, Signal
 
+from .kdk_sort import latest_kdks as select_latest_kdks, sort_packages, sort_kdks
+
 
 urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -65,26 +67,11 @@ def _process_kdk_data(raw_data: list) -> dict:
     Returns:
         dict with "all" and "latest" keys
     """
-    # 1. Sort by build and version (descending)
-    sorted_data = sorted(
-        raw_data,
-        key=lambda x: (x.get("build", ""), x.get("version", "")),
-        reverse=True
-    )
+    # 1. Sort by version, build, beta status, and release date.
+    sorted_data = sort_kdks(raw_data)
 
-    # 2. Extract latest version for each major version (top 4 major versions)
-    version_groups = {}
-    for kdk in sorted_data:
-        version = kdk.get("version", "")
-        if not version:
-            continue
-
-        # Extract major version number (e.g., "26.3" -> 26)
-        major_version = version.split(".")[0]
-        if major_version not in version_groups:
-            version_groups[major_version] = kdk
-
-    latest_kdks = list(version_groups.values())[:4]
+    # 2. Extract the latest record for each major macOS version.
+    latest_kdks = select_latest_kdks(sorted_data)
 
     return {
         "all": sorted_data,
@@ -130,12 +117,8 @@ def _process_metallib_data(raw_data: list) -> dict:
     Returns:
         dict with "all" and "latest" keys
     """
-    # 1. Sort by build version and version (descending)
-    sorted_data = sorted(
-        raw_data,
-        key=lambda x: (_parse_build_version(x.get("build", "")), x.get("version", "")),
-        reverse=True
-    )
+    # 1. Sort by version, build, beta status, and release date.
+    sorted_data = sort_packages(raw_data)
 
     # 2. Extract latest 4
     latest_metallibs = sorted_data[:4]

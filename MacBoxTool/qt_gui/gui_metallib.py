@@ -5,6 +5,7 @@ gui_metallib.py: Metallib Support Package download interface
 from ..include import *
 from .gui_support import DefGUI
 from ..support.network_handler import DownloadObject
+from ..support.kdk_sort import parse_build_version, build_letter_to_minor, sort_packages
 from .gui_task import TaskManager
 from PySide6.QtWidgets import QFrame
 from PySide6.QtGui import QPainter, QColor, QPainterPath
@@ -88,11 +89,7 @@ def display_version_major(item):
 
 
 def sort_by_build(items):
-    return sorted(
-        items,
-        key=lambda item: (parse_build_version(item.get("build", "")), str(item.get("version", ""))),
-        reverse=True
-    )
+    return sort_packages(items)
 
 
 
