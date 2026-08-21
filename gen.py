@@ -7,6 +7,21 @@ from MacBoxTool import constants
 DEFAULT_MANIFEST_PATH = Path("deploy/manifest.json")
 FETCH_URL="https://pyquick.github.io/MacBoxTool/manifest.json"
 
+
+def _resolve_qt_branch() -> str:
+    """Return the manifest branch name for the installed Qt binding."""
+    try:
+        import PySide6  # noqa: F401
+        return "main"
+    except ImportError:
+        pass
+    try:
+        import PySide2  # noqa: F401
+        return "PySide2"
+    except ImportError:
+        raise RuntimeError("MacBoxTool build requires PySide6 or PySide2")
+
+
 def generate_manifest(commit_info: tuple, manifest_path: Path = DEFAULT_MANIFEST_PATH) -> None:
     constant = constants.Constants()
 
@@ -20,6 +35,10 @@ def generate_manifest(commit_info: tuple, manifest_path: Path = DEFAULT_MANIFEST
     
     response = requests.get(FETCH_URL,verify=False)
     branch=str(commit_info[0]).split("/")[-1]
+    # Tag refs carry the version number as their tail, not a branch name. Map the
+    # installed Qt binding back to its manifest branch before selecting the dict.
+    if not is_nightly and branch not in ("main", "PySide2"):
+        branch = _resolve_qt_branch()
     manifest = response.json()
     nightly_latest_on_main_branch = manifest["nightly_latest"]["main"]
     nightly_latest_on_pyside2_branch = manifest["nightly_latest"]["PySide2"]
