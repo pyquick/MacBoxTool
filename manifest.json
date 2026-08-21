@@ -1,8 +1,8 @@
 {
     "nightly_latest": {
         "main": {
-            "version": "0.0.4",
-            "build": "4640.1010",
+            "version": "0.0.5",
+            "build": "4640.1111",
             "core": "1.1.000039489",
             "minver": "22"
         },
