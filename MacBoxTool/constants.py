@@ -29,7 +29,7 @@ class Constants:
         self.hdau_patch_already:              bool = False
         # OpenCore Version
         self.opencore_version:           str = "1.0.7"
-        self.nightly_build:              str = "4645.1000"
+        self.nightly_build:              str = "4646.1000"
         self.support_version:            str = "1.1.100039446prefix" # prefix: unstable core. canary: very unstable
         # Kext Versioning
         ## Acidanthera
@@ -406,6 +406,15 @@ class Constants:
         return self.launch_services_path / Path("com.pyquick.macboxtool.os-caching.plist")
 
     # ACPI
+    @property
+    def iasl_stable_path(self):
+        return self.payload_path / Path("Tools/iasl/iasl-stable")
+
+    @property
+    def iasl_legacy_path(self):
+        return self.payload_path / Path("Tools/iasl/iasl-legacy")
+
+
     @property
     def pci_ssdt_path(self):
         return self.payload_path / Path("ACPI/SSDT-CPBG.aml")
