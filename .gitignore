@@ -20,7 +20,6 @@ eggs/
 *Hack*.md
 MacBoxTool.plist
 .claude
-*.zip
 *test*
 .eggs/
 test.py
