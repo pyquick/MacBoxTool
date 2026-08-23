@@ -283,6 +283,43 @@ class DefGUI():
         return spacer
         
 
+def stop_qt_workers(workers, grace_ms: int = 150, deadline: Optional[float] = None):
+    """Stop multiple QThread workers within a single bounded deadline.
+
+    Signals cancellation to every worker first (instant), then waits up to the
+    shared deadline before terminating stragglers. When `deadline` is given it
+    bounds the whole shutdown sequence across multiple calls; otherwise a fresh
+    deadline is derived from grace_ms. Total wait stays bounded regardless of
+    how many workers are stuck in blocking I/O.
+    """
+    for w in workers:
+        if w is None:
+            continue
+        try:
+            if hasattr(w, "cancel"):
+                w.cancel()
+            if hasattr(w, "requestInterruption"):
+                w.requestInterruption()
+        except RuntimeError:
+            continue
+
+    if deadline is None:
+        deadline = time.monotonic() + grace_ms / 1000.0
+    for w in workers:
+        if w is None:
+            continue
+        try:
+            if not w.isRunning():
+                continue
+            remaining_ms = int((deadline - time.monotonic()) * 1000.0)
+            if remaining_ms > 0 and w.wait(remaining_ms):
+                continue
+            w.terminate()
+            w.wait(100)
+        except RuntimeError:
+            continue
+
+
 def wait_for_thread(thread: threading.Thread, sleep_interval=None):
     """
     Waits for a thread to finish while processing UI events at regular intervals

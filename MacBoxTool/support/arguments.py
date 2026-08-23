@@ -103,7 +103,7 @@ class arguments:
         logging.info("Set System Volume patching")
         if "Library/InstallerSandboxes/" in str(self.constants.payload_path):
             logging.info("- Running from Installer Sandbox, blocking OS updaters")
-            thread = threading.Thread(target=sys_patch.PatchSysVolume(self.constants.custom_model or self.constants.computer.real_model, self.constants, None).start_patch)
+            thread = threading.Thread(target=sys_patch.PatchSysVolume(self.constants.custom_model or self.constants.computer.real_model, self.constants, None).start_patch,daemon=True)
             thread.start()
             while thread.is_alive():
                 utilities.block_os_updaters()

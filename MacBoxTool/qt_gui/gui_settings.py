@@ -45,7 +45,7 @@ class SettingsAsyncLoader(QObject):
             "audio_type": audio_type,
             "host_is_non_metal": self._host_is_non_metal(),
             "github_token": self.settings.find_key("github_token") or "",
-            "system_settings": {key: self._get_system_settings(key) for key in system_keys},
+            "system_settings": self._read_system_settings(system_keys),
         }
         if not self._cancelled:
             try:
@@ -72,6 +72,21 @@ class SettingsAsyncLoader(QObject):
         except Exception:
             return False
 
+    def _read_system_settings(self, keys) -> dict:
+        """Read each setting in its own thread, then join so the threads die."""
+        results = {}
+        threads = []
+        for key in keys:
+            thread = threading.Thread(
+                target=lambda k=key: results.__setitem__(k, self._get_system_settings(k)),
+                daemon=True,
+            )
+            thread.start()
+            threads.append(thread)
+        for thread in threads:
+            thread.join()
+        return results
+
 
 class SettingsInterface(QWidget):
 
@@ -84,19 +99,13 @@ class SettingsInterface(QWidget):
         self.settings = global_settings
         self._loading_settings = False
         self._async_loader = None
+        self._built = False
 
         self.mainLayout = QVBoxLayout(self)
         self.mainLayout.setContentsMargins(36, 28, 36, 28)
         self.mainLayout.setSpacing(12)
 
         self._init_ui()
-        self._load_settings()
-        self._loading_settings = True
-        try:
-            self._apply_hardware_conditions(self._current_model())
-        finally:
-            self._loading_settings = False
-        self._load_async_settings()
         self.destroyed.connect(lambda *_: self._cancel_async_loader())
 
     def _cancel_async_loader(self):
@@ -171,20 +180,6 @@ class SettingsInterface(QWidget):
         self.tab_patch = self._create_tab_scroll()
         self.tab_debug = self._create_tab_scroll()
 
-        self._build_boot_group()
-        self._build_graphics_group()
-        self._build_advanced_boot_group()
-        self._build_security_group()
-        self._build_sip_group()
-        self._build_smbios_group()
-        self._build_misc_group()
-        self._build_patch_group()
-        self._build_debug_group()
-
-        for tab in (self.tab_build, self.tab_security, self.tab_sip,
-                    self.tab_smbios, self.tab_misc, self.tab_patch, self.tab_debug):
-            tab._layout.addStretch()
-
         self._add_tab("build", "Build", self.tab_build)
         self._add_tab("security", "Security", self.tab_security)
         if sys.platform=="darwin":
@@ -219,6 +214,26 @@ class SettingsInterface(QWidget):
             routeKey=key, text=label,
             onClick=lambda checked, w=widget: self.stack.setCurrentWidget(w)
         )
+
+    def _ensure_built(self):
+        """Build all setting groups on first show."""
+        if self._built:
+            return
+        self._built = True
+
+        self._build_boot_group()
+        self._build_graphics_group()
+        self._build_advanced_boot_group()
+        self._build_security_group()
+        self._build_sip_group()
+        self._build_smbios_group()
+        self._build_misc_group()
+        self._build_patch_group()
+        self._build_debug_group()
+
+        for tab in (self.tab_build, self.tab_security, self.tab_sip,
+                    self.tab_smbios, self.tab_misc, self.tab_patch, self.tab_debug):
+            tab._layout.addStretch()
 
     # ── Boot ──
 
@@ -1070,6 +1085,7 @@ class SettingsInterface(QWidget):
             card.setChecked(False)
 
     def refresh(self):
+        self._ensure_built()
         self._load_settings()
         self._loading_settings = True
         try:

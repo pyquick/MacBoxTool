@@ -3,7 +3,7 @@ gui_introduction.py: Give introduction on GUI
 """
 from ..include import *
 from ..constants import Constants
-from .gui_support import DefGUI
+from .gui_support import DefGUI, stop_qt_workers
 from PySide6.QtCore import QThread, Signal, QTimer
 from ..support.on_nightly import CheckNightly
 
@@ -173,24 +173,16 @@ class Introduction(ScrollArea):
             button = self._create_helper_install_button()
             self.expandLayout.insertWidget(4, button)
 
-    def cleanup_workers(self):
+    def cleanup_workers(self, deadline=None):
         """Stop workers owned by this page before it is destroyed."""
         self._is_closing = True
-        version_worker = self._oclp_version_worker
-        if version_worker and version_worker.isRunning():
-            version_worker.requestInterruption()
-            if not version_worker.wait(2000):
-                logging.info("OCLPVersionWorker is still finishing during shutdown")
-
         worker = getattr(self, "_install_worker", None)
-        if worker and worker.isRunning():
-            worker.requestInterruption()
-            if not worker.wait(5000):
-                logging.warning("HelperInstallWorker did not stop in 5000ms; terminating")
-                worker.terminate()
-                worker.wait(1000)
-        if worker:
-            worker.deleteLater()
+        stop_qt_workers((self._oclp_version_worker, worker), deadline=deadline)
+        if worker is not None:
+            try:
+                worker.deleteLater()
+            except RuntimeError:
+                pass
             self._install_worker = None
 
     def closeEvent(self, event):
@@ -345,7 +337,7 @@ class Introduction(ScrollArea):
         )
 
     def _create_note_card(self):
-        self.oclp_version = "3.1.6"
+        self.oclp_version = "3.1.8"
         card = self.ui_support.custom_card(
             card_type="note",
             title="OCLP-R: - Now Supports macOS Tahoe 26!",

@@ -417,7 +417,8 @@ class DownloadWorker(QThread):
 
                 thread = threading.Thread(
                     target=self._download_range,
-                    args=(self.download.url, start, end - 1, part_file, i)
+                    args=(self.download.url, start, end - 1, part_file, i),
+                    daemon=True
                 )
                 threads.append(thread)
                 parts.append(part_file)

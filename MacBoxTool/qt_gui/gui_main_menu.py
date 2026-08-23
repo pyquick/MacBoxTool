@@ -126,7 +126,7 @@ class Window(FluentWindow):
         self._shutdown_in_progress = False
         self._shutdown_cleanup_done = False
 
-    def _stop_child_workers(self):
+    def _stop_child_workers(self, deadline=None):
         for page in (
             getattr(self, "introduction", None),
             getattr(self, "build", None),
@@ -138,9 +138,9 @@ class Window(FluentWindow):
         ):
             cleanup = getattr(page, "cleanup_workers", None)
             if callable(cleanup):
-                cleanup()
+                cleanup(deadline)
 
-        TaskManager.shutdown_all()
+        TaskManager.shutdown_all(deadline)
 
     def _perform_shutdown_cleanup(self):
         if self._shutdown_cleanup_done:
@@ -149,14 +149,18 @@ class Window(FluentWindow):
         self._shutdown_cleanup_done = True
         utilities.enable_sleep_after_running()
         logging.info("Clean-up")
-        self._stop_child_workers()
-        
+        # Shared deadline bounds the whole shutdown sequence to ~2s: the worker
+        # grace phase and the theme listener stop both count against it.
+        deadline = time.monotonic() + 0.1
+        self._stop_child_workers(deadline)
+
         utilities.enable_sleep_after_running()
         self.theme_manager.stop()
         self.themeListener.requestInterruption()
-        if not self.themeListener.wait(2500):
+        remaining_ms = int((deadline - time.monotonic()) * 1000.0)
+        if remaining_ms <= 0 or not self.themeListener.wait(remaining_ms):
             self.themeListener.terminate()
-            self.themeListener.wait(1000)
+            self.themeListener.wait(100)
         self.themeListener.deleteLater()
 
         app = QApplication.instance()
@@ -278,7 +282,8 @@ class Window(FluentWindow):
                 NavigationItemPosition.SCROLL
             )
 
-            if _xcode_version() is not None and _xcode_version() >= 26:
+            _xcode_ver = _xcode_version()
+            if _xcode_ver is not None and _xcode_ver >= 26:
                 from .gui_converter import IconConverterInterface
                 self.icon_converter=IconConverterInterface(self.constants,self.gui_support,self.settings,self)
                 self.addSubInterface(
@@ -321,6 +326,7 @@ class Window(FluentWindow):
 
         self.stackedWidget.currentChanged.connect(self._on_page_changed)
         QTimer.singleShot(0, self._apply_startup_navigation)
+        QTimer.singleShot(0, self._preload_pages)
 
     def _rotate_settings_icon(self):
         item = getattr(self, "settings_nav_item", None)
@@ -380,3 +386,14 @@ class Window(FluentWindow):
         widget = self.stackedWidget.widget(index)
         if hasattr(widget, 'refresh'):
             widget.refresh()
+
+    def _preload_pages(self):
+        """Silently preload heavy pages after init gui, before user navigation."""
+        for attr in ("hardware_support", "settings_page"):
+            page = getattr(self, attr, None)
+            if page is None:
+                continue
+            try:
+                page.refresh()
+            except Exception as e:
+                logging.warning(f"Failed to preload {attr}: {e}")

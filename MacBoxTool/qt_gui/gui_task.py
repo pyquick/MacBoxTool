@@ -5,7 +5,7 @@ gui_task.py: Download Task page - displays download tasks from other services
 import weakref
 
 from ..include import *
-from .gui_support import DefGUI
+from .gui_support import DefGUI, stop_qt_workers
 from .. import constants
 from .gui_download import DownloadCard
 from ..support.network_handler import (
@@ -204,7 +204,7 @@ class TaskManager:
         cls._stop_worker(extraction_worker, 5000)
 
     @classmethod
-    def shutdown_all(cls):
+    def shutdown_all(cls, deadline=None):
         """Stop all task workers before application shutdown."""
         cls._shutting_down = True
         workers = list({
@@ -213,18 +213,7 @@ class TaskManager:
             *cls._extraction_workers.values(),
         })
 
-        for worker in workers:
-            cls._stop_worker(worker, 5000)
-
-        for worker in workers:
-            try:
-                if worker.isRunning():
-                    logging.warning(
-                        f"Waiting for {worker.__class__.__name__} to finish shutdown"
-                    )
-                    worker.wait()
-            except RuntimeError:
-                pass
+        stop_qt_workers(workers, deadline=deadline)
 
         cls._icons.clear()
 
@@ -1068,7 +1057,7 @@ class TaskInterface(ScrollArea):
         self._refresh_downloads()
         self._sync_refresh_timer()
 
-    def cleanup_workers(self):
+    def cleanup_workers(self, deadline=None):
         """Stop timers and workers owned by this task page."""
         self.task_manager.unregister_task_page(self)
         if hasattr(self, 'refresh_timer'):
@@ -1077,19 +1066,13 @@ class TaskInterface(ScrollArea):
             self.network_timeout_timer.stop()
         worker = getattr(self, 'network_worker', None)
         if worker is not None:
+            stop_qt_workers((worker,), deadline=deadline)
             try:
-                worker.cancel()
-                worker.requestInterruption()
-                if worker.isRunning() and not worker.wait(2000):
-                    logging.warning(
-                        "Waiting for NetworkCheckWorker to finish shutdown"
-                    )
-                    worker.wait()
                 worker.deleteLater()
             except RuntimeError:
                 pass
             self.network_worker = None
-        self.task_manager.shutdown_all()
+        self.task_manager.shutdown_all(deadline)
 
     def closeEvent(self, event):
         """Handle close event - cancel all active downloads and network check"""

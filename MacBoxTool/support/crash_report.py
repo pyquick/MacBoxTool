@@ -53,7 +53,7 @@ REQUEST_TIMEOUT: int = 10  # seconds
 
 # How long the exception hooks wait for in-flight reports after a crash
 # before handing control back (the process usually exits right after).
-CRASH_REPORT_FLUSH_TIMEOUT: float = 3.0  # seconds
+CRASH_REPORT_FLUSH_TIMEOUT: float = 1.0  # seconds
 
 # ── Internal state ─────────────────────────────────────────────
 _original_excepthook:          Any = None

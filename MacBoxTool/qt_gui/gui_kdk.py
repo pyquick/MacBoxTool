@@ -491,10 +491,14 @@ class KDKList(ScrollArea):
 
         InfoBar.success("Download Started", f"{filename} is downloading.", duration=3000, position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
 
-    def closeEvent(self, event):
-        """Clean up resources when window closes."""
+    def cleanup_workers(self, deadline=None):
+        """Stop the data-processing worker before this page is destroyed."""
         if self._data_worker is not None:
             self._data_worker.stop()
             self._data_worker = None
+
+    def closeEvent(self, event):
+        """Clean up resources when window closes."""
+        self.cleanup_workers()
         super().closeEvent(event)
 

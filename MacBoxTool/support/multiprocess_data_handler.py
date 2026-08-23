@@ -170,6 +170,7 @@ class DataProcessorWorker(QThread):
             target=_process_data,
             args=(self.api_url, self.data_type, self.queue)
         )
+        self.process.daemon = True
         self.process.start()
 
         # Start timer to check queue
@@ -212,10 +213,11 @@ class DataProcessorWorker(QThread):
 
         if self.process and self.process.is_alive():
             self.process.terminate()
-            self.process.join(timeout=1)
+            self.process.join(timeout=0.3)
             if self.process.is_alive():
                 logging.warning(f"Process {self.process.pid} did not terminate gracefully, killing")
                 self.process.kill()
+                self.process.join(timeout=0.2)
 
         self.process = None
 
@@ -229,7 +231,6 @@ class DataProcessorWorker(QThread):
 
     def stop(self):
         """Stop processing and clean up resources."""
-        logging.info(f"Stopping data processor for {self.data_type}")
         self._cleanup_resources()
 
     def __del__(self):

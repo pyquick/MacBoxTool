@@ -213,10 +213,6 @@ class MacOSInstallerList(ScrollArea):
         self.available_installers_latest = []
         self.show_latest_only = True
 
-        # Worker threads (keep references to prevent premature garbage collection)
-        self._validation_worker = None
-        self._extraction_worker = None
-
         # Loading state control
         self._loading_thread = None
         self._stop_loading = False
@@ -309,7 +305,7 @@ class MacOSInstallerList(ScrollArea):
             logging.info("[MacOSInstallerList] Interrupting previous loading...")
             self._stop_loading = True
             # Wait for previous thread to finish (max 1 second)
-            self._loading_thread.join(timeout=1.0)
+            self._loading_thread.join(timeout=0.4)
 
         # Reset stop flag
         self._stop_loading = False
@@ -377,7 +373,7 @@ class MacOSInstallerList(ScrollArea):
             self.available_installers.sort(key=lambda x: x.get("Build", ""), reverse=True)
             self.available_installers_latest = catalog_products.latest_products
 
-        thread = threading.Thread(target=_fetch_installers)
+        thread = threading.Thread(target=_fetch_installers, daemon=True)
         self._loading_thread = thread
         thread.start()
 
@@ -607,35 +603,15 @@ class MacOSInstallerList(ScrollArea):
             parent=self,
         )
 
-    def cleanup_workers(self):
-        """Clean up any running worker threads"""
-        # Stop loading thread
+    def cleanup_workers(self, deadline=None):
+        """Stop the loading thread before this page is destroyed."""
         if self._loading_thread is not None and self._loading_thread.is_alive():
             self._stop_loading = True
-            self._loading_thread.join(timeout=1.0)
+            timeout = 0.3
+            if deadline is not None:
+                timeout = min(timeout, max(0.0, deadline - time.monotonic()))
+            self._loading_thread.join(timeout=timeout)
             self._loading_thread = None
-
-        if self._validation_worker is not None:
-            if self._validation_worker.isRunning():
-                self._validation_worker.cancel()
-                self._validation_worker.requestInterruption()
-                if not self._validation_worker.wait(5000):
-                    logging.warning("ValidationWorker did not stop in 5000ms; terminating")
-                    self._validation_worker.terminate()
-                    self._validation_worker.wait(1000)
-            self._validation_worker.deleteLater()
-            self._validation_worker = None
-
-        if self._extraction_worker is not None:
-            if self._extraction_worker.isRunning():
-                self._extraction_worker.cancel()
-                self._extraction_worker.requestInterruption()
-                if not self._extraction_worker.wait(5000):
-                    logging.warning("ExtractionWorker did not stop in 5000ms; terminating")
-                    self._extraction_worker.terminate()
-                    self._extraction_worker.wait(1000)
-            self._extraction_worker.deleteLater()
-            self._extraction_worker = None
 
     def closeEvent(self, event):
         """Handle window close event"""

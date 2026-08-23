@@ -3,7 +3,7 @@ gui_sys_patch.py: Root patching interface
 """
 
 from ..include import *
-from .gui_support import AutoUpdateStages, DefGUI, PayloadMount, ProgressStatusHelper, RestartHost
+from .gui_support import AutoUpdateStages, DefGUI, PayloadMount, ProgressStatusHelper, RestartHost, stop_qt_workers
 
 try:
     from ..support.crash_report import send_error_report_async
@@ -871,17 +871,8 @@ class SysPatch(ScrollArea):
         logging.info("No new patches detected for system")
         return False
 
-    def cleanup_workers(self):
-        for worker in (self.detection_worker, self.patch_worker, self.download_worker):
-            if not worker or not is_qt_object_valid(worker):
-                continue
-            if worker.isRunning():
-                worker.requestInterruption()
-                if hasattr(worker, "cancel"):
-                    worker.cancel()
-                if not worker.wait(2000):
-                    worker.terminate()
-                    worker.wait(1000)
+    def cleanup_workers(self, deadline=None):
+        stop_qt_workers((self.detection_worker, self.patch_worker, self.download_worker), deadline=deadline)
         self.detection_worker = None
         self.patch_worker = None
         self.download_worker = None

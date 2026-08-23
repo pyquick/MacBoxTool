@@ -51,16 +51,14 @@ if sys.platform=="darwin":
         utilities,
         reroute_payloads,
         commit_info,
-        logging_handler,
-        analytics_handler
+        logging_handler
     )
 else:
     from .support import (
         utilities_win as utilities,
         reroute_payloads,
         commit_info,
-        logging_handler,
-        analytics_handler
+        logging_handler
     )
 import threading
 import logging
@@ -70,17 +68,9 @@ from pathlib import Path
 # CLI parsing moved to support/utilities.check_cli_args()
 
 
-from .qt_gui.gui_entry import OpenGUI
 from .constants import Constants
-from PySide6.QtWidgets import *
-from PySide6.QtCore import *
-from PySide6.QtGui import *
 from .support.logging_handler import LoggingHandler
 from .support.global_settings import GlobalSettings
-try:
-    from .support import crash_report
-except ImportError:
-    crash_report = None
 if sys.platform=="darwin":
     from .detections import device_probe
 else:
@@ -97,8 +87,11 @@ class MacBoxTool:
         super().__init__()
         self.constants: Constants = Constants()
         self.constants.cli_mode = cli_mode
-        if crash_report is not None:
+        try:
+            from .support import crash_report
             crash_report.install()
+        except ImportError:
+            pass
         LoggingHandler(self.constants)
         self._generate_base_data()
         self.install_requirements()
@@ -141,6 +134,7 @@ class MacBoxTool:
         a.start()
         a.join()
     def opengui(self):
+        from .qt_gui.gui_entry import OpenGUI
         w = OpenGUI(self.constants,self.settings)
         w.gui_main_menu()
 
@@ -187,7 +181,7 @@ class MacBoxTool:
         self.constants.launcher_script = launcher_script
 
         # Initialize working directory
-        self.constants.unpack_thread = threading.Thread(target=reroute_payloads.RoutePayloadDiskImage, args=(self.constants,))
+        self.constants.unpack_thread = threading.Thread(target=reroute_payloads.RoutePayloadDiskImage, args=(self.constants,),daemon=True)
         self.constants.unpack_thread.start()
 
         # Generate commit info
@@ -199,7 +193,8 @@ class MacBoxTool:
             self.constants.installer_pkg_url_nightly = self.constants.installer_pkg_url_nightly.replace("main", branch)
 
        
-        threading.Thread(target=analytics_handler.Analytics(self.constants).send_analytics).start()
+        from .support import analytics_handler
+        threading.Thread(target=analytics_handler.Analytics(self.constants).send_analytics, daemon=True).start()
 
         from .support.on_nightly import CheckNightly
         if CheckNightly(self.constants).check() is True:

@@ -2,7 +2,7 @@
 gui_build.py: Build OpenCore EFI for unsupported Macs
 """
 from ..include import *
-from .gui_support import DefGUI, ProgressStatusHelper, AutoUpdateStages
+from .gui_support import DefGUI, ProgressStatusHelper, AutoUpdateStages, stop_qt_workers
 
 try:
     from ..support.crash_report import send_error_report_async
@@ -683,26 +683,17 @@ class BuildOCPage(ScrollArea):
             )
         self.install_worker = None
 
-    def _stop_worker(self, worker, timeout: int = 5000):
-        if not worker:
-            return
-        try:
-            if hasattr(worker, "requestInterruption"):
-                worker.requestInterruption()
-            if worker.isRunning() and not worker.wait(timeout):
-                logging.warning(f"{worker.__class__.__name__} did not stop in {timeout}ms; terminating")
-                worker.terminate()
-                worker.wait(1000)
-            if not worker.isRunning():
-                worker.deleteLater()
-        except RuntimeError:
-            pass
-
-    def cleanup_workers(self):
+    def cleanup_workers(self, deadline=None):
         """Stop build/install workers before this page is destroyed."""
-        self._stop_worker(self.worker, 10000)
+        workers = (self.worker, self.install_worker)
+        stop_qt_workers(workers, deadline=deadline)
+        for worker in workers:
+            try:
+                if worker is not None and not worker.isRunning():
+                    worker.deleteLater()
+            except RuntimeError:
+                pass
         self.worker = None
-        self._stop_worker(self.install_worker, 10000)
         self.install_worker = None
 
     def closeEvent(self, event):

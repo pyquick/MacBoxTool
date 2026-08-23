@@ -2,7 +2,7 @@
 gui_update.py: MacBoxTool update interface.
 """
 from ..include import *
-from .gui_support import DefGUI
+from .gui_support import DefGUI, stop_qt_workers
 from ..support.update import check_update, fetch_update, install_update, launch
 
 
@@ -480,9 +480,10 @@ class Updater(ScrollArea):
             self.update_worker.cancel()
             self.is_downloading_update = False
 
-    def cleanup_workers(self):
+    def cleanup_workers(self, deadline=None):
         """Clean up active update workers."""
         self._cancel_update_download()
+        stop_qt_workers((getattr(self, "update_worker", None),), deadline=deadline)
 
     def closeEvent(self, event):
         """Cancel update work before the widget closes."""

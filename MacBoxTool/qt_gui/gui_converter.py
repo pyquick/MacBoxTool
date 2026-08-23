@@ -7,7 +7,7 @@ Design uses:
 """
 
 from ..include import *
-from .gui_support import DefGUI
+from .gui_support import DefGUI, stop_qt_workers
 from ..support.icon_to_assets import convert_icon_file_streaming as _convert_streaming
 
 from PySide6.QtCore import QThread, Signal
@@ -490,7 +490,10 @@ class IconConverterInterface(ScrollArea):
                             f"Assets.car and AppIcon.icns saved to {dest_dir}",
                             duration=3000, position=InfoBarPosition.BOTTOM_RIGHT, parent=self)
 
+    def cleanup_workers(self, deadline=None):
+        stop_qt_workers((self._worker,), deadline=deadline)
+        self._worker = None
+
     def closeEvent(self, event):
-        if self._worker and self._worker.isRunning():
-            self._worker.wait(5000)
+        self.cleanup_workers()
         super().closeEvent(event)
