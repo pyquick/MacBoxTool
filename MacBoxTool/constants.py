@@ -29,7 +29,7 @@ class Constants:
         self.hdau_patch_already:              bool = False
         # OpenCore Version
         self.opencore_version:           str = "1.0.7"
-        self.nightly_build:              str = "4654.1000"
+        self.nightly_build:              str = "4658.1000"
         self.support_version:            str = "1.1.100039446canary" # prefix: unstable core. canary: very unstable
         # Kext Versioning
         ## Acidanthera

@@ -22,6 +22,7 @@ else:
 from . import (
     subprocess_wrapper
 )
+from .kdk_sort import package_sort_key
 
 from ..volume import (
     can_copy_on_write,
@@ -302,8 +303,18 @@ class LocalInstallerCatalog:
                 }
             })
 
-        # Sort Applications by version
-        application_list = {k: v for k, v in sorted(application_list.items(), key=lambda item: item[1]["Version"])}
+        # Sort Applications using the shared package ordering
+        # (version, build, beta status, date - newest first) used by KDK/metallib
+        application_list = {
+            k: v for k, v in sorted(
+                application_list.items(),
+                key=lambda item: package_sort_key({
+                    "version": item[1].get("Version", ""),
+                    "build": item[1].get("Build", ""),
+                }),
+                reverse=True,
+            )
+        }
         return application_list
 
 
