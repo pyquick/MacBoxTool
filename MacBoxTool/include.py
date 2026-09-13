@@ -52,3 +52,25 @@ from pathlib import Path
 import plistlib
 from datetime import datetime
 from .support.global_settings import GlobalSettings
+
+
+def is_apple_silicon_runtime() -> bool:
+    """
+    Determine if the process is running on an Apple Silicon Mac.
+    Returns True when running natively (arm64/arm64e) or under Rosetta 2 translation.
+    """
+    if platform.machine().lower().startswith("arm64"):
+        return True
+    if sys.platform != "darwin":
+        return False
+    try:
+        result = subprocess.run(
+            ["/usr/sbin/sysctl", "-n", "sysctl.proc_translated"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+        if result.returncode != 0:
+            return False
+        return result.stdout.decode().strip() == "1"
+    except Exception:
+        return False

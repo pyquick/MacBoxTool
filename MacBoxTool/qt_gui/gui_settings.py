@@ -186,7 +186,8 @@ class SettingsInterface(QWidget):
             self._add_tab("sip", "SIP", self.tab_sip)
         self._add_tab("smbios", "SMBIOS", self.tab_smbios)
         self._add_tab("misc", "Misc", self.tab_misc)
-        self._add_tab("patch", "Patch", self.tab_patch)
+        if not is_apple_silicon_runtime():
+            self._add_tab("patch", "Patch", self.tab_patch)
         self._add_tab("debug", "Debug", self.tab_debug)
         self.pivot.setCurrentItem("build")
 
@@ -228,7 +229,8 @@ class SettingsInterface(QWidget):
         self._build_sip_group()
         self._build_smbios_group()
         self._build_misc_group()
-        self._build_patch_group()
+        if not is_apple_silicon_runtime():
+            self._build_patch_group()
         self._build_debug_group()
 
         for tab in (self.tab_build, self.tab_security, self.tab_sip,
@@ -967,16 +969,17 @@ class SettingsInterface(QWidget):
             self.sw_oc_everywhere.setChecked(_get("allow_oc_everywhere", False))
             self.sw_nvme_fix.setChecked(_get("allow_nvme_fixing", True))
 
-            self.allow_ts2_accel_card.setChecked(_get("allow_ts2_accel", True))
-            self.allow_usb_patch_card.setChecked(_get("allow_usb_patch", False))
-            audio_type = _get("audio_type", "AppleHDA")
-            idx = self.audio_type_combo.findText(audio_type)
-            if idx >= 0:
-                self.audio_type_combo.setCurrentIndex(idx)
-            applehda_version = _get("applehda_version", "15.6")
-            idx = self.applehda_version_combo.findText(applehda_version)
-            if idx >= 0:
-                self.applehda_version_combo.setCurrentIndex(idx)
+            if not is_apple_silicon_runtime():
+                self.allow_ts2_accel_card.setChecked(_get("allow_ts2_accel", True))
+                self.allow_usb_patch_card.setChecked(_get("allow_usb_patch", False))
+                audio_type = _get("audio_type", "AppleHDA")
+                idx = self.audio_type_combo.findText(audio_type)
+                if idx >= 0:
+                    self.audio_type_combo.setCurrentIndex(idx)
+                applehda_version = _get("applehda_version", "15.6")
+                idx = self.applehda_version_combo.findText(applehda_version)
+                if idx >= 0:
+                    self.applehda_version_combo.setCurrentIndex(idx)
         finally:
             self._loading_settings = False
 
@@ -996,7 +999,9 @@ class SettingsInterface(QWidget):
                 idx = self.audio_type_combo.findText(audio_type)
                 if idx >= 0:
                     self.audio_type_combo.setCurrentIndex(idx)
-            self.audio_type_card.setEnabled(bool(data.get("audio_enabled")))
+            audio_type_card = getattr(self, "audio_type_card", None)
+            if audio_type_card is not None:
+                audio_type_card.setEnabled(bool(data.get("audio_enabled")))
 
             if hasattr(self, "non_metal_group"):
                 self.non_metal_group.setEnabled(bool(data.get("host_is_non_metal")))

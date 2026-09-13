@@ -26,7 +26,7 @@ from ..constants import Constants
 import requests
 cons=Constants()
 # ── Configuration ──────────────────────────────────────────────
-CRASH_SERVER_URL: str = "http://192.168.1.157:8080/api/v1/crash-report"
+CRASH_SERVER_URL: str = "http://192.168.1.156:8080/api/v1/crash-report"
 CRASH_API_KEY:  str = "crs_iq8Ka_xEbbRhpaJDStgH7p1dQfPt5OAopl2s8CkzZUA"
 PROJECT_NAME:    str = "MacBoxTool"
 

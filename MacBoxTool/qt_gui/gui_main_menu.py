@@ -256,7 +256,7 @@ class Window(FluentWindow):
                 "Download Tasks",
                 NavigationItemPosition.SCROLL
             )
-            if sys.platform=="darwin":
+            if sys.platform=="darwin" and not is_apple_silicon_runtime():
                 from .gui_sys_patch import SysPatch
                 self.sys_patch_page=SysPatch(self.constants,self.gui_support,self.settings,self)
                 self.addSubInterface(
@@ -357,8 +357,10 @@ class Window(FluentWindow):
             self.stackedWidget.setCurrentWidget(self.updater)
             return
         if getattr(self.constants, "start_sys_patch", False):
-            self.stackedWidget.setCurrentWidget(self.sys_patch_page)
-            # SysPatch handles auto-patch via its own pending_auto_patch mechanism
+            sys_patch_page = getattr(self, "sys_patch_page", None)
+            if sys_patch_page is not None:
+                self.stackedWidget.setCurrentWidget(sys_patch_page)
+                # SysPatch handles auto-patch via its own pending_auto_patch mechanism
             return
 
     def _on_intro_navigate(self, target: str):

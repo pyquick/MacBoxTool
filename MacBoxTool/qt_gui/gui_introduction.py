@@ -458,7 +458,7 @@ class Introduction(ScrollArea):
             button_text="Go to Build",
             navigate_target=self.NAV_BUILD
         ))
-        if sys.platform=="darwin":
+        if sys.platform=="darwin" and not is_apple_silicon_runtime():
             layout.addWidget(self._create_guide_item(
                 icon=FluentIcon.PASTE,
                 title="5. Apply Root Patches when needed",
