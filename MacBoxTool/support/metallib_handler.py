@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .. import constants
 from . import network_handler, subprocess_wrapper
+from .kdk_sort import parse_build_version, sort_metallibs
 
 
 METALLIB_ASSET_LIST: list = None
@@ -96,21 +97,30 @@ class MetalLibraryObject:
             logging.warning(self.error_msg)
             return
 
-        selected = None
-        for metallib in remote_metallibs:
-            if metallib.get("build") == self.host_build:
-                selected = metallib
-                break
-
+        # Manifest order is not guaranteed. Exact Build wins; otherwise use
+        # the closest Build from the same kernel family.
+        remote_metallibs = sort_metallibs(remote_metallibs)
+        selected = next((item for item in remote_metallibs if item.get("build") == self.host_build), None)
         if selected is None:
-            host_prefix = self.host_build[:3]
-            compatible = [item for item in remote_metallibs if str(item.get("build", "")).startswith(host_prefix)]
-            if compatible:
-                selected = compatible[0]
-
+            host_key = parse_build_version(self.host_build)
+            candidates = [
+                item for item in remote_metallibs
+                if parse_build_version(item.get("build", "")) != (-1, -1, -1)
+                and (host_key == (-1, -1, -1) or parse_build_version(item["build"])[0] == host_key[0])
+            ]
+            if candidates:
+                def build_distance(item):
+                    key = parse_build_version(item["build"])
+                    return (
+                        0 if key[:2] == host_key[:2] else 1,
+                        0 if key[1] == host_key[1] else 1,
+                        abs(key[2] - host_key[2]),
+                        -key[2],
+                    )
+                selected = min(candidates, key=build_distance)
         if selected is None:
             selected = remote_metallibs[0]
-            logging.info("No exact MetallibSupportPkg match found, using latest available")
+            logging.info("No compatible MetallibSupportPkg match found, using latest available")
 
         self.metallib_url = selected.get("url", "")
         self.metallib_url_build = selected.get("build", "")

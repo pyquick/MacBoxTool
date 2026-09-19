@@ -657,10 +657,11 @@ class SysPatch(ScrollArea):
         if not kdk_download_obj:
             return True
 
+        kdk_label = f"KDK {self.kdk_obj.kdk_url_version or 'Unknown'} ({self.kdk_obj.kdk_url_build or 'Unknown'})"
         if self._run_download_worker(
             kdk_download_obj,
-            "Downloading Kernel Debug Kit",
-            f"Downloading {kdk_download_obj.filename}",
+            f"Downloading {kdk_label}",
+            f"{kdk_label}\n{kdk_download_obj.filename}",
         ) is False:
             return False
 

@@ -63,14 +63,16 @@ def _build_version(build) -> tuple:
 
 
 def effective_kdk_version(item: dict) -> tuple:
-    """Use the manifest patch version unless build major/minor contradict it."""
-    build_version = _build_version(item.get("build", ""))
+    """Return the manifest-provided KDK version.
+
+    Apple build letters are Darwin build sequencing and do not represent the
+    macOS marketing minor version.  The manifest is therefore authoritative;
+    only malformed/missing manifest versions fall back to the build major.
+    """
     manifest_version = parse_version(item.get("version", ""))
-    if build_version == _INVALID_VERSION:
+    if manifest_version != _INVALID_VERSION:
         return manifest_version
-    if manifest_version != _INVALID_VERSION and manifest_version[:2] == build_version:
-        return manifest_version
-    return build_version
+    return _build_version(item.get("build", ""))
 
 
 def package_sort_key(item: dict) -> tuple:
@@ -134,3 +136,14 @@ def latest_kdks(items: list, limit: int = 4) -> list:
         if len(latest) >= limit:
             break
     return latest
+
+
+def sort_metallibs(items: list) -> list:
+    """Return MetallibSupportPkg records newest first."""
+    def key(item):
+        return (
+            parse_version(item.get("version", "")),
+            parse_build_version(item.get("build", "")),
+            _date_sort_value(item.get("date", "")),
+        )
+    return sorted(items, key=key, reverse=True)

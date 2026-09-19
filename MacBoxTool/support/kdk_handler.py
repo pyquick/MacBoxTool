@@ -23,7 +23,7 @@ from . import (
     subprocess_wrapper
 )
 from ..constants import Constants
-from .kdk_sort import sort_kdks
+from .kdk_sort import parse_build_version, sort_kdks
 
 KDK_INSTALL_PATH: str  = "/Library/Developer/KDKs"
 KDK_INFO_PLIST:   str  = "KDKInfo.plist"
@@ -209,32 +209,30 @@ class KernelDebugKitObject:
             self.kdk_url_is_exactly_match = True
             break
 
-        # If no exact match, check for closest match
+        # If no exact match, choose by Apple Build proximity. Do not filter
+        # by marketing minor versions: KDK manifests can legitimately carry a
+        # different minor version than the host Build (for example 25G229).
         if self.kdk_url == "":
-            count_kdks = []
+            host_key = parse_build_version(host_build)
+            candidates = []
             for kdk in remote_kdk_version:
-                kdk_version = cast(packaging.version.Version, packaging.version.parse(kdk["version"]))
-                if kdk_version > parsed_version:
+                candidate_key = parse_build_version(kdk.get("build", ""))
+                if candidate_key == (-1, -1, -1):
                     continue
-                if kdk_version.major != parsed_version.major:
+                if host_key != (-1, -1, -1) and candidate_key[0] != host_key[0]:
                     continue
-                if kdk_version.minor not in range(parsed_version.minor - 1, parsed_version.minor + 1):
-                    continue
-                count_kdks.append(kdk)
+                candidates.append(kdk)
 
-            if count_kdks:
-                closest = None
-                for kdk in count_kdks:
-                    # Prefer the same build family, then the immediately older family.
-                    if kdk["build"][0:3] == host_build[0:3]:
-                        closest = kdk
-                        break
-                    if (kdk["build"][0:2] == host_build[0:2]
-                            and ord(kdk["build"][2]) - 1 == ord(host_build[2])):
-                        closest = kdk
-                        break
-                if closest is None:
-                    closest = count_kdks[0]
+            if candidates:
+                def build_distance(kdk):
+                    candidate_key = parse_build_version(kdk["build"])
+                    return (
+                        0 if candidate_key[:2] == host_key[:2] else 1,
+                        0 if candidate_key[1] == host_key[1] else 1,
+                        abs(candidate_key[2] - host_key[2]),
+                        -candidate_key[2],
+                    )
+                closest = min(candidates, key=build_distance)
 
                 self.kdk_closest_match_url = closest["url"]
                 self.kdk_closest_match_url_build = closest["build"]
