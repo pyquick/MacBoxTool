@@ -16,10 +16,8 @@ from .. import constants
 from ..datasets import os_data
 from ..volume   import generate_copy_arguments
 
-from ..support import (
-    generate_smbios,
-    subprocess_wrapper,
-)
+from ..support.hardware import generate_smbios
+from ..support.system import subprocess_wrapper
 
 
 class SysPatchHelpers:

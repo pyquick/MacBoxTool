@@ -75,7 +75,7 @@ class EntryPoint:
             logging.warning("OS_CACHE entry point is not yet implemented, falling back to main menu")
             entry = SupportedEntryPoints.INTRODUCTION
 
-        from ..support.global_settings import GlobalSettings
+        from ..support.config.global_settings import GlobalSettings
         settings = GlobalSettings(self.constants)
         gui = OpenGUI(self.constants, settings)
         gui.gui_main_menu()

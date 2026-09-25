@@ -12,9 +12,9 @@ from urllib.parse import urlparse
 import requests
 from PySide6.QtCore import QThread, Signal
 
-from .. import subprocess_wrapper
-from ..integrity_verification import ChunklistStatus, ChunklistVerification
-from ..network_handler import TLS_CERTIFICATE_BUNDLE, TLS_REQUIRED_HOSTS
+from ..system import subprocess_wrapper
+from ..artifacts.integrity_verification import ChunklistStatus, ChunklistVerification
+from ..net.network_handler import TLS_CERTIFICATE_BUNDLE, TLS_REQUIRED_HOSTS
 
 
 class SetupCancelledError(RuntimeError):

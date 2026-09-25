@@ -15,9 +15,9 @@ from datetime import date
 from .. import constants
 import sys
 if sys.platform=="darwin":
-    from ..support import utilities
+    from ..support.system import utilities
 else:
-    from ..support import utilities_win as utilities
+    from ..support.system import utilities_win as utilities
 from .networking import (
     wired,
     wireless

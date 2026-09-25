@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 from PySide6.QtCore import QThread, Signal, Qt
 
-from ..network_handler import DownloadObject, DownloadWorker, DownloadStatus
+from ..net.network_handler import DownloadObject, DownloadWorker, DownloadStatus
 
 
 class GroupDownloadWorker(QThread):

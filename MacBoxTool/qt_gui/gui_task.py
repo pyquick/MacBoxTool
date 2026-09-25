@@ -5,12 +5,16 @@ gui_task.py: Download Task page - displays download tasks from other services
 import weakref
 
 from ..include import *
+from ..support.ui.qt_helpers import WorkerShutdownMixin, clear_layout
 from .gui_support import DefGUI, stop_qt_workers
 from .. import constants
 from .gui_download import DownloadCard
-from ..support.network_handler import (
-    DownloadObject, DownloadWorker, DownloadStatus,
-    NetworkUtilities, DownloadHistory
+from ..support.net.network_handler import (
+    DownloadObject,
+    DownloadWorker,
+    DownloadStatus,
+    NetworkUtilities,
+    DownloadHistory,
 )
 from ..support.workers.validation_worker import ValidationWorker
 from ..support.workers.extraction_worker import ExtractionWorker
@@ -483,7 +487,7 @@ class TaskManager:
         cls._icons.clear()
 
 
-class TaskInterface(ScrollArea):
+class TaskInterface(WorkerShutdownMixin, ScrollArea):
     """Download Task page - displays downloads from other services"""
 
     def __init__(self, global_constants: Constants, ui_support: DefGUI = None,
@@ -1041,10 +1045,7 @@ class TaskInterface(ScrollArea):
         self.download_history.clear()
 
         # Remove all cards from layout
-        while self.history_layout.count():
-            item = self.history_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        clear_layout(self.history_layout)
 
         # Show empty label and hide clear button
         self.history_empty_label.show()
@@ -1074,7 +1075,3 @@ class TaskInterface(ScrollArea):
             self.network_worker = None
         self.task_manager.shutdown_all(deadline)
 
-    def closeEvent(self, event):
-        """Handle close event - cancel all active downloads and network check"""
-        self.cleanup_workers()
-        super().closeEvent(event)

@@ -3,11 +3,11 @@ apfs_snapshot.py: Handling APFS snapshots
 """
 
 import logging
-import platform
 import subprocess
 
 from ...datasets import os_data
-from ..           import subprocess_wrapper
+from ..system import subprocess_wrapper
+from ..system.rosetta import is_apple_silicon
 
 
 class APFSSnapshot:
@@ -15,18 +15,6 @@ class APFSSnapshot:
     def __init__(self, xnu_major: int, mount_path: str):
         self.xnu_major = xnu_major
         self.mount_path = mount_path
-
-    def _rosetta_status(self) -> bool:
-        """
-        Check if currently running inside of Rosetta.
-        """
-        result = subprocess_wrapper.run(
-            ["/usr/sbin/sysctl", "-n", "sysctl.proc_translated"],
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        )
-        if result.returncode != 0:
-            return False
-        return result.stdout.decode().strip() == "1"
 
     def create_snapshot(self) -> bool:
         """
@@ -36,7 +24,7 @@ class APFSSnapshot:
             return True
 
         args = ["/usr/sbin/bless"]
-        if platform.machine() == "arm64" or self._rosetta_status():
+        if is_apple_silicon():
             args += ["--mount", self.mount_path, "--create-snapshot"]
         else:
             args += [

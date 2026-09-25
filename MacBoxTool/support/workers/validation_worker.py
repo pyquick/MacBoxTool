@@ -12,8 +12,8 @@ from typing import Optional
 
 from PySide6.QtCore import QThread, Signal
 
-from ..integrity_verification import ChunklistVerification, ChunklistStatus
-from ..network_handler import TLS_CERTIFICATE_BUNDLE
+from ..artifacts.integrity_verification import ChunklistVerification, ChunklistStatus
+from ..net.network_handler import TLS_CERTIFICATE_BUNDLE
 
 
 class ValidationWorker(QThread):

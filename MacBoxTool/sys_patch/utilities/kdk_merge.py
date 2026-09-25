@@ -8,8 +8,10 @@ from pathlib import Path
 from ... import constants
 
 from ...datasets import os_data
-from ...support import subprocess_wrapper, kdk_handler
-from ...support.network_handler import DownloadWorker
+from ...support.artifacts import kdk_handler
+from ...support.artifacts.plist_metadata import mbt_plist_exists, mbt_plist_value
+from ...support.system import subprocess_wrapper
+from ...support.net.network_handler import DownloadWorker
 from ...volume import generate_copy_arguments
 
 
@@ -26,22 +28,15 @@ class KernelDebugKitMerge:
         """
         Check whether the KDK is already merged with the root volume
         """
-        mbt_plist = Path("/System/Library/CoreServices/MacBoxTool.plist")
-        if not mbt_plist.exists():
+        if not mbt_plist_exists():
             return False
 
         if not (Path(self.mount_location) / Path("System/Library/Extensions/System.kext/PlugIns/Libkern.kext/Libkern")).exists():
             return False
 
-        try:
-            mbt_plist_data = plistlib.load(open(mbt_plist, "rb"))
-            if "Kernel Debug Kit Used" not in mbt_plist_data:
-                return False
-            if mbt_plist_data["Kernel Debug Kit Used"] == str(kdk_path):
-                logging.info("- Matching KDK determined to already be merged, skipping")
-                return True
-        except:
-            pass
+        if mbt_plist_value("Kernel Debug Kit Used") == str(kdk_path):
+            logging.info("- Matching KDK determined to already be merged, skipping")
+            return True
 
         return False
 

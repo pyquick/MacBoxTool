@@ -1,8 +1,9 @@
 """Hardware support page."""
 
 from ..include import *
+from ..support.ui.qt_helpers import clear_layout
 from ..constants import Constants
-from ..support.hack import (
+from ..support.hardware.hack import (
     CompatStatus,
     evaluate,
     native_cpu_macos_range,
@@ -375,10 +376,7 @@ class HardwareSupport(ScrollArea):
 
     def _clear_layout(self) -> None:
         """Remove previous widgets before refreshing."""
-        while self.expandLayout.count():
-            item = self.expandLayout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        clear_layout(self.expandLayout)
 
     def refresh(self) -> None:
         """Recalculate and display the current hardware report."""

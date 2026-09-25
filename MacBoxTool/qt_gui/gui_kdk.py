@@ -3,36 +3,17 @@ gui_kdk.py: Kernel Debug Kit download interface
 """
 
 from ..include import *
+from ..support.ui.qt_helpers import WorkerShutdownMixin, clear_layout
 from .gui_support import DefGUI
 from .gui_task import TaskManager
-from ..support.kdk_sort import (
-    build_letter_to_minor,
+from ..support.artifacts.kdk_sort import (
     effective_kdk_version,
     latest_kdks,
-    parse_build_version,
     sort_kdks,
 )
-
-
-def build_to_kernel(build_string):
-    match = re.match(r'^(\d+)[A-Za-z]', str(build_string or ""))
-    if match:
-        return int(match.group(1))
-    return None
-
-
-def build_letter_to_minor(letter):
-    letter_index = ord(letter.upper()) - ord("A")
-    if letter.upper() > "I":
-        letter_index -= 1
-    return letter_index
-
-
-def version_major_minor(version):
-    match = re.match(r'^(\d+)\.(\d+)', str(version or ""))
-    if not match:
-        return None
-    return (int(match.group(1)), int(match.group(2)))
+from ..support.artifacts.build_version import build_to_marketing_name
+from ..support.ui.cards import NoAnimCardWidget
+from ..support.ui.package_icon import package_icon_path
 
 
 def build_to_display_version(item):
@@ -40,16 +21,6 @@ def build_to_display_version(item):
     if effective_version != (-1,):
         return ".".join(str(part) for part in effective_version)
     return item.get("version", "Unknown")
-
-
-def build_to_marketing_name(item):
-    kernel_major = build_to_kernel(item.get("build", ""))
-    if kernel_major is None:
-        try:
-            kernel_major = os_data.os_conversion.os_to_kernel(str(item.get("version", "0")))
-        except (ValueError, IndexError):
-            return ""
-    return os_data.os_conversion.convert_kernel_to_marketing_name(kernel_major)
 
 
 def display_version_major(item):
@@ -66,73 +37,6 @@ def sort_by_build(items):
 def latest_by_build_major(items, limit=4):
     return latest_kdks(items, limit)
 
-class NoAnimCardWidget(QFrame):
-    """Simple card widget without hover animation"""
-
-    clicked = Signal()
-
-    def __init__(self, parent=None):
-        super().__init__(parent=parent)
-        self._borderRadius = 5
-
-    def mouseReleaseEvent(self, e):
-        super().mouseReleaseEvent(e)
-        self.clicked.emit()
-
-    def getBorderRadius(self):
-        return self._borderRadius
-
-    def setBorderRadius(self, radius: int):
-        self._borderRadius = radius
-        self.update()
-
-    def paintEvent(self, e):
-        painter = QPainter(self)
-        painter.setRenderHints(QPainter.Antialiasing)
-
-        w, h = self.width(), self.height()
-        r = self.borderRadius
-        d = 2 * r
-
-        isDark = isDarkTheme()
-
-        # draw top border
-        path = QPainterPath()
-        path.arcMoveTo(1, h - d - 1, d, d, 240)
-        path.arcTo(1, h - d - 1, d, d, 225, -60)
-        path.lineTo(1, r)
-        path.arcTo(1, 1, d, d, -180, -90)
-        path.lineTo(w - r, 1)
-        path.arcTo(w - d - 1, 1, d, d, 90, -90)
-        path.lineTo(w - 1, h - r)
-        path.arcTo(w - d - 1, h - d - 1, d, d, 0, -60)
-
-        topBorderColor = QColor(0, 0, 0, 20)
-        if isDark:
-            topBorderColor = QColor(255, 255, 255, 13)
-        else:
-            topBorderColor = QColor(0, 0, 0, 15)
-
-        painter.strokePath(path, topBorderColor)
-
-        # draw bottom border
-        path = QPainterPath()
-        path.arcMoveTo(1, h - d - 1, d, d, 240)
-        path.arcTo(1, h - d - 1, d, d, 240, 30)
-        path.lineTo(w - r - 1, h - 1)
-        path.arcTo(w - d - 1, h - d - 1, d, d, 270, 30)
-
-        painter.strokePath(path, topBorderColor)
-
-        # draw background
-        painter.setPen(Qt.NoPen)
-        bgColor = QColor(255, 255, 255, 13 if isDark else 170)
-        painter.setBrush(bgColor)
-        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), r, r)
-
-    borderRadius = Property(int, getBorderRadius, setBorderRadius)
-
-
 
 class KDKCard(NoAnimCardWidget):
     """KDK card widget"""
@@ -148,7 +52,7 @@ class KDKCard(NoAnimCardWidget):
 
         # 使用 build 推断显示版本，避免上游 beta version 错误。
         major_version = display_version_major(kdk_data)
-        icon_path = self.get_package_icon_path(major_version)
+        icon_path = package_icon_path(constants, major_version)
 
         self.icon_widget = ImageLabel(icon_path, self)
         self.icon_widget.setFixedSize(48, 48)
@@ -177,36 +81,6 @@ class KDKCard(NoAnimCardWidget):
         self.copy_link_button.clicked.connect(self._on_copy_link)
 
         self._init_layout()
-
-    def get_package_icon_path(self, major_version: int) -> str:
-        """
-        Get package icon path for a given macOS major version.
-        Returns PNG path with version-specific icon (Packagexx.png where 11<=xx<=26).
-
-        Args:
-            major_version: macOS major version (e.g., 11 for Big Sur, 15 for Sequoia)
-
-        Returns:
-            str: Path to package icon PNG file
-        """
-        generic_icon_path = str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
-
-        # 将显示用 macOS major version 映射到已有或预留的 package 图标。
-        if major_version == 27:
-            icon_path = Path(self.constants.package_icns_path_tahoe).with_name("Package27.icns").with_suffix(".png")
-            return str(icon_path) if icon_path.exists() else generic_icon_path
-        if major_version == 26:
-            index = 6
-        elif 11 <= major_version <= 15:
-            index = major_version - 10
-        else:
-            return generic_icon_path
-
-        if index < len(self.constants.package_icns_paths):
-            icon_path = Path(self.constants.package_icns_paths[index]).with_suffix(".png")
-            return str(icon_path) if icon_path.exists() else generic_icon_path
-
-        return generic_icon_path
 
     def _init_layout(self):
         layout = QHBoxLayout(self)
@@ -238,7 +112,7 @@ class KDKCard(NoAnimCardWidget):
             )
 
 
-class KDKList(ScrollArea):
+class KDKList(WorkerShutdownMixin, ScrollArea):
     """KDK list interface"""
 
     def __init__(self, global_constants: Constants, ui_support: DefGUI = None, global_settings: GlobalSettings = None, parent=None):
@@ -268,36 +142,6 @@ class KDKList(ScrollArea):
 
         logging.info("[KDKList] Initialized")
         self.load_kdks()
-
-    def get_package_icon_path(self, major_version: int) -> str:
-        """
-        Get package icon path for a given macOS major version.
-        Returns PNG path with version-specific icon (Packagexx.png where 11<=xx<=26).
-
-        Args:
-            major_version: macOS major version (e.g., 11 for Big Sur, 15 for Sequoia)
-
-        Returns:
-            str: Path to package icon PNG file
-        """
-        generic_icon_path = str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
-
-        # 将显示用 macOS major version 映射到已有或预留的 package 图标。
-        if major_version == 27:
-            icon_path = Path(self.constants.package_icns_path_tahoe).with_name("Package27.icns").with_suffix(".png")
-            return str(icon_path) if icon_path.exists() else generic_icon_path
-        if major_version == 26:
-            index = 6
-        elif 11 <= major_version <= 15:
-            index = major_version - 10
-        else:
-            return generic_icon_path
-
-        if index < len(self.constants.package_icns_paths):
-            icon_path = Path(self.constants.package_icns_paths[index]).with_suffix(".png")
-            return str(icon_path) if icon_path.exists() else generic_icon_path
-
-        return generic_icon_path
 
     def _init_header(self):
         """Initialize header with latest-only toggle"""
@@ -345,7 +189,7 @@ class KDKList(ScrollArea):
             self._data_worker = None
 
         # Create new data processing worker
-        from ..support.multiprocess_data_handler import DataProcessorWorker
+        from ..support.artifacts.multiprocess_data_handler import DataProcessorWorker
 
         self._data_worker = DataProcessorWorker(
             self.constants.kdk_api_link,
@@ -387,10 +231,7 @@ class KDKList(ScrollArea):
         self.show_latest_only = checked
         self.is_loading = False
         # Clear all widgets from layout
-        while self.expandLayout.count():
-            item = self.expandLayout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        clear_layout(self.expandLayout)
         self._init_loading()
         self._show_loading(True)
         if self.available_kdks:
@@ -410,10 +251,7 @@ class KDKList(ScrollArea):
     def _display_kdks(self):
         # Clear all widgets from layout
         self.is_loading = True
-        while self.expandLayout.count():
-            item = self.expandLayout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        clear_layout(self.expandLayout)
 
         # Re-add header and loading container
         self._init_header()
@@ -459,10 +297,7 @@ class KDKList(ScrollArea):
                 self._show_loading(False)
         else:
             # Clear all widgets from layout
-            while self.expandLayout.count():
-                item = self.expandLayout.takeAt(0)
-                if item.widget():
-                    item.widget().deleteLater()
+            clear_layout(self.expandLayout)
             self._init_loading()
             self._show_loading(True)
             if self.available_kdks:
@@ -485,7 +320,7 @@ class KDKList(ScrollArea):
 
         # 使用 build 推断显示版本，避免上游 beta version 错误。
         major_version = display_version_major(kdk_data)
-        icon_path = self.get_package_icon_path(major_version)
+        icon_path = package_icon_path(self.constants, major_version)
 
         TaskManager.start_download(download_obj, icon=icon_path)
 
@@ -496,9 +331,4 @@ class KDKList(ScrollArea):
         if self._data_worker is not None:
             self._data_worker.stop()
             self._data_worker = None
-
-    def closeEvent(self, event):
-        """Clean up resources when window closes."""
-        self.cleanup_workers()
-        super().closeEvent(event)
 

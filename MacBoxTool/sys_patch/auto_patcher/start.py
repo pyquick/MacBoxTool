@@ -10,11 +10,9 @@ from packaging import version
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from ... import constants
-from ...support import (
-    utilities,
-    global_settings,
-    network_handler,
-)
+from ...support.config import global_settings
+from ...support.net import network_handler
+from ...support.system import utilities
 from ...support.update import check_update
 from ..patchsets import (
     HardwarePatchsetDetection,

@@ -2,13 +2,14 @@
 gui_settings.py: Settings page using Fluent Design components
 """
 from ..include import *
-from ..support import generate_smbios
+from ..support.hardware import generate_smbios
+from ..support.system.rosetta import is_apple_silicon
 import sys
 if sys.platform=="darwin":
-    from ..support import utilities
+    from ..support.system import utilities
     from ..detections import device_probe
 else:
-    from ..support import utilities_win as utilities
+    from ..support.system import utilities_win as utilities
     from ..detections import device_probe_win as device_probe
 from .gui_support import DefGUI, CheckProperties
 
@@ -186,7 +187,7 @@ class SettingsInterface(QWidget):
             self._add_tab("sip", "SIP", self.tab_sip)
         self._add_tab("smbios", "SMBIOS", self.tab_smbios)
         self._add_tab("misc", "Misc", self.tab_misc)
-        if not is_apple_silicon_runtime():
+        if not is_apple_silicon():
             self._add_tab("patch", "Patch", self.tab_patch)
         self._add_tab("debug", "Debug", self.tab_debug)
         self.pivot.setCurrentItem("build")
@@ -229,7 +230,7 @@ class SettingsInterface(QWidget):
         self._build_sip_group()
         self._build_smbios_group()
         self._build_misc_group()
-        if not is_apple_silicon_runtime():
+        if not is_apple_silicon():
             self._build_patch_group()
         self._build_debug_group()
 
@@ -969,7 +970,7 @@ class SettingsInterface(QWidget):
             self.sw_oc_everywhere.setChecked(_get("allow_oc_everywhere", False))
             self.sw_nvme_fix.setChecked(_get("allow_nvme_fixing", True))
 
-            if not is_apple_silicon_runtime():
+            if not is_apple_silicon():
                 self.allow_ts2_accel_card.setChecked(_get("allow_ts2_accel", True))
                 self.allow_usb_patch_card.setChecked(_get("allow_usb_patch", False))
                 audio_type = _get("audio_type", "AppleHDA")

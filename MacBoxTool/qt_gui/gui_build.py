@@ -2,14 +2,11 @@
 gui_build.py: Build OpenCore EFI for unsupported Macs
 """
 from ..include import *
+from ..support.ui.qt_helpers import WorkerShutdownMixin, clear_layout
+from ..support.ui.log_bridge import QtLogHandler
 from .gui_support import DefGUI, ProgressStatusHelper, AutoUpdateStages, stop_qt_workers
 
-try:
-    from ..support.crash_report import send_error_report_async
-except Exception:
-    # crash_report.py is a dev-only module; skip silently when unavailable
-    def send_error_report_async(*args, **kwargs) -> None:
-        pass
+from ..support.diagnostics.error_reporting import send_error_report_async
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QUrl
 
@@ -18,61 +15,35 @@ import threading
 # Import install_helper only on macOS
 if sys.platform == "darwin":
     try:
-        from ..support.install_helper import check_helper_installed
+        from ..support.system.install_helper import check_helper_installed
     except ImportError:
         check_helper_installed = None
 else:
     check_helper_installed = None
 
 
-from ..support.scan_disk_efi import get_efi_partitions, list_disks, list_partitions
+from ..support.system.formatting import format_size
+from ..support.system.scan_disk_efi import get_efi_partitions, list_disks, list_partitions
+
+# Partition sizes in the EFI picker are shown with a decimal even in bytes.
+PARTITION_SIZE_UNITS = ("B", "KB", "MB", "GB", "TB", "PB")
 
 
-class _SignalHandler(logging.Handler):
-    """Logging handler that emits Qt signals for real-time log display."""
-    STAGE_MAP = [
-        ("Building Configuration", 8, "Preparing build"),
-        ("Creating build folder", 18, "Preparing build folder"),
-        ("Build folder already present", 18, "Preparing build folder"),
-        ("Deleting old copy of OpenCore", 22, "Cleaning previous build"),
-        ("- Adding OpenCore v", 32, "Extracting OpenCore"),
-        ("- Adding config.plist for OpenCore", 42, "Preparing config"),
-        ("- Adding Lilu.kext", 50, "Loading base components"),
-        ("- Cleaning up files", 88, "Cleaning build output"),
-        ("- Vaulting EFI", 93, "Signing EFI"),
-        ("- Validating generated config", 96, "Validating EFI"),
-        ("Your OpenCore EFI for", 100, "Build complete"),
-        ("- Adding ", 72, "Configuring components"),
-    ]
-
-    def __init__(self, log_signal, progress_signal=None, total_steps=1, thread_id=None):
-        super().__init__()
-        self._log_signal = log_signal
-        self._progress_signal = progress_signal
-        self._thread_id = thread_id
-        self._last_progress = 0
-        self._last_stage = None
-
-    def _emit_stage_progress(self, msg):
-        for pattern, pct, stage_name in self.STAGE_MAP:
-            if pattern not in msg:
-                continue
-
-            if stage_name != self._last_stage:
-                self._last_stage = stage_name
-                self._log_signal.emit(f"[STEP] {stage_name}")
-
-            if self._progress_signal and pct > self._last_progress:
-                self._last_progress = pct
-                self._progress_signal.emit(pct)
-            return
-
-    def emit(self, record):
-        if self._thread_id is not None and record.thread != self._thread_id:
-            return
-        msg = self.format(record)
-        self._emit_stage_progress(msg)
-        self._log_signal.emit(msg)
+# Maps log lines emitted during an EFI build onto user-visible build stages.
+BUILD_STAGE_MAP = [
+    ("Building Configuration", 8, "Preparing build"),
+    ("Creating build folder", 18, "Preparing build folder"),
+    ("Build folder already present", 18, "Preparing build folder"),
+    ("Deleting old copy of OpenCore", 22, "Cleaning previous build"),
+    ("- Adding OpenCore v", 32, "Extracting OpenCore"),
+    ("- Adding config.plist for OpenCore", 42, "Preparing config"),
+    ("- Adding Lilu.kext", 50, "Loading base components"),
+    ("- Cleaning up files", 88, "Cleaning build output"),
+    ("- Vaulting EFI", 93, "Signing EFI"),
+    ("- Validating generated config", 96, "Validating EFI"),
+    ("Your OpenCore EFI for", 100, "Build complete"),
+    ("- Adding ", 72, "Configuring components"),
+]
 
 
 class BuildWorker(QThread):
@@ -89,7 +60,12 @@ class BuildWorker(QThread):
         self.constants = constants
 
     def run(self):
-        handler = _SignalHandler(self.log_signal, self.progress_signal, self.TOTAL_STEPS, threading.get_ident())
+        handler = QtLogHandler(
+            self.log_signal,
+            self.progress_signal,
+            threading.get_ident(),
+            BUILD_STAGE_MAP,
+        )
         handler.setFormatter(logging.Formatter("%(message)s"))
         root_logger = logging.getLogger()
         previous_level = root_logger.level
@@ -359,10 +335,7 @@ class EFIDiskSelectionMessageBox(MessageBoxBase):
         self.backButton.show()
 
         # Clear previous partition buttons
-        while self.partitionSelectionLayout.count():
-            item = self.partitionSelectionLayout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        clear_layout(self.partitionSelectionLayout)
 
         partitions = self.selected_disk.get("partitions", {})
 
@@ -384,7 +357,10 @@ class EFIDiskSelectionMessageBox(MessageBoxBase):
             part_size = part_data.get("size", 0)
 
             # Format size
-            size_str = self._format_size(part_size)
+            size_str = format_size(
+                part_size, precision=1, unknown=None,
+                units=PARTITION_SIZE_UNITS, integer_bytes=False,
+            )
 
             # Create label
             if part_name:
@@ -432,19 +408,11 @@ class EFIDiskSelectionMessageBox(MessageBoxBase):
             self.selected_partition = None
             self.yesButton.setEnabled(False)
 
-    def _format_size(self, size_bytes):
-        """Format size in bytes to human readable string."""
-        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-            if size_bytes < 1024.0:
-                return f"{size_bytes:.1f} {unit}"
-            size_bytes /= 1024.0
-        return f"{size_bytes:.1f} PB"
-
     def validate(self):
         return self.selected_partition is not None
 
 
-class BuildOCPage(ScrollArea):
+class BuildOCPage(WorkerShutdownMixin, ScrollArea):
 
     def __init__(self, global_constants: Constants, ui_support: DefGUI = None,
                  global_settings: GlobalSettings = None, parent=None):
@@ -695,10 +663,6 @@ class BuildOCPage(ScrollArea):
                 pass
         self.worker = None
         self.install_worker = None
-
-    def closeEvent(self, event):
-        self.cleanup_workers()
-        super().closeEvent(event)
 
     def refresh(self):
         target = self.settings.find_key("MODEL") or "Not Selected"

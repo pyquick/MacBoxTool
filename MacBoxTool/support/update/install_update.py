@@ -7,7 +7,7 @@ import zipfile
 from pathlib import Path
 
 from ... import constants
-from .. import subprocess_wrapper
+from ..system import subprocess_wrapper
 
 
 class InstallUpdate:

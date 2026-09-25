@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from .url       import CatalogURL
 from .constants import CatalogVersion, SeedType
 
-from ..support import network_handler
+from ..support.net import network_handler
 
 
 class CatalogProducts:

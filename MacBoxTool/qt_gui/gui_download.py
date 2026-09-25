@@ -3,7 +3,7 @@ gui_download.py: Download card widget
 """
 
 from ..include import *
-from ..support.network_handler import DownloadObject, DownloadStatus
+from ..support.net.network_handler import DownloadObject, DownloadStatus
 
 
 class DownloadCard(CardWidget):

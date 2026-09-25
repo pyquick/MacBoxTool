@@ -17,14 +17,15 @@ if sys.platform == "darwin":
     from .ioreg import *
 
 
-from ..support import utilities
+from ..support.artifacts.plist_metadata import mbt_plist_exists, read_mbt_plist
+from ..support.system import utilities
+from ..support.system.rosetta import is_apple_silicon, is_rosetta_translated
 
 from ..datasets import (
     cpu_data,
     pci_data,
     usb_data
 )
-
 
 def class_code_to_bytes(class_code: int) -> bytes:
     return class_code.to_bytes(4, byteorder="little")
@@ -281,18 +282,6 @@ class PCIDevice:
 
 
 @dataclass
-class GPU(PCIDevice):
-    CLASS_CODES: ClassVar[list[int]] = [0x030000, 0x038000]
-    arch: enum.Enum = field(init=False)  # The architecture, see subclasses.
-
-    def __post_init__(self):
-        self.detect_arch()
-
-    def detect_arch(self):
-        raise NotImplementedError
-
-
-@dataclass
 class WirelessCard(PCIDevice):
     CLASS_CODES: ClassVar[list[int]] = [0x028000]
     country_code: str = field(init=False)
@@ -347,6 +336,83 @@ class NVMeController(PCIDevice):
 
         return device
 
+
+@dataclass
+class Broadcom(WirelessCard):
+    VENDOR_ID: ClassVar[int] = 0x14E4
+
+    class Chipsets(enum.Enum):
+        # pylint: disable=invalid-name
+        AppleBCMWLANBusInterfacePCIe = "AppleBCMWLANBusInterfacePCIe supported"
+        AirportBrcmNIC = "AirportBrcmNIC supported"
+        AirPortBrcmNICThirdParty = "AirPortBrcmNICThirdParty supported"
+        AirPortBrcm4360 = "AirPortBrcm4360 supported"
+        AirPortBrcm4331 = "AirPortBrcm4331 supported"
+        AirPortBrcm43224 = "AppleAirPortBrcm43224 supported"
+        Unknown = "Unknown"
+
+    chipset: Chipsets = field(init=False)
+
+    def detect_chipset(self):
+        if self.device_id in pci_data.broadcom_ids.AppleBCMWLANBusInterfacePCIe:
+            self.chipset = Broadcom.Chipsets.AppleBCMWLANBusInterfacePCIe
+        elif self.device_id in pci_data.broadcom_ids.AirPortBrcmNIC:
+            self.chipset = Broadcom.Chipsets.AirportBrcmNIC
+        elif self.device_id in pci_data.broadcom_ids.AirPortBrcmNICThirdParty:
+            self.chipset = Broadcom.Chipsets.AirPortBrcmNICThirdParty
+        elif self.device_id in pci_data.broadcom_ids.AirPortBrcm4360:
+            self.chipset = Broadcom.Chipsets.AirPortBrcm4360
+        elif self.device_id in pci_data.broadcom_ids.AirPortBrcm4331:
+            self.chipset = Broadcom.Chipsets.AirPortBrcm4331
+        elif self.device_id in pci_data.broadcom_ids.AppleAirPortBrcm43224:
+            self.chipset = Broadcom.Chipsets.AirPortBrcm43224
+        else:
+            self.chipset = Broadcom.Chipsets.Unknown
+
+@dataclass
+class IntelWirelessCard(WirelessCard):
+    VENDOR_ID: ClassVar[int] = 0x8086 #Intel Wireless 
+
+    class Chipsets(enum.Enum):
+        IntelWirelessIDs = "Intel Wireless supported"
+        Unknown = "Unknown"
+
+    chipset: Chipsets = field(init=False)
+
+    def detect_chipset(self):
+        if self.device_id in pci_data.intelwl_ids.IntelWirelessIDs:
+            self.chipset = IntelWirelessCard.Chipsets.IntelWirelessIDs
+        else:
+            self.chipset = IntelWirelessCard.Chipsets.Unknown
+@dataclass
+class Atheros(WirelessCard):
+    VENDOR_ID: ClassVar[int] = 0x168C
+
+    class Chipsets(enum.Enum):
+        # pylint: disable=invalid-name
+        # Well there's only one model but
+        AirPortAtheros40 = "AirPortAtheros40 supported"
+        Unknown = "Unknown"
+
+    chipset: Chipsets = field(init=False)
+
+    def detect_chipset(self):
+        if self.device_id in pci_data.atheros_ids.AtherosWifi:
+            self.chipset = Atheros.Chipsets.AirPortAtheros40
+        else:
+            self.chipset = Atheros.Chipsets.Unknown
+
+
+@dataclass
+class GPU(PCIDevice):
+    CLASS_CODES: ClassVar[list[int]] = [0x030000, 0x038000]
+    arch: enum.Enum = field(init=False)  # The architecture, see subclasses.
+
+    def __post_init__(self):
+        self.detect_arch()
+
+    def detect_arch(self):
+        raise NotImplementedError
 
 @dataclass
 class EthernetController(PCIDevice):
@@ -478,7 +544,6 @@ class AMD(GPU):
         else:
             self.arch = AMD.Archs.Unknown
 
-
 @dataclass
 class Intel(GPU):
     VENDOR_ID: ClassVar[int] = 0x8086
@@ -552,53 +617,6 @@ class IntelEthernet(EthernetController):
             self.chipset = IntelEthernet.Chipsets.Unknown
 
 @dataclass
-class Broadcom(WirelessCard):
-    VENDOR_ID: ClassVar[int] = 0x14E4
-
-    class Chipsets(enum.Enum):
-        # pylint: disable=invalid-name
-        AppleBCMWLANBusInterfacePCIe = "AppleBCMWLANBusInterfacePCIe supported"
-        AirportBrcmNIC = "AirportBrcmNIC supported"
-        AirPortBrcmNICThirdParty = "AirPortBrcmNICThirdParty supported"
-        AirPortBrcm4360 = "AirPortBrcm4360 supported"
-        AirPortBrcm4331 = "AirPortBrcm4331 supported"
-        AirPortBrcm43224 = "AppleAirPortBrcm43224 supported"
-        Unknown = "Unknown"
-
-    chipset: Chipsets = field(init=False)
-
-    def detect_chipset(self):
-        if self.device_id in pci_data.broadcom_ids.AppleBCMWLANBusInterfacePCIe:
-            self.chipset = Broadcom.Chipsets.AppleBCMWLANBusInterfacePCIe
-        elif self.device_id in pci_data.broadcom_ids.AirPortBrcmNIC:
-            self.chipset = Broadcom.Chipsets.AirportBrcmNIC
-        elif self.device_id in pci_data.broadcom_ids.AirPortBrcmNICThirdParty:
-            self.chipset = Broadcom.Chipsets.AirPortBrcmNICThirdParty
-        elif self.device_id in pci_data.broadcom_ids.AirPortBrcm4360:
-            self.chipset = Broadcom.Chipsets.AirPortBrcm4360
-        elif self.device_id in pci_data.broadcom_ids.AirPortBrcm4331:
-            self.chipset = Broadcom.Chipsets.AirPortBrcm4331
-        elif self.device_id in pci_data.broadcom_ids.AppleAirPortBrcm43224:
-            self.chipset = Broadcom.Chipsets.AirPortBrcm43224
-        else:
-            self.chipset = Broadcom.Chipsets.Unknown
-
-@dataclass
-class IntelWirelessCard(WirelessCard):
-    VENDOR_ID: ClassVar[int] = 0x8086 #Intel Wireless 
-
-    class Chipsets(enum.Enum):
-        IntelWirelessIDs = "Intel Wireless supported"
-        Unknown = "Unknown"
-
-    chipset: Chipsets = field(init=False)
-
-    def detect_chipset(self):
-        if self.device_id in pci_data.intelwl_ids.IntelWirelessIDs:
-            self.chipset = IntelWirelessCard.Chipsets.IntelWirelessIDs
-        else:
-            self.chipset = IntelWirelessCard.Chipsets.Unknown
-@dataclass
 class BroadcomEthernet(EthernetController):
     VENDOR_ID: ClassVar[int] = 0x14E4
 
@@ -613,24 +631,6 @@ class BroadcomEthernet(EthernetController):
             self.chipset = BroadcomEthernet.Chipsets.AppleBCM5701Ethernet
         else:
             self.chipset = BroadcomEthernet.Chipsets.Unknown
-@dataclass
-class Atheros(WirelessCard):
-    VENDOR_ID: ClassVar[int] = 0x168C
-
-    class Chipsets(enum.Enum):
-        # pylint: disable=invalid-name
-        # Well there's only one model but
-        AirPortAtheros40 = "AirPortAtheros40 supported"
-        Unknown = "Unknown"
-
-    chipset: Chipsets = field(init=False)
-
-    def detect_chipset(self):
-        if self.device_id in pci_data.atheros_ids.AtherosWifi:
-            self.chipset = Atheros.Chipsets.AirPortAtheros40
-        else:
-            self.chipset = Atheros.Chipsets.Unknown
-
 
 @dataclass
 class Aquantia(EthernetController):
@@ -963,8 +963,8 @@ class Computer:
         # Reported model
         entry = next(ioiterator_to_list(IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching("IOPlatformExpertDevice".encode()), None)[1]))
         self.reported_model = corefoundation_to_native(IORegistryEntryCreateCFProperty(entry, "model", kCFAllocatorDefault, kNilOptions)).strip(b"\0").decode()  # type: ignore
-        translated = subprocess.run(["/usr/sbin/sysctl", "-in", "sysctl.proc_translated"], stdout=subprocess.PIPE).stdout.decode()
-        if translated:
+        # Apple Silicon exposes `target-type`; Intel only has `board-id`.
+        if is_apple_silicon():
             board = "target-type"
         else:
             board = "board-id"
@@ -1200,26 +1200,17 @@ class Computer:
     def mbt_sys_patch_probe(self):
         if sys.platform != "darwin":
             return
-        path = Path("/System/Library/CoreServices/MacBoxTool.plist")
-        if not path.exists():
+        if not mbt_plist_exists():
             self.mbt_sys_signed = True  # No plist, so assume root is valid
             return
-        sys_plist = plistlib.load(path.open("rb"))
-        if sys_plist:
-            if "MacBoxTool" in sys_plist:
-                self.mbt_sys_version = sys_plist["MacBoxTool"]
-            if "Time Patched" in sys_plist:
-                self.mbt_sys_date = sys_plist["Time Patched"]
-            if "Commit URL" in sys_plist:
-                self.mbt_sys_url = sys_plist["Commit URL"]
-            if "Custom Signature" in sys_plist:
-                self.mbt_sys_signed = sys_plist["Custom Signature"]
+        sys_plist = read_mbt_plist()
+        self.mbt_sys_version = sys_plist.get("MacBoxTool")
+        self.mbt_sys_date = sys_plist.get("Time Patched")
+        self.mbt_sys_url = sys_plist.get("Commit URL")
+        if "Custom Signature" in sys_plist:
+            self.mbt_sys_signed = sys_plist["Custom Signature"]
 
     def check_rosetta(self):
         if sys.platform != "darwin":
             return
-        result = subprocess.run(["/usr/sbin/sysctl", "-in", "sysctl.proc_translated"], stdout=subprocess.PIPE).stdout.decode()
-        if "1" in result:
-            self.rosetta_active = True
-        else:
-            self.rosetta_active = False
+        self.rosetta_active = is_rosetta_translated()

@@ -7,8 +7,10 @@ Design uses:
 """
 
 from ..include import *
+from ..support.ui.qt_helpers import WorkerShutdownMixin, clear_layout
 from .gui_support import DefGUI, stop_qt_workers
-from ..support.icon_to_assets import convert_icon_file_streaming as _convert_streaming
+from ..support.system.formatting import format_size
+from ..support.ui.icon_to_assets import convert_icon_file_streaming as _convert_streaming
 
 from PySide6.QtCore import QThread, Signal
 
@@ -40,7 +42,7 @@ class _ConvertWorker(QThread):
 # Page
 # ---------------------------------------------------------------------------
 
-class IconConverterInterface(ScrollArea):
+class IconConverterInterface(WorkerShutdownMixin, ScrollArea):
 
     def __init__(
         self,
@@ -145,24 +147,9 @@ class IconConverterInterface(ScrollArea):
         return total
 
     @staticmethod
-    def _fmt_size(size: int) -> str:
-        if size <= 0:
-            return "Unknown"
-        for unit in ("B", "KB", "MB", "GB"):
-            if size < 1024:
-                return f"{size:.1f} {unit}" if unit != "B" else f"{size} B"
-            size /= 1024
-        return f"{size:.1f} TB"
-
-    @staticmethod
     def _clear_layout(layout):
-        while layout.count():
-            item = layout.takeAt(0)
-            w = item.widget()
-            if w:
-                w.deleteLater()
-            elif item.layout():
-                IconConverterInterface._clear_layout(item.layout())
+        # Unlike the other pages this one must also clear detached sub-layouts.
+        clear_layout(layout, recursive=True)
 
     # ==================================================================
     # Build UI
@@ -253,7 +240,10 @@ class IconConverterInterface(ScrollArea):
             type_text = "File"
             detail = name
 
-        size = self._fmt_size(self._dir_size(p) if is_bundle else p.stat().st_size)
+        size = format_size(
+            self._dir_size(p) if is_bundle else p.stat().st_size,
+            precision=1, unknown="Unknown",
+        )
 
         self._replace_content(self.info_layout, 1)
         self.info_layout.addWidget(self._row(FluentIcon.TAG, name, "File name"))
@@ -324,8 +314,8 @@ class IconConverterInterface(ScrollArea):
     def _refresh_result(self, car_path: str, icns_path: str):
         self._replace_content(self.result_layout, 1)
 
-        car_size = self._fmt_size(Path(car_path).stat().st_size)
-        icns_size = self._fmt_size(Path(icns_path).stat().st_size)
+        car_size = format_size(Path(car_path).stat().st_size, precision=1, unknown="Unknown")
+        icns_size = format_size(Path(icns_path).stat().st_size, precision=1, unknown="Unknown")
 
         # Assets.car
         car_row = self._row(FluentIcon.ACCEPT, "Assets.car", car_size, COLORS["success"])
@@ -494,6 +484,3 @@ class IconConverterInterface(ScrollArea):
         stop_qt_workers((self._worker,), deadline=deadline)
         self._worker = None
 
-    def closeEvent(self, event):
-        self.cleanup_workers()
-        super().closeEvent(event)

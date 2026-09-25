@@ -10,7 +10,7 @@ from pathlib import Path
 
 from ... import constants
 
-from ...support import subprocess_wrapper
+from ...support.system import subprocess_wrapper
 
 
 class PatcherSupportPkgMount:

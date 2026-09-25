@@ -12,7 +12,9 @@ from typing import Any, ClassVar, Optional
 import wmi
 
 from ..datasets import cpu_data, pci_data, usb_data
-from ..support import utilities_win as utilities
+
+from ..support.artifacts.plist_metadata import mbt_plist_exists, read_mbt_plist
+from ..support.system import utilities_win as utilities
 
 
 # ---------------------------------------------------------------------------
@@ -329,33 +331,9 @@ class PCIDevice:
 
 
 @dataclass
-class GPU(PCIDevice):
-    CLASS_CODES: ClassVar[list[int]] = [0x030000, 0x038000]
-    arch: enum.Enum = field(init=False)
-
-    def __post_init__(self):
-        self.detect_arch()
-
-    def detect_arch(self):
-        raise NotImplementedError
-
-
-@dataclass
 class WirelessCard(PCIDevice):
     CLASS_CODES: ClassVar[list[int]] = [0x028000]
     country_code: Optional[str] = field(init=False, default=None)
-    chipset: enum.Enum = field(init=False)
-
-    def __post_init__(self):
-        self.detect_chipset()
-
-    def detect_chipset(self):
-        raise NotImplementedError
-
-
-@dataclass
-class EthernetController(PCIDevice):
-    CLASS_CODES: ClassVar[list[int]] = [0x020000]
     chipset: enum.Enum = field(init=False)
 
     def __post_init__(self):
@@ -370,152 +348,9 @@ class NVMeController(PCIDevice):
     CLASS_CODES: ClassVar[list[int]] = [0x010802, 0x018002]
     aspm: Optional[int] = None
 
-@dataclass
-class SATAController(PCIDevice):
-    CLASS_CODES: ClassVar[list[int]] = [0x010601]
-
-@dataclass
-class SASController(PCIDevice):
-    CLASS_CODES: ClassVar[list[int]] = [0x010400]
-
-@dataclass
-class XHCIController(PCIDevice):
-    CLASS_CODES: ClassVar[list[int]] = [0x0c0330]
-
-@dataclass
-class EHCIController(PCIDevice):
-    CLASS_CODES: ClassVar[list[int]] = [0x0c0320]
-
-@dataclass
-class OHCIController(PCIDevice):
-    CLASS_CODES: ClassVar[list[int]] = [0x0c0310]
-
-@dataclass
-class UHCIController(PCIDevice):
-    CLASS_CODES: ClassVar[list[int]] = [0x0c0300]
-
-@dataclass
-class SDXCController(PCIDevice):
-    CLASS_CODES: ClassVar[list[int]] = [0x080501]
-
-
 # ---------------------------------------------------------------------------
 # GPU vendor subclasses
 # ---------------------------------------------------------------------------
-
-@dataclass
-class NVIDIA(GPU):
-    VENDOR_ID: ClassVar[int] = 0x10DE
-
-    class Archs(enum.Enum):
-        Curie   = "Curie"
-        Tesla   = "Tesla"
-        Fermi   = "Fermi"
-        Kepler  = "Kepler"
-        Maxwell = "Maxwell"
-        Pascal  = "Pascal"
-        Unknown = "Unknown"
-
-    arch: Archs = field(init=False)
-
-    def detect_arch(self):
-        if   self.device_id in pci_data.nvidia_ids.curie_ids:   self.arch = NVIDIA.Archs.Curie
-        elif self.device_id in pci_data.nvidia_ids.tesla_ids:   self.arch = NVIDIA.Archs.Tesla
-        elif self.device_id in pci_data.nvidia_ids.fermi_ids:   self.arch = NVIDIA.Archs.Fermi
-        elif self.device_id in pci_data.nvidia_ids.kepler_ids:  self.arch = NVIDIA.Archs.Kepler
-        elif self.device_id in pci_data.nvidia_ids.maxwell_ids: self.arch = NVIDIA.Archs.Maxwell
-        elif self.device_id in pci_data.nvidia_ids.pascal_ids:  self.arch = NVIDIA.Archs.Pascal
-        else:                                                    self.arch = NVIDIA.Archs.Unknown
-
-
-@dataclass
-class AMD(GPU):
-    VENDOR_ID: ClassVar[int] = 0x1002
-
-    class Archs(enum.Enum):
-        R500            = "R500"
-        TeraScale_1     = "TeraScale 1"
-        TeraScale_2     = "TeraScale 2"
-        Legacy_GCN_7000 = "Legacy GCN v1"
-        Legacy_GCN_8000 = "Legacy GCN v2"
-        Legacy_GCN_9000 = "Legacy GCN v3"
-        Polaris         = "Polaris"
-        Polaris_Spoof   = "Polaris (Spoofed)"
-        Vega            = "Vega"
-        Navi            = "Navi"
-        Unknown         = "Unknown"
-
-    arch: Archs = field(init=False)
-
-    def detect_arch(self):
-        if   self.device_id in pci_data.amd_ids.r500_ids:        self.arch = AMD.Archs.R500
-        elif self.device_id in pci_data.amd_ids.gcn_7000_ids:    self.arch = AMD.Archs.Legacy_GCN_7000
-        elif self.device_id in pci_data.amd_ids.gcn_8000_ids:    self.arch = AMD.Archs.Legacy_GCN_8000
-        elif self.device_id in pci_data.amd_ids.gcn_9000_ids:    self.arch = AMD.Archs.Legacy_GCN_9000
-        elif self.device_id in pci_data.amd_ids.terascale_1_ids: self.arch = AMD.Archs.TeraScale_1
-        elif self.device_id in pci_data.amd_ids.terascale_2_ids: self.arch = AMD.Archs.TeraScale_2
-        elif self.device_id in pci_data.amd_ids.polaris_ids:     self.arch = AMD.Archs.Polaris
-        elif self.device_id in pci_data.amd_ids.polaris_spoof_ids: self.arch = AMD.Archs.Polaris_Spoof
-        elif self.device_id in pci_data.amd_ids.vega_ids:        self.arch = AMD.Archs.Vega
-        elif self.device_id in pci_data.amd_ids.navi_ids:        self.arch = AMD.Archs.Navi
-        else:                                                     self.arch = AMD.Archs.Unknown
-
-
-@dataclass
-class Intel(GPU):
-    VENDOR_ID: ClassVar[int] = 0x8086
-
-    class Archs(enum.Enum):
-        GMA_950     = "GMA 950"
-        GMA_X3100   = "GMA X3100"
-        Iron_Lake   = "Iron Lake"
-        Sandy_Bridge = "Sandy Bridge"
-        Ivy_Bridge  = "Ivy Bridge"
-        Haswell     = "Haswell"
-        Broadwell   = "Broadwell"
-        Skylake     = "Skylake"
-        Kaby_Lake   = "Kaby Lake"
-        Coffee_Lake = "Coffee Lake"
-        Comet_Lake  = "Comet Lake"
-        Ice_Lake    = "Ice Lake"
-        Unknown     = "Unknown"
-
-    arch: Archs = field(init=False)
-
-    def detect_arch(self):
-        if   self.device_id in pci_data.intel_ids.gma_950_ids:    self.arch = Intel.Archs.GMA_950
-        elif self.device_id in pci_data.intel_ids.gma_x3100_ids:  self.arch = Intel.Archs.GMA_X3100
-        elif self.device_id in pci_data.intel_ids.iron_ids:       self.arch = Intel.Archs.Iron_Lake
-        elif self.device_id in pci_data.intel_ids.sandy_ids:      self.arch = Intel.Archs.Sandy_Bridge
-        elif self.device_id in pci_data.intel_ids.ivy_ids:        self.arch = Intel.Archs.Ivy_Bridge
-        elif self.device_id in pci_data.intel_ids.haswell_ids:    self.arch = Intel.Archs.Haswell
-        elif self.device_id in pci_data.intel_ids.broadwell_ids:  self.arch = Intel.Archs.Broadwell
-        elif self.device_id in pci_data.intel_ids.skylake_ids:    self.arch = Intel.Archs.Skylake
-        elif self.device_id in pci_data.intel_ids.kaby_lake_ids:  self.arch = Intel.Archs.Kaby_Lake
-        elif self.device_id in pci_data.intel_ids.coffee_lake_ids: self.arch = Intel.Archs.Coffee_Lake
-        elif self.device_id in pci_data.intel_ids.comet_lake_ids: self.arch = Intel.Archs.Comet_Lake
-        elif self.device_id in pci_data.intel_ids.ice_lake_ids:   self.arch = Intel.Archs.Ice_Lake
-        else:                                                      self.arch = Intel.Archs.Unknown
-
-
-@dataclass
-class IntelEthernet(EthernetController):
-    VENDOR_ID: ClassVar[int] = 0x8086
-
-    class Chipsets(enum.Enum):
-        AppleIntel8254XEthernet = "AppleIntel8254XEthernet Supported"
-        AppleIntelI210Ethernet  = "AppleIntelI210Ethernet Supported"
-        Intel82574L             = "Intel82574L Supported"
-        Unknown                 = "Unknown"
-
-    chipset: Chipsets = field(init=False)
-
-    def detect_chipset(self):
-        if   self.device_id in pci_data.intel_ids.AppleIntel8254XEthernet: self.chipset = IntelEthernet.Chipsets.AppleIntel8254XEthernet
-        elif self.device_id in pci_data.intel_ids.AppleIntelI210Ethernet:  self.chipset = IntelEthernet.Chipsets.AppleIntelI210Ethernet
-        elif self.device_id in pci_data.intel_ids.Intel82574L:             self.chipset = IntelEthernet.Chipsets.Intel82574L
-        else:                                                               self.chipset = IntelEthernet.Chipsets.Unknown
-
 
 @dataclass
 class Broadcom(WirelessCard):
@@ -560,23 +395,6 @@ class IntelWirelessCard(WirelessCard):
 
 
 @dataclass
-class BroadcomEthernet(EthernetController):
-    VENDOR_ID: ClassVar[int] = 0x14E4
-
-    class Chipsets(enum.Enum):
-        AppleBCM5701Ethernet = "AppleBCM5701Ethernet supported"
-        Unknown              = "Unknown"
-
-    chipset: Chipsets = field(init=False)
-
-    def detect_chipset(self):
-        if self.device_id in pci_data.broadcom_ids.AppleBCM5701Ethernet:
-            self.chipset = BroadcomEthernet.Chipsets.AppleBCM5701Ethernet
-        else:
-            self.chipset = BroadcomEthernet.Chipsets.Unknown
-
-
-@dataclass
 class Atheros(WirelessCard):
     VENDOR_ID: ClassVar[int] = 0x168C
 
@@ -594,6 +412,194 @@ class Atheros(WirelessCard):
 
 
 @dataclass
+class GPU(PCIDevice):
+    CLASS_CODES: ClassVar[list[int]] = [0x030000, 0x038000]
+    arch: enum.Enum = field(init=False)
+
+    def __post_init__(self):
+        self.detect_arch()
+
+    def detect_arch(self):
+        raise NotImplementedError
+
+@dataclass
+class EthernetController(PCIDevice):
+    CLASS_CODES: ClassVar[list[int]] = [0x020000]
+    chipset: enum.Enum = field(init=False)
+
+    def __post_init__(self):
+        self.detect_chipset()
+
+    def detect_chipset(self):
+        raise NotImplementedError
+
+@dataclass
+class SATAController(PCIDevice):
+    CLASS_CODES: ClassVar[list[int]] = [0x010601]
+
+@dataclass
+class SASController(PCIDevice):
+    CLASS_CODES: ClassVar[list[int]] = [0x010400]
+
+@dataclass
+class XHCIController(PCIDevice):
+    CLASS_CODES: ClassVar[list[int]] = [0x0c0330]
+
+@dataclass
+class EHCIController(PCIDevice):
+    CLASS_CODES: ClassVar[list[int]] = [0x0c0320]
+
+@dataclass
+class OHCIController(PCIDevice):
+    CLASS_CODES: ClassVar[list[int]] = [0x0c0310]
+
+@dataclass
+class UHCIController(PCIDevice):
+    CLASS_CODES: ClassVar[list[int]] = [0x0c0300]
+
+@dataclass
+class SDXCController(PCIDevice):
+    CLASS_CODES: ClassVar[list[int]] = [0x080501]
+
+@dataclass
+class NVIDIA(GPU):
+    VENDOR_ID: ClassVar[int] = 0x10DE
+
+    class Archs(enum.Enum):
+        Curie   = "Curie"
+        Tesla   = "Tesla"
+        Fermi   = "Fermi"
+        Kepler  = "Kepler"
+        Maxwell = "Maxwell"
+        Pascal  = "Pascal"
+        Unknown = "Unknown"
+
+    arch: Archs = field(init=False)
+
+    def detect_arch(self):
+        if   self.device_id in pci_data.nvidia_ids.curie_ids:   self.arch = NVIDIA.Archs.Curie
+        elif self.device_id in pci_data.nvidia_ids.tesla_ids:   self.arch = NVIDIA.Archs.Tesla
+        elif self.device_id in pci_data.nvidia_ids.fermi_ids:   self.arch = NVIDIA.Archs.Fermi
+        elif self.device_id in pci_data.nvidia_ids.kepler_ids:  self.arch = NVIDIA.Archs.Kepler
+        elif self.device_id in pci_data.nvidia_ids.maxwell_ids: self.arch = NVIDIA.Archs.Maxwell
+        elif self.device_id in pci_data.nvidia_ids.pascal_ids:  self.arch = NVIDIA.Archs.Pascal
+        else:                                                    self.arch = NVIDIA.Archs.Unknown
+
+@dataclass
+class NVIDIAEthernet(EthernetController):
+    VENDOR_ID: ClassVar[int] = 0x10DE
+
+    class Chipsets(enum.Enum):
+        nForceEthernet = "nForceEthernet"
+
+    chipset: Chipsets = field(init=False)
+
+    def detect_chipset(self):
+        self.chipset = NVIDIAEthernet.Chipsets.nForceEthernet
+
+@dataclass
+class AMD(GPU):
+    VENDOR_ID: ClassVar[int] = 0x1002
+
+    class Archs(enum.Enum):
+        R500            = "R500"
+        TeraScale_1     = "TeraScale 1"
+        TeraScale_2     = "TeraScale 2"
+        Legacy_GCN_7000 = "Legacy GCN v1"
+        Legacy_GCN_8000 = "Legacy GCN v2"
+        Legacy_GCN_9000 = "Legacy GCN v3"
+        Polaris         = "Polaris"
+        Polaris_Spoof   = "Polaris (Spoofed)"
+        Vega            = "Vega"
+        Navi            = "Navi"
+        Unknown         = "Unknown"
+
+    arch: Archs = field(init=False)
+
+    def detect_arch(self):
+        if   self.device_id in pci_data.amd_ids.r500_ids:        self.arch = AMD.Archs.R500
+        elif self.device_id in pci_data.amd_ids.gcn_7000_ids:    self.arch = AMD.Archs.Legacy_GCN_7000
+        elif self.device_id in pci_data.amd_ids.gcn_8000_ids:    self.arch = AMD.Archs.Legacy_GCN_8000
+        elif self.device_id in pci_data.amd_ids.gcn_9000_ids:    self.arch = AMD.Archs.Legacy_GCN_9000
+        elif self.device_id in pci_data.amd_ids.terascale_1_ids: self.arch = AMD.Archs.TeraScale_1
+        elif self.device_id in pci_data.amd_ids.terascale_2_ids: self.arch = AMD.Archs.TeraScale_2
+        elif self.device_id in pci_data.amd_ids.polaris_ids:     self.arch = AMD.Archs.Polaris
+        elif self.device_id in pci_data.amd_ids.polaris_spoof_ids: self.arch = AMD.Archs.Polaris_Spoof
+        elif self.device_id in pci_data.amd_ids.vega_ids:        self.arch = AMD.Archs.Vega
+        elif self.device_id in pci_data.amd_ids.navi_ids:        self.arch = AMD.Archs.Navi
+        else:                                                     self.arch = AMD.Archs.Unknown
+
+@dataclass
+class Intel(GPU):
+    VENDOR_ID: ClassVar[int] = 0x8086
+
+    class Archs(enum.Enum):
+        GMA_950     = "GMA 950"
+        GMA_X3100   = "GMA X3100"
+        Iron_Lake   = "Iron Lake"
+        Sandy_Bridge = "Sandy Bridge"
+        Ivy_Bridge  = "Ivy Bridge"
+        Haswell     = "Haswell"
+        Broadwell   = "Broadwell"
+        Skylake     = "Skylake"
+        Kaby_Lake   = "Kaby Lake"
+        Coffee_Lake = "Coffee Lake"
+        Comet_Lake  = "Comet Lake"
+        Ice_Lake    = "Ice Lake"
+        Unknown     = "Unknown"
+
+    arch: Archs = field(init=False)
+
+    def detect_arch(self):
+        if   self.device_id in pci_data.intel_ids.gma_950_ids:    self.arch = Intel.Archs.GMA_950
+        elif self.device_id in pci_data.intel_ids.gma_x3100_ids:  self.arch = Intel.Archs.GMA_X3100
+        elif self.device_id in pci_data.intel_ids.iron_ids:       self.arch = Intel.Archs.Iron_Lake
+        elif self.device_id in pci_data.intel_ids.sandy_ids:      self.arch = Intel.Archs.Sandy_Bridge
+        elif self.device_id in pci_data.intel_ids.ivy_ids:        self.arch = Intel.Archs.Ivy_Bridge
+        elif self.device_id in pci_data.intel_ids.haswell_ids:    self.arch = Intel.Archs.Haswell
+        elif self.device_id in pci_data.intel_ids.broadwell_ids:  self.arch = Intel.Archs.Broadwell
+        elif self.device_id in pci_data.intel_ids.skylake_ids:    self.arch = Intel.Archs.Skylake
+        elif self.device_id in pci_data.intel_ids.kaby_lake_ids:  self.arch = Intel.Archs.Kaby_Lake
+        elif self.device_id in pci_data.intel_ids.coffee_lake_ids: self.arch = Intel.Archs.Coffee_Lake
+        elif self.device_id in pci_data.intel_ids.comet_lake_ids: self.arch = Intel.Archs.Comet_Lake
+        elif self.device_id in pci_data.intel_ids.ice_lake_ids:   self.arch = Intel.Archs.Ice_Lake
+        else:                                                      self.arch = Intel.Archs.Unknown
+
+@dataclass
+class IntelEthernet(EthernetController):
+    VENDOR_ID: ClassVar[int] = 0x8086
+
+    class Chipsets(enum.Enum):
+        AppleIntel8254XEthernet = "AppleIntel8254XEthernet Supported"
+        AppleIntelI210Ethernet  = "AppleIntelI210Ethernet Supported"
+        Intel82574L             = "Intel82574L Supported"
+        Unknown                 = "Unknown"
+
+    chipset: Chipsets = field(init=False)
+
+    def detect_chipset(self):
+        if   self.device_id in pci_data.intel_ids.AppleIntel8254XEthernet: self.chipset = IntelEthernet.Chipsets.AppleIntel8254XEthernet
+        elif self.device_id in pci_data.intel_ids.AppleIntelI210Ethernet:  self.chipset = IntelEthernet.Chipsets.AppleIntelI210Ethernet
+        elif self.device_id in pci_data.intel_ids.Intel82574L:             self.chipset = IntelEthernet.Chipsets.Intel82574L
+        else:                                                               self.chipset = IntelEthernet.Chipsets.Unknown
+
+@dataclass
+class BroadcomEthernet(EthernetController):
+    VENDOR_ID: ClassVar[int] = 0x14E4
+
+    class Chipsets(enum.Enum):
+        AppleBCM5701Ethernet = "AppleBCM5701Ethernet supported"
+        Unknown              = "Unknown"
+
+    chipset: Chipsets = field(init=False)
+
+    def detect_chipset(self):
+        if self.device_id in pci_data.broadcom_ids.AppleBCM5701Ethernet:
+            self.chipset = BroadcomEthernet.Chipsets.AppleBCM5701Ethernet
+        else:
+            self.chipset = BroadcomEthernet.Chipsets.Unknown
+
+@dataclass
 class Aquantia(EthernetController):
     VENDOR_ID: ClassVar[int] = 0x1D6A
 
@@ -608,7 +614,6 @@ class Aquantia(EthernetController):
             self.chipset = Aquantia.Chipsets.AppleEthernetAquantiaAqtion
         else:
             self.chipset = Aquantia.Chipsets.Unknown
-
 
 @dataclass
 class Marvell(EthernetController):
@@ -625,20 +630,6 @@ class Marvell(EthernetController):
             self.chipset = Marvell.Chipsets.MarvelYukonEthernet
         else:
             self.chipset = Marvell.Chipsets.Unknown
-
-
-@dataclass
-class NVIDIAEthernet(EthernetController):
-    VENDOR_ID: ClassVar[int] = 0x10DE
-
-    class Chipsets(enum.Enum):
-        nForceEthernet = "nForceEthernet"
-
-    chipset: Chipsets = field(init=False)
-
-    def detect_chipset(self):
-        self.chipset = NVIDIAEthernet.Chipsets.nForceEthernet
-
 
 @dataclass
 class SysKonnect(EthernetController):
@@ -703,6 +694,8 @@ def _detect_wifi(vendor_id, device_id, class_code, name, pci_path):
 # ---------------------------------------------------------------------------
 # Computer
 # ---------------------------------------------------------------------------
+
+
 
 @dataclass
 class Computer:
@@ -1037,19 +1030,12 @@ class Computer:
             pass
 
     def mbt_sys_patch_probe(self):
-        from pathlib import Path
-        import plistlib
-        path = Path("/System/Library/CoreServices/MacBoxTool.plist")
-        if not path.exists():
+        if not mbt_plist_exists():
             self.mbt_sys_signed = True
             return
-        try:
-            sys_plist = plistlib.load(path.open("rb"))
-        except Exception:
-            return
-        if sys_plist:
-            self.mbt_sys_version = sys_plist.get("MacBoxTool")
-            self.mbt_sys_date = sys_plist.get("Time Patched")
-            self.mbt_sys_url = sys_plist.get("Commit URL")
-            if "Custom Signature" in sys_plist:
-                self.mbt_sys_signed = sys_plist["Custom Signature"]
+        sys_plist = read_mbt_plist()
+        self.mbt_sys_version = sys_plist.get("MacBoxTool")
+        self.mbt_sys_date = sys_plist.get("Time Patched")
+        self.mbt_sys_url = sys_plist.get("Commit URL")
+        if "Custom Signature" in sys_plist:
+            self.mbt_sys_signed = sys_plist["Custom Signature"]

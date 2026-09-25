@@ -47,30 +47,26 @@ signal.signal(signal.SIGINT, _signal_handler)
 from .install import Install
 import importlib
 if sys.platform=="darwin":
-    from .support import (
-        utilities,
-        reroute_payloads,
-        commit_info,
-        logging_handler
-    )
+    from .support.artifacts import reroute_payloads
+    from .support.config import commit_info
+    from .support.diagnostics import logging_handler
+    from .support.system import utilities
 else:
-    from .support import (
-        utilities_win as utilities,
-        reroute_payloads,
-        commit_info,
-        logging_handler
-    )
+    from .support.artifacts import reroute_payloads
+    from .support.config import commit_info
+    from .support.diagnostics import logging_handler
+    from .support.system import utilities_win as utilities
 import threading
 import logging
 import time
 import os
 from pathlib import Path
-# CLI parsing moved to support/utilities.check_cli_args()
+# CLI parsing moved to support/system/utilities.check_cli_args()
 
 
 from .constants import Constants
-from .support.logging_handler import LoggingHandler
-from .support.global_settings import GlobalSettings
+from .support.diagnostics.logging_handler import LoggingHandler
+from .support.config.global_settings import GlobalSettings
 if sys.platform=="darwin":
     from .detections import device_probe
 else:
@@ -88,7 +84,7 @@ class MacBoxTool:
         self.constants: Constants = Constants()
         self.constants.cli_mode = cli_mode
         try:
-            from .support import crash_report
+            from .support.diagnostics import crash_report
             crash_report.install()
         except ImportError:
             pass
@@ -102,7 +98,7 @@ class MacBoxTool:
         self.constants.custom_model=self.target_model if self.target_model not in ("", "N/A", None) else None
 
         if cli_mode:
-            from .support.arguments import arguments
+            from .support.config.arguments import arguments
             arguments(self.constants)
         else:
             if gui_patch or gui_unpatch:
@@ -193,10 +189,10 @@ class MacBoxTool:
             self.constants.installer_pkg_url_nightly = self.constants.installer_pkg_url_nightly.replace("main", branch)
 
        
-        from .support import analytics_handler
+        from .support.diagnostics import analytics_handler
         threading.Thread(target=analytics_handler.Analytics(self.constants).send_analytics, daemon=True).start()
 
-        from .support.on_nightly import CheckNightly
+        from .support.config.on_nightly import CheckNightly
         if CheckNightly(self.constants).check() is True:
             self.constants.allow_nightly_check = True  
 

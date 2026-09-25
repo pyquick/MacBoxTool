@@ -3,13 +3,14 @@ gui_all_download.py: Download interface with Pivot tabs
 """
 
 from ..include import *
+from ..support.ui.qt_helpers import WorkerShutdownMixin
 from .gui_support import DefGUI
 from .gui_macos_installer import MacOSInstallerList
 from .gui_kdk import KDKList
 from .gui_metallib import MetallibList
 
 
-class DownloadInterface(QWidget):
+class DownloadInterface(WorkerShutdownMixin, QWidget):
     """Download interface with Pivot tabs for different download categories"""
 
     def __init__(self, global_constants: Constants, ui_support: DefGUI = None, global_settings: GlobalSettings = None, parent=None):
@@ -104,6 +105,3 @@ class DownloadInterface(QWidget):
             if callable(cleanup):
                 cleanup(deadline)
 
-    def closeEvent(self, event):
-        self.cleanup_workers()
-        super().closeEvent(event)

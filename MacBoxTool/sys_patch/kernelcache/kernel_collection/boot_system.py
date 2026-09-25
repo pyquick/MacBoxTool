@@ -6,7 +6,7 @@ import logging
 import subprocess
 
 from ..base.cache import BaseKernelCache
-from ....support  import subprocess_wrapper
+from ....support.system import subprocess_wrapper
 from ....datasets import os_data
 
 

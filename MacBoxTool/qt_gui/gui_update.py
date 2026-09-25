@@ -2,7 +2,9 @@
 gui_update.py: MacBoxTool update interface.
 """
 from ..include import *
+from ..support.ui.qt_helpers import WorkerShutdownMixin
 from .gui_support import DefGUI, stop_qt_workers
+from ..support.system.formatting import format_size
 from ..support.update import check_update, fetch_update, install_update, launch
 
 
@@ -30,7 +32,7 @@ class InstallUpdateWorker(QThread):
             self.finished_signal.emit(False, str(e))
 
 
-class Updater(ScrollArea):
+class Updater(WorkerShutdownMixin, ScrollArea):
     """GUI page for checking, downloading, and installing updates."""
 
     def __init__(
@@ -242,22 +244,6 @@ class Updater(ScrollArea):
         """Write update diagnostics to CLI/logging only."""
         logging.log(level, f"[Update] {message}")
 
-    def _format_size(self, size: int) -> str:
-        """Format byte counts for the download progress label."""
-        if size == 0:
-            return "0 B"
-
-        units = ["B", "KB", "MB", "GB", "TB"]
-        size_float = float(size)
-        unit_index = 0
-        while size_float >= 1024 and unit_index < len(units) - 1:
-            size_float /= 1024
-            unit_index += 1
-
-        if unit_index == 0:
-            return f"{int(size_float)} {units[unit_index]}"
-        return f"{size_float:.2f} {units[unit_index]}"
-
     # ------------------------------------------------------------------
     # User action handlers
     # ------------------------------------------------------------------
@@ -401,10 +387,10 @@ class Updater(ScrollArea):
             percent = int((downloaded / total) * 100)
             self.progress_bar.setValue(percent)
             self.progress_label.setText(
-                f"Downloading update... {percent}% ({self._format_size(downloaded)} / {self._format_size(total)})"
+                f"Downloading update... {percent}% ({format_size(downloaded)} / {format_size(total)})"
             )
         else:
-            self.progress_label.setText(f"Downloading update... {self._format_size(downloaded)}")
+            self.progress_label.setText(f"Downloading update... {format_size(downloaded)}")
 
     def _on_download_finished(self, success: bool, message: str):
         """Restore GUI state after the download worker exits."""
@@ -485,7 +471,3 @@ class Updater(ScrollArea):
         self._cancel_update_download()
         stop_qt_workers((getattr(self, "update_worker", None),), deadline=deadline)
 
-    def closeEvent(self, event):
-        """Cancel update work before the widget closes."""
-        self.cleanup_workers()
-        super().closeEvent(event)

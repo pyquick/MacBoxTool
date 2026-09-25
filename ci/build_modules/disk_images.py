@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 
 import MacBoxTool.constants as constants
-from MacBoxTool.support import subprocess_wrapper
+from MacBoxTool.support.system import subprocess_wrapper
 
 
 

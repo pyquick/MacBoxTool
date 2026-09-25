@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QMenuBar, QMenu, QMessageBox, QProgressBar, QPlain
 from PySide6.QtCore import QMetaObject, Qt, Q_ARG, QTimer, QObject
 from PySide6.QtGui import QFont
 from shiboken6 import isValid as is_qt_object_valid
+from ..support.artifacts.plist_metadata import mbt_plist_value
 import subprocess
 import sys
 import logging
@@ -421,18 +422,14 @@ class CheckProperties:
         """
         Grab PatcherSupportPkg version from MacBoxTool.plist
         """
-        mbt_plist_path = "/System/Library/CoreServices/MacBoxTool.plist"
-        if not Path(mbt_plist_path).exists():
+        psp_version = mbt_plist_value("PatcherSupportPkg")
+        if not psp_version:
             return packaging.version.Version("0.0.0")
 
-        mbt_plist = plistlib.load(open(mbt_plist_path, "rb"))
-        if "PatcherSupportPkg" not in mbt_plist:
-            return packaging.version.Version("0.0.0")
+        if psp_version.startswith("v"):
+            psp_version = psp_version[1:]
 
-        if mbt_plist["PatcherSupportPkg"].startswith("v"):
-            mbt_plist["PatcherSupportPkg"] = mbt_plist["PatcherSupportPkg"][1:]
-
-        return packaging.version.parse(mbt_plist["PatcherSupportPkg"])
+        return packaging.version.parse(psp_version)
 
     def host_has_3802_gpu(self) -> bool:
         """
@@ -597,32 +594,6 @@ class PayloadMount:
             "During unpacking of our internal files, we seemed to have encountered an error.\n\nIf you keep seeing this error, please try rebooting and redownloading the application."
         )
         sys.exit(1)
-
-
-class ThreadHandler(logging.Handler):
-    """
-    Reroutes logging output to a Qt text widget using UI callbacks
-    Thread-safe for Qt GUI updates
-    """
-
-    def __init__(self, text_edit: QPlainTextEdit | QTextEdit):
-        logging.Handler.__init__(self)
-        self.text_edit = text_edit
-
-    def emit(self, record: logging.LogRecord):
-        """Thread-safe emit using Qt's signal/slot mechanism"""
-        msg = self.format(record)
-        if isinstance(self.text_edit, QPlainTextEdit):
-            method = "appendPlainText"
-        else:
-            method = "append"
-
-        QMetaObject.invokeMethod(
-            self.text_edit,
-            method,
-            Qt.ConnectionType.QueuedConnection,
-            Q_ARG(str, msg)
-        )
 
 
 class RestartHost:

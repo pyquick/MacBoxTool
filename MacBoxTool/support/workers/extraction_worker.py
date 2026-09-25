@@ -12,12 +12,12 @@ from typing import Optional
 
 from PySide6.QtCore import QThread, Signal
 
-from ..macos_installer_handler import InstallerCreation
+from ..artifacts.macos_installer_handler import InstallerCreation
 
 if sys.platform == "win32":
-    from .. import utilities_win as utilities
+    from ..system import utilities_win as utilities
 else:
-    from .. import utilities
+    from ..system import utilities
 
 
 class ExtractionWorker(QThread):

@@ -11,7 +11,8 @@ from datetime import datetime
 from ...patchsets import PatchType
 
 from ....datasets import os_data
-from ....support  import subprocess_wrapper
+from ....support.artifacts.plist_metadata import mbt_plist_exists, read_mbt_plist
+from ....support.system import subprocess_wrapper
 
 
 class KernelCacheSupport:
@@ -119,9 +120,8 @@ class KernelCacheSupport:
         if self.detected_os < os_data.os_data.big_sur:
             return
         logging.info("- Cleaning Auxiliary Kernel Collection")
-        mbt_path = "/System/Library/CoreServices/MacBoxTool.plist"
-        if Path(mbt_path).exists():
-            mbt_plist_data = plistlib.load(Path(mbt_path).open("rb"))
+        if mbt_plist_exists():
+            mbt_plist_data = read_mbt_plist()
             for key in mbt_plist_data:
                 if isinstance(mbt_plist_data[key], (bool, int)):
                     continue

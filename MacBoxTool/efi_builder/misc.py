@@ -12,7 +12,7 @@ from . import support
 
 from .. import constants
 
-from ..support import generate_smbios
+from ..support.hardware import generate_smbios
 
 import sys
 if sys.platform=="darwin":

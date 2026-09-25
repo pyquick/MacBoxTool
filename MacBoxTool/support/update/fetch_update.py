@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 
 from ...constants import Constants
-from ..network_handler import DownloadObject, DownloadWorker
+from ..net.network_handler import DownloadObject, DownloadWorker
 from .support import VisitGithubAPI
 from .check_update import UPDATE_RESULT_TEMPLATE
 

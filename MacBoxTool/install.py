@@ -2,7 +2,7 @@ import subprocess
 import logging
 import sys
 
-from .support.global_settings import GlobalSettings
+from .support.config.global_settings import GlobalSettings
 from .constants import Constants
 
 

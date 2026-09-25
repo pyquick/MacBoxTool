@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 
 from MacBoxTool.volume  import generate_copy_arguments
-from MacBoxTool.support import subprocess_wrapper
+from MacBoxTool.support.system import subprocess_wrapper
 from gen import generate_manifest
 
 
@@ -51,7 +51,7 @@ class GenerateApplication:
         """
         Embed analytics key
         """
-        _file = Path("./MacBoxTool/support/analytics_handler.py")
+        _file = Path("./MacBoxTool/support/diagnostics/analytics_handler.py")
 
         if not all([self._analytics_key, self._analytics_endpoint]):
             print("Analytics key or endpoint not provided, skipping embedding")
@@ -79,7 +79,7 @@ class GenerateApplication:
         """
         Remove analytics key
         """
-        _file = Path("./MacBoxTool/support/analytics_handler.py")
+        _file = Path("./MacBoxTool/support/diagnostics/analytics_handler.py")
 
         if not all([self._analytics_key, self._analytics_endpoint]):
             return

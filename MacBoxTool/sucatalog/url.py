@@ -16,7 +16,7 @@ from .constants import (
     CatalogExtension
 )
 
-from ..support import network_handler
+from ..support.net import network_handler
 
 
 class CatalogURL:

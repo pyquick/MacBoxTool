@@ -7,7 +7,7 @@ from ..base import BaseHardware, HardwareVariant
 from ...base import PatchType
 
 from .....constants import Constants
-from .....support   import utilities
+from .....support.system import utilities
 
 from .....datasets.os_data import os_data
 

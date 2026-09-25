@@ -11,7 +11,7 @@ from pathlib import Path
 from .apfs_snapshot import APFSSnapshot
 
 from ...datasets import os_data
-from ..           import subprocess_wrapper
+from ..system import subprocess_wrapper
 
 
 class RootVolumeMount:

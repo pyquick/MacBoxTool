@@ -58,12 +58,13 @@ from ... import constants
 
 from ...datasets import sip_data
 from ...datasets.os_data import os_data
-from ...support import (
-    network_handler,
-    utilities,
+from ...support.artifacts import (
     kdk_handler,
-    metallib_handler
+    metallib_handler,
 )
+from ...support.artifacts.plist_metadata import mbt_plist_exists, read_mbt_plist
+from ...support.net import network_handler
+from ...support.system import utilities
 from ...detections import (
     amfi_detect,
     device_probe
@@ -218,11 +219,10 @@ class HardwarePatchsetDetection:
         """
         if self._constants.commit_info[0] in ["Running from source", "Built from source"] or self._constants.commit_info[2] is None or self._constants.commit_info[2] == "":
             return False
-        mbt_patch_path = "/System/Library/CoreServices/MacBoxTool.plist"
-        if not Path(mbt_patch_path).exists():
+        if not mbt_plist_exists():
             return self._is_root_volume_dirty()
 
-        mbt_plist = plistlib.load(open(mbt_patch_path, "rb"))
+        mbt_plist = read_mbt_plist()
 
         if self._constants.computer.mbt_sys_url != self._constants.commit_info[2]:
             logging.error("Installed patches are from different commit, unpatching is required")
@@ -352,13 +352,7 @@ class HardwarePatchsetDetection:
         """
         Check if network patches are already applied
         """
-        mbt_patch_path = "/System/Library/CoreServices/MacBoxTool.plist"
-        if not Path(mbt_patch_path).exists():
-            return False
-        try:
-            mbt_plist = plistlib.load(open(mbt_patch_path, "rb"))
-        except Exception as e:
-            return False
+        mbt_plist = read_mbt_plist()
         if "Legacy Wireless" in mbt_plist or "Modern Wireless" in mbt_plist or "传统无线补丁" in mbt_plist or "现代无线补丁" in mbt_plist:
             return True
         return False

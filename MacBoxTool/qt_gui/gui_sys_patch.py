@@ -3,18 +3,16 @@ gui_sys_patch.py: Root patching interface
 """
 
 from ..include import *
+from ..support.ui.qt_helpers import clear_layout
+from ..support.ui.log_bridge import QtLogHandler
 from .gui_support import AutoUpdateStages, DefGUI, PayloadMount, ProgressStatusHelper, RestartHost, stop_qt_workers
 
-try:
-    from ..support.crash_report import send_error_report_async
-except Exception:
-    # crash_report.py is a dev-only module; skip silently when unavailable
-    def send_error_report_async(*args, **kwargs) -> None:
-        pass
-
+from ..support.diagnostics.error_reporting import send_error_report_async
 from ..datasets import os_data
-from ..support import kdk_handler, metallib_handler
-from ..support.network_handler import DownloadStatus, DownloadWorker
+from ..support.artifacts import kdk_handler, metallib_handler
+from ..support.artifacts.plist_metadata import mbt_plist_exists, read_mbt_plist
+from ..support.net.network_handler import DownloadStatus, DownloadWorker
+from ..support.system.formatting import format_size
 from ..sys_patch import sys_patch as sys_patch_module
 from ..sys_patch.patchsets import (
     HardwarePatchsetDetection,
@@ -23,18 +21,6 @@ from ..sys_patch.patchsets import (
 )
 from shiboken6 import isValid as is_qt_object_valid
 import threading
-
-
-class _PatchLogHandler(logging.Handler):
-    def __init__(self, log_signal, thread_id: int):
-        super().__init__()
-        self._log_signal = log_signal
-        self._thread_id = thread_id
-
-    def emit(self, record: logging.LogRecord):
-        if record.thread != self._thread_id:
-            return
-        self._log_signal.emit(self.format(record))
 
 
 class PatchDetectionWorker(QThread):
@@ -71,7 +57,7 @@ class PatchRunWorker(QThread):
         self.revert = revert
 
     def run(self):
-        handler = _PatchLogHandler(self.log_signal, threading.get_ident())
+        handler = QtLogHandler(self.log_signal, thread_id=threading.get_ident())
         handler.setFormatter(logging.Formatter("%(message)s"))
         logger = logging.getLogger()
         logger.addHandler(handler)
@@ -253,24 +239,7 @@ class SysPatch(ScrollArea):
                 checkbox.setEnabled(not busy)
 
     def _clear_layout(self, layout: QLayout):
-        while layout.count():
-            item = layout.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
-
-    def _format_size(self, size: int) -> str:
-        if size <= 0:
-            return "0 B"
-        units = ["B", "KB", "MB", "GB", "TB"]
-        value = float(size)
-        index = 0
-        while value >= 1024 and index < len(units) - 1:
-            value /= 1024
-            index += 1
-        if index == 0:
-            return f"{int(value)} {units[index]}"
-        return f"{value:.2f} {units[index]}"
+        clear_layout(layout)
 
     def _remove_download_card(self):
         if self.download_card and is_qt_object_valid(self.download_card):
@@ -425,7 +394,7 @@ class SysPatch(ScrollArea):
         percent = int((downloaded / total) * 100) if total else 0
         self.download_progress_bar.setValue(percent)
         self.download_percent_label.setText(f"{percent}%")
-        self.download_detail_label.setText(f"{self._format_size(downloaded)} / {self._format_size(total)}")
+        self.download_detail_label.setText(f"{format_size(downloaded)} / {format_size(total)}")
 
     def _reset_to_initial_state(self):
         self._clear_layout(self.patch_layout)
@@ -858,11 +827,10 @@ class SysPatch(ScrollArea):
             logging.info(f"- Commit URLs: {self.constants.commit_info[2]}")
             return True
 
-        macboxtool_plist = "/System/Library/CoreServices/MacBoxTool.plist"
-        if not Path(macboxtool_plist).exists():
+        if not mbt_plist_exists():
             return True
 
-        macboxtool_plist_data = plistlib.load(open(macboxtool_plist, "rb"))
+        macboxtool_plist_data = read_mbt_plist()
         for patch in patches:
             if not patch.startswith("Settings") and not patch.startswith("Validation") and patches[patch] is True:
                 if patch.split(": ")[1] not in macboxtool_plist_data:

@@ -1,4 +1,5 @@
 from ..include import *
+from ..support.system.rosetta import is_apple_silicon
 from .gui_support import DefGUI, AutoUpdateStages
 
 from .gui_introduction import Introduction
@@ -256,7 +257,7 @@ class Window(FluentWindow):
                 "Download Tasks",
                 NavigationItemPosition.SCROLL
             )
-            if sys.platform=="darwin" and not is_apple_silicon_runtime():
+            if sys.platform=="darwin" and not is_apple_silicon():
                 from .gui_sys_patch import SysPatch
                 self.sys_patch_page=SysPatch(self.constants,self.gui_support,self.settings,self)
                 self.addSubInterface(

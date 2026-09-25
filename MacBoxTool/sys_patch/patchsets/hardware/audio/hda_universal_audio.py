@@ -6,7 +6,7 @@ from ..base import BaseHardware, HardwareVariant
 from ...base import PatchType
 from .....constants import Constants
 from .....datasets.os_data import os_data
-from .....support   import utilities
+from .....support.system import utilities
 class HDAU(BaseHardware):
 
     def __init__(self, xnu_major, xnu_minor, os_build, global_constants: Constants) -> None:

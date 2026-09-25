@@ -3,49 +3,19 @@ gui_metallib.py: Metallib Support Package download interface
 """
 
 from ..include import *
+from ..support.ui.qt_helpers import WorkerShutdownMixin, clear_layout
 from .gui_support import DefGUI
-from ..support.network_handler import DownloadObject
-from ..support.kdk_sort import parse_build_version, build_letter_to_minor, sort_packages
+from ..support.net.network_handler import DownloadObject
+from ..support.artifacts.kdk_sort import build_letter_to_minor, sort_packages
+from ..support.artifacts.build_version import (
+    build_to_kernel,
+    build_to_marketing_name,
+    version_major_minor,
+)
+from ..support.ui.cards import NoAnimCardWidget
+from ..support.ui.package_icon import package_icon_path
 from .gui_task import TaskManager
-from PySide6.QtWidgets import QFrame
-from PySide6.QtGui import QPainter, QColor, QPainterPath
 import re
-
-
-def parse_build_version(build_string):
-    build_string = str(build_string or "")
-    match = re.match(r'^(\d+)([A-Za-z])?(\d*)([A-Za-z]*)', build_string)
-    if not match:
-        return (0, -1, 0, ())
-
-    kernel_major = int(match.group(1)) if match.group(1) else 0
-    letter = match.group(2) or ""
-    letter_index = build_letter_to_minor(letter) if letter else -1
-    build_digits = match.group(3) or ""
-    build_number_parts = tuple(int(char) for char in build_digits) + (-1,)
-    suffix = tuple(ord(char.lower()) for char in (match.group(4) or ""))
-    return (kernel_major, letter_index, build_number_parts, suffix)
-
-
-def build_to_kernel(build_string):
-    match = re.match(r'^(\d+)[A-Za-z]', str(build_string or ""))
-    if match:
-        return int(match.group(1))
-    return None
-
-
-def build_letter_to_minor(letter):
-    letter_index = ord(letter.upper()) - ord("A")
-    if letter.upper() > "I":
-        letter_index -= 1
-    return letter_index
-
-
-def version_major_minor(version):
-    match = re.match(r'^(\d+)\.(\d+)', str(version or ""))
-    if not match:
-        return None
-    return (int(match.group(1)), int(match.group(2)))
 
 
 def build_to_display_version(item):
@@ -71,16 +41,6 @@ def build_to_display_version(item):
     return expected_version
 
 
-def build_to_marketing_name(item):
-    kernel_major = build_to_kernel(item.get("build", ""))
-    if kernel_major is None:
-        try:
-            kernel_major = os_data.os_conversion.os_to_kernel(str(item.get("version", "0")))
-        except (ValueError, IndexError):
-            return ""
-    return os_data.os_conversion.convert_kernel_to_marketing_name(kernel_major)
-
-
 def display_version_major(item):
     try:
         return int(str(build_to_display_version(item)).split('.')[0])
@@ -91,73 +51,6 @@ def display_version_major(item):
 def sort_by_build(items):
     return sort_packages(items)
 
-
-
-class NoAnimCardWidget(QFrame):
-    """Simple card widget without hover animation"""
-
-    clicked = Signal()
-
-    def __init__(self, parent=None):
-        super().__init__(parent=parent)
-        self._borderRadius = 5
-
-    def mouseReleaseEvent(self, e):
-        super().mouseReleaseEvent(e)
-        self.clicked.emit()
-
-    def getBorderRadius(self):
-        return self._borderRadius
-
-    def setBorderRadius(self, radius: int):
-        self._borderRadius = radius
-        self.update()
-
-    def paintEvent(self, e):
-        painter = QPainter(self)
-        painter.setRenderHints(QPainter.Antialiasing)
-
-        w, h = self.width(), self.height()
-        r = self.borderRadius
-        d = 2 * r
-
-        isDark = isDarkTheme()
-
-        # draw top border
-        path = QPainterPath()
-        path.arcMoveTo(1, h - d - 1, d, d, 240)
-        path.arcTo(1, h - d - 1, d, d, 225, -60)
-        path.lineTo(1, r)
-        path.arcTo(1, 1, d, d, -180, -90)
-        path.lineTo(w - r, 1)
-        path.arcTo(w - d - 1, 1, d, d, 90, -90)
-        path.lineTo(w - 1, h - r)
-        path.arcTo(w - d - 1, h - d - 1, d, d, 0, -60)
-
-        topBorderColor = QColor(0, 0, 0, 20)
-        if isDark:
-            topBorderColor = QColor(255, 255, 255, 13)
-        else:
-            topBorderColor = QColor(0, 0, 0, 15)
-
-        painter.strokePath(path, topBorderColor)
-
-        # draw bottom border
-        path = QPainterPath()
-        path.arcMoveTo(1, h - d - 1, d, d, 240)
-        path.arcTo(1, h - d - 1, d, d, 240, 30)
-        path.lineTo(w - r - 1, h - 1)
-        path.arcTo(w - d - 1, h - d - 1, d, d, 270, 30)
-
-        painter.strokePath(path, topBorderColor)
-
-        # draw background
-        painter.setPen(Qt.NoPen)
-        bgColor = QColor(255, 255, 255, 13 if isDark else 170)
-        painter.setBrush(bgColor)
-        painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), r, r)
-
-    borderRadius = Property(int, getBorderRadius, setBorderRadius)
 
 
 class MetallibCard(NoAnimCardWidget):
@@ -174,7 +67,7 @@ class MetallibCard(NoAnimCardWidget):
 
         # 使用 build 推断显示版本，避免上游 beta version 错误。
         major_version = display_version_major(metallib_data)
-        icon_path = self.get_package_icon_path(major_version)
+        icon_path = package_icon_path(constants, major_version, require_exists=False)
 
         self.icon_widget = ImageLabel(icon_path, self)
         self.icon_widget.setFixedSize(48, 48)
@@ -200,33 +93,6 @@ class MetallibCard(NoAnimCardWidget):
         self.copy_link_button.clicked.connect(self._on_copy_link)
 
         self._init_layout()
-
-    def get_package_icon_path(self, major_version: int) -> str:
-        """
-        Get package icon path for a given macOS major version.
-        Returns PNG path with version-specific icon (Packagexx.png where 11<=xx<=26).
-
-        Args:
-            major_version: macOS major version (e.g., 11 for Big Sur, 15 for Sequoia)
-
-        Returns:
-            str: Path to package icon PNG file
-        """
-        # 将显示用 macOS major version 映射到已有或预留的 package 图标。
-        if major_version == 27:
-            return str(Path(self.constants.package_icns_path_tahoe).with_name("Package27.icns").with_suffix(".png"))
-        if major_version == 26:
-            index = 6
-        elif 11 <= major_version <= 15:
-            index = major_version - 10
-        else:
-            return str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
-
-        if index < len(self.constants.package_icns_paths):
-            icns_path = self.constants.package_icns_paths[index]
-            return str(Path(icns_path).with_suffix(".png"))
-
-        return str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
 
     def _init_layout(self):
         layout = QHBoxLayout(self)
@@ -258,7 +124,7 @@ class MetallibCard(NoAnimCardWidget):
             )
 
 
-class MetallibList(ScrollArea):
+class MetallibList(WorkerShutdownMixin, ScrollArea):
     """Metallib list interface"""
 
     def __init__(self, global_constants: Constants, ui_support: DefGUI = None, global_settings: GlobalSettings = None, parent=None):
@@ -334,7 +200,7 @@ class MetallibList(ScrollArea):
             self._data_worker = None
 
         # Create new data processing worker
-        from ..support.multiprocess_data_handler import DataProcessorWorker
+        from ..support.artifacts.multiprocess_data_handler import DataProcessorWorker
 
         self._data_worker = DataProcessorWorker(
             self.constants.metallib_api_link,
@@ -375,10 +241,7 @@ class MetallibList(ScrollArea):
         """Handle latest-only toggle"""
         self.show_latest_only = checked
         self.is_loading = False
-        while self.expandLayout.count():
-            item = self.expandLayout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        clear_layout(self.expandLayout)
         self._init_loading()
         self._show_loading(True)
         if self.available_metallibs:
@@ -397,10 +260,7 @@ class MetallibList(ScrollArea):
     def _display_metallibs(self):
         # Clear all widgets from layout
         self.is_loading = True
-        while self.expandLayout.count():
-            item = self.expandLayout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        clear_layout(self.expandLayout)
 
         # Re-add header and loading container
         self._init_header()
@@ -445,41 +305,11 @@ class MetallibList(ScrollArea):
                 self._show_loading(False)
         else:
             # Clear all widgets from layout
-            while self.expandLayout.count():
-                item = self.expandLayout.takeAt(0)
-                if item.widget():
-                    item.widget().deleteLater()
+            clear_layout(self.expandLayout)
             self._init_loading()
             self._show_loading(True)
             if self.available_metallibs:
                 QTimer.singleShot(800, lambda: self._display_metallibs())
-
-    def get_package_icon_path(self, major_version: int) -> str:
-        """
-        Get package icon path for a given macOS major version.
-        Returns PNG path with version-specific icon (Packagexx.png where 11<=xx<=26).
-
-        Args:
-            major_version: macOS major version (e.g., 11 for Big Sur, 15 for Sequoia)
-
-        Returns:
-            str: Path to package icon PNG file
-        """
-        # 将显示用 macOS major version 映射到已有或预留的 package 图标。
-        if major_version == 27:
-            return str(Path(self.constants.package_icns_path_tahoe).with_name("Package27.icns").with_suffix(".png"))
-        if major_version == 26:
-            index = 6
-        elif 11 <= major_version <= 15:
-            index = major_version - 10
-        else:
-            return str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
-
-        if index < len(self.constants.package_icns_paths):
-            icns_path = self.constants.package_icns_paths[index]
-            return str(Path(icns_path).with_suffix(".png"))
-
-        return str(Path(self.constants.package_icns_path_generic).with_suffix(".png"))
 
     def _on_download(self, metallib_data: dict):
         url = metallib_data.get("url")
@@ -496,7 +326,7 @@ class MetallibList(ScrollArea):
 
         # 使用 build 推断显示版本，避免上游 beta version 错误。
         major_version = display_version_major(metallib_data)
-        icon_path = self.get_package_icon_path(major_version)
+        icon_path = package_icon_path(self.constants, major_version, require_exists=False)
 
         TaskManager.start_download(download_obj, icon=icon_path)
 
@@ -507,9 +337,4 @@ class MetallibList(ScrollArea):
         if self._data_worker is not None:
             self._data_worker.stop()
             self._data_worker = None
-
-    def closeEvent(self, event):
-        """Clean up resources when window closes."""
-        self.cleanup_workers()
-        super().closeEvent(event)
 

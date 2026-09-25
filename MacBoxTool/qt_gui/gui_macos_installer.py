@@ -3,9 +3,11 @@ gui_macos_installer.py: macOS Installer list with InstallerCard
 """
 
 from ..include import *
+from ..support.ui.qt_helpers import WorkerShutdownMixin, clear_layout
 from .. import sucatalog
 from .gui_support import DefGUI
 from .gui_task import TaskManager
+from ..support.system.formatting import format_size
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import sys
 
@@ -28,22 +30,6 @@ def _installer_download_size(installer_data: dict) -> int:
         return max(0, int(install_assistant.get("Size", 0) or 0))
     except (TypeError, ValueError):
         return 0
-
-
-def _format_file_size(size: int) -> str:
-    if size <= 0:
-        return "Unknown"
-
-    units = ("B", "KB", "MB", "GB", "TB")
-    value = float(size)
-    unit_index = 0
-    while value >= 1024 and unit_index < len(units) - 1:
-        value /= 1024
-        unit_index += 1
-
-    if unit_index == 0:
-        return f"{int(value)} {units[unit_index]}"
-    return f"{value:.2f} {units[unit_index]}"
 
 
 def _installer_icon_path(installer_data: dict, constants: Constants) -> str:
@@ -133,7 +119,7 @@ class InstallerCard(CardWidget):
         self.version_label = CaptionLabel(f"Version: {version_str} | Build: {build}")
 
         size = _installer_download_size(self.installer_data)
-        self.size_label = CaptionLabel(f"Size: {_format_file_size(size)}")
+        self.size_label = CaptionLabel(f"Size: {format_size(size, unknown='Unknown')}")
 
     def _init_download_button(self):
         """Initialize download button"""
@@ -195,7 +181,7 @@ class InstallerCard(CardWidget):
     
 
 
-class MacOSInstallerList(ScrollArea):
+class MacOSInstallerList(WorkerShutdownMixin, ScrollArea):
     """Scrollable list of macOS installers"""
 
     def __init__(self, global_constants: Constants, ui_support: DefGUI = None, global_settings: GlobalSettings = None, parent=None):
@@ -437,10 +423,7 @@ class MacOSInstallerList(ScrollArea):
 
     def _clear_layout(self):
         """Clear all widgets from the layout"""
-        while self.expandLayout.count():
-            item = self.expandLayout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        clear_layout(self.expandLayout)
 
     # ── Display ──
 
@@ -613,7 +596,3 @@ class MacOSInstallerList(ScrollArea):
             self._loading_thread.join(timeout=timeout)
             self._loading_thread = None
 
-    def closeEvent(self, event):
-        """Handle window close event"""
-        self.cleanup_workers()
-        super().closeEvent(event)

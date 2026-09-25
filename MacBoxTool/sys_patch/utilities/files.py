@@ -10,7 +10,7 @@ from pathlib import Path
 from ..patchsets.base import PatchType
 
 from ...volume  import generate_copy_arguments
-from ...support import subprocess_wrapper
+from ...support.system import subprocess_wrapper
 
 def install_new_file(source_folder: Path, destination_folder: Path, file_name: str, method: PatchType) -> None:
     """

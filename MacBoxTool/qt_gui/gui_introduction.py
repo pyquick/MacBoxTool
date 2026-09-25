@@ -2,16 +2,18 @@
 gui_introduction.py: Give introduction on GUI
 """
 from ..include import *
+from ..support.ui.qt_helpers import WorkerShutdownMixin
 from ..constants import Constants
 from .gui_support import DefGUI, stop_qt_workers
 from PySide6.QtCore import QThread, Signal, QTimer
-from ..support.on_nightly import CheckNightly
+from ..support.config.on_nightly import CheckNightly
+from ..support.system.rosetta import is_apple_silicon
 
 # Import install_helper only on macOS
 import sys
 if sys.platform == "darwin":
     try:
-        from ..support.install_helper import check_helper_installed, install_privileged_helper
+        from ..support.system.install_helper import check_helper_installed, install_privileged_helper
     except ImportError:
         check_helper_installed = None
         install_privileged_helper = None
@@ -54,7 +56,7 @@ class OCLPVersionWorker(QThread):
 _active_oclp_version_workers = set()
 
 
-class Introduction(ScrollArea):
+class Introduction(WorkerShutdownMixin, ScrollArea):
 
     # Navigation target constants
     NAV_BUILD = "build"
@@ -85,16 +87,6 @@ class Introduction(ScrollArea):
         self.ui_support=ui_support
 
         self._init_ui()
-
-    def _github_headers(self) -> dict:
-        self.token = self.constants.github_token
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        }
-        if self.token:
-            headers["Authorization"] = f"Bearer {self.token}"
-        return headers
 
     def set_navigation_callback(self, callback):
         """Set callback for page navigation."""
@@ -184,10 +176,6 @@ class Introduction(ScrollArea):
             except RuntimeError:
                 pass
             self._install_worker = None
-
-    def closeEvent(self, event):
-        self.cleanup_workers()
-        super().closeEvent(event)
 
     def _show_helper_install_dialog(self):
         """Show a dialog asking to install the helper if not already installed."""
@@ -458,7 +446,7 @@ class Introduction(ScrollArea):
             button_text="Go to Build",
             navigate_target=self.NAV_BUILD
         ))
-        if sys.platform=="darwin" and not is_apple_silicon_runtime():
+        if sys.platform=="darwin" and not is_apple_silicon():
             layout.addWidget(self._create_guide_item(
                 icon=FluentIcon.PASTE,
                 title="5. Apply Root Patches when needed",

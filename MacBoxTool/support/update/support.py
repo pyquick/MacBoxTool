@@ -9,7 +9,8 @@ import requests
 from packaging import version
 
 from ... import constants as constants
-from ..on_nightly import CheckNightly
+from ..config.on_nightly import CheckNightly
+from ..net.github import github_headers
 
 
 class VisitGithubAPI:
@@ -42,13 +43,7 @@ class VisitGithubAPI:
 
     def _github_headers(self) -> dict:
         """Build authenticated GitHub API headers when a token is configured."""
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        }
-        if self.token:
-            headers["Authorization"] = f"Bearer {self.token}"
-        return headers
+        return github_headers(self.token)
 
     @staticmethod
     def _decode_json_response(response: requests.Response) -> dict:

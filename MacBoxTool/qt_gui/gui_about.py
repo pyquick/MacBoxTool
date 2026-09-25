@@ -3,7 +3,7 @@ gui_about.py: Show about UI
 """
 
 from ..include import *
-from ..support import on_nightly
+from ..support.config import on_nightly
 from .gui_support import DefGUI
 
 def _wrap_text(items: list, width: int = 50) -> str:

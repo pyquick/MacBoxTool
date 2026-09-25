@@ -42,7 +42,7 @@ import subprocess
 from pathlib   import Path
 from functools import cache
 
-from .mount import (
+from ..support.mount import (
     RootVolumeMount,
     APFSSnapshot
 )
@@ -61,12 +61,12 @@ from ..volume   import generate_copy_arguments
 from ..datasets import (
     os_data
 )
-from ..support import (
+from ..support.artifacts import metallib_handler
+from ..support.system import (
     utilities,
     subprocess_wrapper,
-    metallib_handler,
 )
-from ..support.network_handler import DownloadWorker
+from ..support.net.network_handler import DownloadWorker
 from .patchsets import (
     HardwarePatchsetDetection,
     HardwarePatchsetSettings,
@@ -110,7 +110,7 @@ class PatchSysVolume:
             self.requires_kdk_caching = False
             self.requires_metallib_caching = False
 
-        self.mount_obj = RootVolumeMount(self.constants.detected_os, self.constants)
+        self.mount_obj = RootVolumeMount(self.constants.detected_os)
 
 
     def _init_pathing(self) -> None:
